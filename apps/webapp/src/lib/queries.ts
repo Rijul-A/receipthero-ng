@@ -3,6 +3,7 @@ import {
   batchReprocessDocuments,
   clearQueue as clearQueueFn,
   clearSkippedDocuments,
+  deleteReceiptItem as deleteReceiptItemFn,
   exportItemsCsv as exportItemsCsvFn,
   exportReceiptsCsv as exportReceiptsCsvFn,
   exportSpendingReportCsv as exportSpendingReportCsvFn,
@@ -528,6 +529,21 @@ export function useUpdateReceiptItem() {
   return useMutation({
     mutationFn: (params: { id: number; edits: ItemEdit }) =>
       updateReceiptItemFn({ data: params }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: itemKeys.all })
+      queryClient.invalidateQueries({ queryKey: receiptKeys.all })
+    },
+  })
+}
+
+/**
+ * Removes a single line item.
+ */
+export function useDeleteReceiptItem() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (params: { id: number }) =>
+      deleteReceiptItemFn({ data: params }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: itemKeys.all })
       queryClient.invalidateQueries({ queryKey: receiptKeys.all })

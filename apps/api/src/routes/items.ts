@@ -5,6 +5,7 @@ import {
   searchItemNames,
   getItemPriceHistory,
   updateReceiptItem,
+  deleteReceiptItem,
   previewCanonicalRename,
   renameCanonicalGroup,
   db,
@@ -112,6 +113,23 @@ items.patch('/:id', zValidator('json', ItemEditSchema), async (c) => {
   if (!updated) return c.json({ error: 'Item not found' }, 404)
 
   return c.json({ item: updated })
+})
+
+/**
+ * DELETE /api/items/:id
+ *
+ * Removes a single line item (e.g. a refund/discount/free line the user
+ * wants off the receipt entirely). Recalculates the receipt's total
+ * afterward.
+ */
+items.delete('/:id', async (c) => {
+  const id = parseInt(c.req.param('id'), 10)
+  if (Number.isNaN(id)) return c.json({ error: 'Invalid item id' }, 400)
+
+  const deleted = await deleteReceiptItem(id)
+  if (!deleted) return c.json({ error: 'Item not found' }, 404)
+
+  return c.json({ success: true })
 })
 
 /**

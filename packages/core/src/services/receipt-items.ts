@@ -398,6 +398,26 @@ export async function updateReceiptItem(
 }
 
 /**
+ * Removes a single line item - for refund/discount/free lines the user
+ * wants off the receipt entirely rather than corrected (e.g. netting a
+ * discount into the main item's price and deleting the separate discount
+ * line). Recalculates the receipt's total afterward, same as a price edit.
+ */
+export async function deleteReceiptItem(id: number): Promise<boolean> {
+  const existing = await db
+    .select()
+    .from(schema.receiptItems)
+    .where(eq(schema.receiptItems.id, id))
+    .get()
+  if (!existing) return false
+
+  await db.delete(schema.receiptItems).where(eq(schema.receiptItems.id, id)).run()
+  await recalculateReceiptTotal(existing.documentId, { force: true })
+
+  return true
+}
+
+/**
  * Preview of what a bulk canonical-name rename would affect, before
  * committing to it — so merging two product groups is a deliberate,
  * reviewed action rather than a blind rename.

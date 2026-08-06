@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Pencil } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import type { ReceiptItemEntry } from '@/lib/server'
 import {
   Dialog,
@@ -11,11 +11,21 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
+  useDeleteReceiptItem,
   useReceiptDetail,
   useUpdateReceipt,
   useUpdateReceiptItem,
 } from '@/lib/queries'
+
+// A refund, free item, or an AI extraction miss all end up looking like a
+// price <= 0 - flagged for the user to review (net a discount into the
+// main item's price and delete the discount line, delete a refund/free
+// line entirely, etc.) rather than silently trusted or auto-corrected.
+function needsReview(totalPrice: number | null): boolean {
+  return totalPrice !== null && totalPrice <= 0
+}
 
 interface ReceiptEditDialogProps {
   documentId: number | null
@@ -237,6 +247,14 @@ function ReceiptDetail({ documentId }: { documentId: number }) {
                   <td className="py-2 pr-4">{item.quantity}</td>
                   <td className="py-2 pr-4">
                     {formatMajorUnits(item.totalPrice)} {item.currency ?? ''}
+                    {needsReview(item.totalPrice) && (
+                      <Badge
+                        variant="outline"
+                        className="ml-2 text-amber-600 border-amber-600"
+                      >
+                        Needs review
+                      </Badge>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -256,6 +274,7 @@ function ReceiptDetail({ documentId }: { documentId: number }) {
 
 function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
   const updateItem = useUpdateReceiptItem()
+  const deleteItem = useDeleteReceiptItem()
 
   const [name, setName] = useState(item.canonicalName ?? item.itemName)
   const [quantity, setQuantity] = useState(String(item.quantity))
@@ -263,9 +282,12 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
     formatMajorUnits(item.totalPrice),
   )
 
+  const parsedTotalPrice = Number(totalPrice)
+  const showReviewWarning =
+    Number.isFinite(parsedTotalPrice) && parsedTotalPrice <= 0
+
   const handleSave = () => {
     const parsedQuantity = Number(quantity)
-    const parsedTotalPrice = Number(totalPrice)
 
     updateItem.mutate(
       {
@@ -287,44 +309,71 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
     )
   }
 
+  const handleDelete = () => {
+    deleteItem.mutate(
+      { id: item.id },
+      {
+        onSuccess: () => toast.success('Item deleted'),
+        onError: (error) => toast.error(error.message),
+      },
+    )
+  }
+
   return (
-    <div className="grid grid-cols-[1fr_5rem_6rem_auto] gap-2 items-end border-b pb-2 last:border-0">
-      <div className="space-y-1">
-        <Label className="text-[10px] text-muted-foreground">Name</Label>
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="text-xs"
-        />
+    <div className="space-y-1 border-b pb-2 last:border-0">
+      <div className="grid grid-cols-[1fr_5rem_6rem_auto_auto] gap-2 items-end">
+        <div className="space-y-1">
+          <Label className="text-[10px] text-muted-foreground">Name</Label>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[10px] text-muted-foreground">Qty</Label>
+          <Input
+            type="number"
+            min="1"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            className="text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[10px] text-muted-foreground">Price</Label>
+          <Input
+            type="number"
+            step="0.01"
+            value={totalPrice}
+            onChange={(e) => setTotalPrice(e.target.value)}
+            className="text-xs"
+          />
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleSave}
+          disabled={updateItem.isPending}
+        >
+          Save
+        </Button>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          onClick={handleDelete}
+          disabled={deleteItem.isPending}
+          aria-label={`Delete ${name}`}
+        >
+          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+        </Button>
       </div>
-      <div className="space-y-1">
-        <Label className="text-[10px] text-muted-foreground">Qty</Label>
-        <Input
-          type="number"
-          min="1"
-          value={quantity}
-          onChange={(e) => setQuantity(e.target.value)}
-          className="text-xs"
-        />
-      </div>
-      <div className="space-y-1">
-        <Label className="text-[10px] text-muted-foreground">Price</Label>
-        <Input
-          type="number"
-          step="0.01"
-          value={totalPrice}
-          onChange={(e) => setTotalPrice(e.target.value)}
-          className="text-xs"
-        />
-      </div>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={handleSave}
-        disabled={updateItem.isPending}
-      >
-        Save
-      </Button>
+      {showReviewWarning && (
+        <p className="text-[10px] text-amber-600">
+          Zero or negative price - a refund/free item you likely want to delete,
+          or a discount to net into the main item and delete this line.
+        </p>
+      )}
     </div>
   )
 }

@@ -106,6 +106,18 @@ export const updateReceiptItem = createServerFn({ method: 'POST' })
   })
 
 /**
+ * Removes a single line item.
+ * Proxies to DELETE /api/items/:id.
+ */
+export const deleteReceiptItem = createServerFn({ method: 'POST' })
+  .inputValidator((input: { id: number }) => input)
+  .handler(async (ctx) => {
+    return apiCall<{ success: boolean }>(`/api/items/${ctx.data.id}`, {
+      method: 'DELETE',
+    })
+  })
+
+/**
  * Rows that would be affected by renaming canonical product `from`.
  * Proxies to GET /api/items/rename-preview?from=...
  */

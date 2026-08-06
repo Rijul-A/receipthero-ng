@@ -185,7 +185,16 @@ function PricesPage() {
     [history],
   )
 
-  const sortedHistory = useMemo(() => sortHistoryRows(history ?? []), [history])
+  const sortedHistory = useMemo(() => {
+    // Rows with no comparable price (refunds, free items, zero/negative
+    // extraction misses) aren't useful for "which store is cheaper" - they
+    // belong in the receipt breakdown (where they can actually be reviewed
+    // and deleted), not cluttering this comparison table with a dash.
+    const comparableRows = (history ?? []).filter(
+      (row) => comparablePriceOf(row) !== null,
+    )
+    return sortHistoryRows(comparableRows)
+  }, [history])
 
   const vendorWinCounts = useMemo(
     () => computeVendorWinCounts(history ?? [], cheapestRowIds),
@@ -336,6 +345,12 @@ function PricesPage() {
             ) : !history || history.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 No purchase history found for the selected item(s) yet.
+              </p>
+            ) : sortedHistory.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                All purchases of the selected item(s) are refunds/free/zero-
+                priced lines with no comparable price. Review them from the
+                receipt they came from.
               </p>
             ) : (
               <div className="overflow-x-auto">

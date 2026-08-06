@@ -66,6 +66,7 @@ export {
   getItemPriceHistory,
   exportItemsCsv,
   updateReceiptItem,
+  deleteReceiptItem,
   previewRename,
   renameCanonicalGroup,
   type ReceiptItemEntry,

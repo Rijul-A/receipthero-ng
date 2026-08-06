@@ -101,18 +101,27 @@ export async function updateReceipt(
  * Recomputes a receipt's total from the sum of its currently-recorded line
  * items' totalPrice, and persists it. The total is intentionally never
  * directly user-editable - it should always reflect what the line items
- * actually say, so it's derived after every item edit instead. No-ops if
- * the receipt has no recorded line items (nothing to derive from - some
- * receipts predate line-item recording, or come from custom workflows with
- * no line_items), leaving the existing stored total untouched.
+ * actually say, so it's derived after every item edit (or deletion)
+ * instead.
+ *
+ * By default, no-ops if the receipt has no recorded line items - nothing to
+ * derive from (some receipts predate line-item recording, or come from
+ * custom workflows with no line_items), so the existing stored total is
+ * left untouched rather than being zeroed out for a document that simply
+ * never had items in the first place. Pass `force: true` when the caller
+ * knows items existed a moment ago (e.g. the last one was just deleted),
+ * where zero items really does mean the total should become zero.
  */
-export async function recalculateReceiptTotal(documentId: number): Promise<void> {
+export async function recalculateReceiptTotal(
+  documentId: number,
+  options: { force?: boolean } = {},
+): Promise<void> {
   const items = await db
     .select()
     .from(schema.receiptItems)
     .where(eq(schema.receiptItems.documentId, documentId))
     .all()
-  if (items.length === 0) return
+  if (items.length === 0 && !options.force) return
 
   const totalCents = items.reduce((sum, item) => sum + (item.totalPrice ?? 0), 0)
   await updateReceipt(documentId, { amount: totalCents / 100 })
