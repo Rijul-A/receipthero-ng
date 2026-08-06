@@ -1,5 +1,6 @@
 import {
   Download,
+  ListChecks,
   RefreshCw,
   Settings,
   TrendingDown,
@@ -99,6 +100,12 @@ export function DashboardHeader({
           <Button variant="outline" size="sm">
             <Workflow className="h-4 w-4 mr-2" />
             Workflows
+          </Button>
+        </Link>
+        <Link to="/receipts">
+          <Button variant="outline" size="sm">
+            <ListChecks className="h-4 w-4 mr-2" />
+            Receipts
           </Button>
         </Link>
         <Link to="/prices">

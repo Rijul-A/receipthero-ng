@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  batchReprocessDocuments,
   clearQueue as clearQueueFn,
   clearSkippedDocuments,
   exportItemsCsv as exportItemsCsvFn,
@@ -193,6 +194,21 @@ export function useRetryProcessing() {
       id: number
       strategy: 'full' | 'partial'
     }) => retryDocument({ data: { id, strategy } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['processing-logs'] })
+    },
+  })
+}
+
+/**
+ * Triggers a batch reprocess for multiple already-processed documents.
+ */
+export function useBatchReprocess() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (documentIds: Array<number>) =>
+      batchReprocessDocuments({ data: { documentIds } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processing-logs'] })
     },

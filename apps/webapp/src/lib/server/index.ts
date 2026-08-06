@@ -31,6 +31,7 @@ export {
   getProcessingLogs,
   getDocumentLogs,
   retryDocument,
+  batchReprocessDocuments,
   getAppLogs,
   type ProcessingLog,
   type RetryDocumentResponse,

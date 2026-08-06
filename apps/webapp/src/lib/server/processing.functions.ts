@@ -107,3 +107,16 @@ export const retryDocument = createServerFn({ method: 'POST' })
   }) as any) as (opts: {
   data: { id: number; strategy: 'full' | 'partial' }
 }) => Promise<RetryDocumentResponse>
+
+/**
+ * Batch reprocess multiple already-processed documents - proxies to
+ * POST /api/processing/batch-reprocess
+ */
+export const batchReprocessDocuments = createServerFn({ method: 'POST' })
+  .inputValidator((input: { documentIds: Array<number> }) => input)
+  .handler(async ({ data }: { data: { documentIds: Array<number> } }) => {
+    return apiCall<RetryDocumentResponse>('/api/processing/batch-reprocess', {
+      method: 'POST',
+      body: JSON.stringify({ documentIds: data.documentIds }),
+    })
+  })
