@@ -161,6 +161,50 @@ describe('updateReceiptItem', () => {
     expect(corrected?.unitPrice).toBe(450)
   })
 
+  it('corrects totalSize/sizeUnit directly', async () => {
+    await recordReceiptItems({
+      documentId: TEST_DOC_ID,
+      lineItems: [{ name: 'Widget Item 9200', quantity: 1, unitPrice: 3, totalPrice: 3 }],
+      config: mockConfig,
+    })
+    const [row] = await getItemPriceHistory(['Widget Item 9200'])
+
+    await updateReceiptItem(row.id, { totalSize: 1980, sizeUnit: 'ml' })
+
+    const corrected = await db
+      .select()
+      .from(schema.receiptItems)
+      .where(eq(schema.receiptItems.id, row.id))
+      .get()
+    expect(corrected?.totalSize).toBe(1980)
+    expect(corrected?.sizeUnit).toBe('ml')
+  })
+
+  it('clears totalSize/sizeUnit when explicitly set to null', async () => {
+    chatJsonImpl = () => ({
+      items: [
+        { raw: 'Widget Item 9200', canonical: 'Widget Item 9200', totalSize: 1980, sizeUnit: 'ml' },
+      ],
+    })
+    await recordReceiptItems({
+      documentId: TEST_DOC_ID,
+      lineItems: [{ name: 'Widget Item 9200', quantity: 1, unitPrice: 3, totalPrice: 3 }],
+      config: mockConfig,
+    })
+    const [row] = await getItemPriceHistory(['Widget Item 9200'])
+    expect(row.totalSize).toBe(1980)
+
+    await updateReceiptItem(row.id, { totalSize: null, sizeUnit: null })
+
+    const corrected = await db
+      .select()
+      .from(schema.receiptItems)
+      .where(eq(schema.receiptItems.id, row.id))
+      .get()
+    expect(corrected?.totalSize).toBeNull()
+    expect(corrected?.sizeUnit).toBeNull()
+  })
+
   it('recording a future receipt with the same raw name now uses the corrected canonical name', async () => {
     await recordReceiptItems({
       documentId: TEST_DOC_ID,

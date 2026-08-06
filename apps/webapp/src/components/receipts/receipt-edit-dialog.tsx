@@ -66,6 +66,14 @@ function formatMajorUnits(cents: number | null): string {
   return cents !== null ? (cents / 100).toFixed(2) : ''
 }
 
+function formatTotalSize(
+  totalSize: number | null,
+  sizeUnit: string | null,
+): string {
+  if (totalSize === null || !sizeUnit) return '—'
+  return sizeUnit === 'count' ? `${totalSize}` : `${totalSize}${sizeUnit}`
+}
+
 function ReceiptDetail({
   documentId,
   onDeleted,
@@ -303,6 +311,7 @@ function ReceiptDetail({
               <tr className="border-b text-left text-muted-foreground">
                 <th className="py-2 pr-4">Name</th>
                 <th className="py-2 pr-4">Qty</th>
+                <th className="py-2 pr-4">Total size</th>
                 <th className="py-2 pr-4">Price</th>
               </tr>
             </thead>
@@ -313,6 +322,9 @@ function ReceiptDetail({
                     {item.canonicalName ?? item.itemName}
                   </td>
                   <td className="py-2 pr-4">{item.quantity}</td>
+                  <td className="py-2 pr-4">
+                    {formatTotalSize(item.totalSize, item.sizeUnit)}
+                  </td>
                   <td className="py-2 pr-4">
                     {formatMajorUnits(item.totalPrice)} {item.currency ?? ''}
                     {needsReview(item.totalPrice) && (
@@ -349,6 +361,12 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
   const [totalPrice, setTotalPrice] = useState(
     formatMajorUnits(item.totalPrice),
   )
+  const [totalSize, setTotalSize] = useState(
+    item.totalSize !== null ? String(item.totalSize) : '',
+  )
+  const [sizeUnit, setSizeUnit] = useState<'ml' | 'g' | 'count' | ''>(
+    item.sizeUnit ?? '',
+  )
 
   const parsedTotalPrice = Number(totalPrice)
 
@@ -366,6 +384,15 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
 
   const handleSave = () => {
     const parsedQuantity = Number(quantity)
+    const parsedTotalSize = Number(totalSize)
+    // Clearing the size field clears both size and unit together - a size
+    // without a unit (or vice versa) isn't a meaningful state.
+    const sizeEdits =
+      totalSize.trim() === ''
+        ? { totalSize: null, sizeUnit: null }
+        : Number.isFinite(parsedTotalSize) && parsedTotalSize > 0
+          ? { totalSize: parsedTotalSize, sizeUnit: sizeUnit || null }
+          : {}
 
     updateItem.mutate(
       {
@@ -378,6 +405,7 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
           ...(Number.isFinite(parsedTotalPrice)
             ? { totalPrice: parsedTotalPrice }
             : {}),
+          ...sizeEdits,
         },
       },
       {
@@ -457,6 +485,45 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
           {deleteConfirm.confirming && 'Confirm?'}
         </Button>
       </div>
+
+      <div className="grid grid-cols-[6rem_6rem_1fr] gap-2 items-end">
+        <div className="space-y-1">
+          <Label className="text-[10px] text-muted-foreground">
+            Total size
+          </Label>
+          <Input
+            type="number"
+            step="any"
+            min="0"
+            placeholder="e.g. 1980"
+            value={totalSize}
+            onChange={(e) => setTotalSize(e.target.value)}
+            className="text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[10px] text-muted-foreground">Unit</Label>
+          <select
+            value={sizeUnit}
+            onChange={(e) =>
+              setSizeUnit(e.target.value as 'ml' | 'g' | 'count' | '')
+            }
+            className="h-8 w-full rounded-none border border-input bg-transparent px-2.5 text-xs"
+          >
+            <option value="">—</option>
+            <option value="ml">ml</option>
+            <option value="g">g</option>
+            <option value="count">count</option>
+          </select>
+        </div>
+        <p className="text-[10px] text-muted-foreground pb-1.5">
+          Total size is the volume/weight for <em>everything on this line</em>{' '}
+          combined - already multiplied by pack size and Qty above, not the size
+          of one item. E.g. a 6-pack of 330ml cans bought once (Qty 1) is total
+          size 1980ml, not 330ml.
+        </p>
+      </div>
+
       {showReviewWarning && (
         <p className="text-[10px] text-amber-600">
           Zero or negative price - a refund/free item you likely want to delete,

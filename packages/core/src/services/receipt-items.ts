@@ -338,6 +338,11 @@ export interface ReceiptItemEdit {
   unitPrice?: number // major units (e.g. dollars); converted to cents for storage
   totalPrice?: number // major units
   quantity?: number
+  // Total volume/weight covered by this line's full quantity (already
+  // multiplied out - not a per-unit size). See recordReceiptItems/
+  // annotateLineItems for the same convention at extraction time.
+  totalSize?: number | null
+  sizeUnit?: 'ml' | 'g' | 'count' | null
   storeLocation?: string
 }
 
@@ -375,6 +380,8 @@ export async function updateReceiptItem(
     updates.quantity = Math.round(edits.quantity)
   }
   if (edits.storeLocation !== undefined) updates.storeLocation = edits.storeLocation
+  if (edits.totalSize !== undefined) updates.totalSize = edits.totalSize
+  if (edits.sizeUnit !== undefined) updates.sizeUnit = edits.sizeUnit
 
   // unitPrice is comparablePriceOf's preferred per-pack fallback (ahead of
   // computing totalPrice/quantity on the fly), so leaving it untouched after

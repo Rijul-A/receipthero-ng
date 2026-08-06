@@ -84,6 +84,8 @@ export interface ItemEdit {
   unitPrice?: number
   totalPrice?: number
   quantity?: number
+  totalSize?: number | null
+  sizeUnit?: 'ml' | 'g' | 'count' | null
   storeLocation?: string
 }
 

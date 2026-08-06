@@ -93,6 +93,8 @@ const ItemEditSchema = z.object({
   unitPrice: z.number().optional(),
   totalPrice: z.number().optional(),
   quantity: z.number().int().positive().optional(),
+  totalSize: z.number().positive().nullable().optional(),
+  sizeUnit: z.enum(['ml', 'g', 'count']).nullable().optional(),
   storeLocation: z.string().optional(),
 })
 
