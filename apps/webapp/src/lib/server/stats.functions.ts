@@ -95,3 +95,23 @@ export const exportSpendingReportCsv = createServerFn({ method: 'GET' })
     }
     return response.text()
   })
+
+export interface VendorSpend {
+  vendor: string
+  currency: string
+  total: number
+  count: number
+}
+
+/**
+ * Total spend per vendor, by currency.
+ * Proxies to GET /api/stats/vendor-totals
+ */
+export const getVendorSpendReport = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const { rows } = await apiCall<{ rows: Array<VendorSpend> }>(
+      '/api/stats/vendor-totals',
+    )
+    return rows
+  },
+)

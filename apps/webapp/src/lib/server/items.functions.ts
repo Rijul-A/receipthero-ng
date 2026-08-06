@@ -107,6 +107,28 @@ export const updateReceiptItem = createServerFn({ method: 'POST' })
     return item
   })
 
+export interface ItemFrequency {
+  name: string
+  currency: string
+  totalSpent: number
+  purchaseCount: number
+  firstPurchase: string | null
+  lastPurchase: string | null
+}
+
+/**
+ * Per-product total spend and purchase frequency.
+ * Proxies to GET /api/items/frequency?limit=...
+ */
+export const getItemFrequencyReport = createServerFn({ method: 'GET' })
+  .inputValidator((input: { limit?: number }) => input)
+  .handler(async (ctx) => {
+    const { rows } = await apiCall<{ rows: Array<ItemFrequency> }>(
+      `/api/items/frequency${ctx.data.limit ? `?limit=${ctx.data.limit}` : ''}`,
+    )
+    return rows
+  })
+
 /**
  * Removes a single line item.
  * Proxies to DELETE /api/items/:id.

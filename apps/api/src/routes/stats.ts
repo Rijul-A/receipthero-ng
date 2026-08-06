@@ -1,7 +1,13 @@
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import { loadConfig, db, processingLogs, getSpendingReport } from '@sm-rn/core'
+import {
+  loadConfig,
+  db,
+  processingLogs,
+  getSpendingReport,
+  getVendorSpendReport,
+} from '@sm-rn/core'
 import { eq } from 'drizzle-orm'
 import { toCsv } from '../lib/csv'
 
@@ -201,5 +207,15 @@ stats.get(
     return c.body(csv)
   },
 )
+
+/**
+ * GET /api/stats/vendor-totals
+ *
+ * Total spend per vendor, broken down by currency.
+ */
+stats.get('/vendor-totals', async (c) => {
+  const rows = await getVendorSpendReport()
+  return c.json({ rows })
+})
 
 export default stats

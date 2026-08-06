@@ -16,11 +16,13 @@ import {
   getDocumentLogs,
   getDocumentThumbnail,
   getHealthStatus,
+  getItemFrequencyReport as getItemFrequencyReportFn,
   getItemPriceHistory as getItemPriceHistoryFn,
   getProcessingLogs,
   getQueueStatus as getQueueStatusFn,
   getReceiptDetail as getReceiptDetailFn,
   getSpendingReport as getSpendingReportFn,
+  getVendorSpendReport as getVendorSpendReportFn,
   getWebhookStatus as getWebhookStatusFn,
   pauseWorker as pauseWorkerFn,
   previewRename as previewRenameFn,
@@ -42,6 +44,7 @@ import type {
   DocumentImageResponse,
   HealthStatus,
   ItemEdit,
+  ItemFrequency,
   QueueActionResponse,
   QueueStatus,
   ReceiptDetail,
@@ -51,6 +54,7 @@ import type {
   SpendingReportRow,
   TestConnectionResponse,
   TriggerScanResponse,
+  VendorSpend,
   WebhookStatusResponse,
   WorkerStatus,
 } from './server'
@@ -93,6 +97,7 @@ export const statsKeys = {
   currencyTotals: () => [...statsKeys.all, 'currency-totals'] as const,
   spending: (groupBy: 'week' | 'month') =>
     [...statsKeys.all, 'spending', groupBy] as const,
+  vendorTotals: () => [...statsKeys.all, 'vendor-totals'] as const,
 }
 
 export const workerKeys = {
@@ -117,6 +122,7 @@ export const itemKeys = {
     [...itemKeys.all, 'history', itemNames] as const,
   renamePreview: (from: string) =>
     [...itemKeys.all, 'rename-preview', from] as const,
+  frequency: (limit: number) => [...itemKeys.all, 'frequency', limit] as const,
 }
 
 export const receiptKeys = {
@@ -297,6 +303,30 @@ export function useSpendingReport(groupBy: 'week' | 'month') {
     queryKey: statsKeys.spending(groupBy),
     queryFn: async () =>
       (await getSpendingReportFn({ data: { groupBy } })).rows,
+    staleTime: 1000 * 60 * 5,
+  })
+}
+
+/**
+ * Total spend per vendor, by currency - "where does my money actually go",
+ * as opposed to the per-item price comparison on the Prices page.
+ */
+export function useVendorSpendReport() {
+  return useQuery<Array<VendorSpend>>({
+    queryKey: statsKeys.vendorTotals(),
+    queryFn: () => getVendorSpendReportFn(),
+    staleTime: 1000 * 60 * 5,
+  })
+}
+
+/**
+ * Per-product total spend and purchase frequency, across all recorded line
+ * items.
+ */
+export function useItemFrequencyReport(limit = 50) {
+  return useQuery<Array<ItemFrequency>>({
+    queryKey: itemKeys.frequency(limit),
+    queryFn: () => getItemFrequencyReportFn({ data: { limit } }),
     staleTime: 1000 * 60 * 5,
   })
 }

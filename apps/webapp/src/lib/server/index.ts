@@ -46,10 +46,12 @@ export {
   exportReceiptsCsv,
   getSpendingReport,
   exportSpendingReportCsv,
+  getVendorSpendReport,
   type CurrencyTotal,
   type CurrencyTotalsResponse,
   type SpendingReportRow,
   type SpendingReportResponse,
+  type VendorSpend,
 } from './stats.functions'
 export {
   getDocumentThumbnail,
@@ -69,8 +71,10 @@ export {
   deleteReceiptItem,
   previewRename,
   renameCanonicalGroup,
+  getItemFrequencyReport,
   type ReceiptItemEntry,
   type ItemEdit,
+  type ItemFrequency,
 } from './items.functions'
 export {
   getReceiptDetail,

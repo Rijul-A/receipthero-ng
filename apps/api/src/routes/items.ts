@@ -8,6 +8,7 @@ import {
   deleteReceiptItem,
   previewCanonicalRename,
   renameCanonicalGroup,
+  getItemFrequencyReport,
   db,
   receiptItems,
 } from '@sm-rn/core'
@@ -15,6 +16,22 @@ import { desc } from 'drizzle-orm'
 import { toCsv } from '../lib/csv'
 
 const items = new Hono()
+
+/**
+ * GET /api/items/frequency?limit=50
+ *
+ * Per-product total spend and purchase frequency across all recorded line
+ * items - "how much have I spent on X, and how often do I buy it".
+ */
+items.get(
+  '/frequency',
+  zValidator('query', z.object({ limit: z.coerce.number().int().positive().max(200).default(50) })),
+  async (c) => {
+    const { limit } = c.req.valid('query')
+    const rows = await getItemFrequencyReport(limit)
+    return c.json({ rows })
+  },
+)
 
 /**
  * GET /api/items/search?q=milk

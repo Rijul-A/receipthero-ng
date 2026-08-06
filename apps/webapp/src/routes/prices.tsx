@@ -1,12 +1,21 @@
 import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { Download, Pencil, Search, X } from 'lucide-react'
+import {
+  Download,
+  LineChart as LineChartIcon,
+  Pencil,
+  Search,
+  Table2,
+  X,
+} from 'lucide-react'
 import { toast } from 'sonner'
+import type { LineChartSeries } from '@/components/charts/line-chart'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { RenameProductDialog } from '@/components/prices/rename-product-dialog'
+import { LineChart } from '@/components/charts/line-chart'
 import {
   useExportItemsCsv,
   useItemNameSearch,
@@ -183,10 +192,85 @@ export function sortHistoryRows<
   })
 }
 
+export interface PriceTrend {
+  product: string
+  currency: string
+  series: Array<LineChartSeries>
+}
+
+/**
+ * One chart per (product, currency) - each with one line series per store,
+ * so trends across differently-priced locations stay visually distinct
+ * rather than being averaged together. Rows with no date or no comparable
+ * price are dropped (can't be plotted).
+ */
+export function buildPriceTrends(
+  history: Array<{
+    id: number
+    itemName: string
+    canonicalName: string | null
+    vendor: string | null
+    storeLocation: string | null
+    currency: string | null
+    unitPrice: number | null
+    totalPrice: number | null
+    quantity: number
+    totalSize: number | null
+    sizeUnit: string | null
+    purchaseDate: string | null
+  }>,
+): Array<PriceTrend> {
+  const byProductCurrency = new Map<
+    string,
+    {
+      product: string
+      currency: string
+      byStore: Map<string, Array<{ x: number; y: number }>>
+    }
+  >()
+
+  for (const row of history) {
+    if (!row.purchaseDate) continue
+    const comparable = comparablePriceOf(row)
+    if (comparable === null) continue
+
+    const product = row.canonicalName ?? row.itemName
+    const currency = row.currency ?? ''
+    const key = `${product}|${currency}`
+    const entry = byProductCurrency.get(key) ?? {
+      product,
+      currency,
+      byStore: new Map<string, Array<{ x: number; y: number }>>(),
+    }
+
+    const store = formatStoreLabel(row)
+    const points = entry.byStore.get(store) ?? []
+    points.push({
+      x: new Date(row.purchaseDate).getTime(),
+      y: comparable.value,
+    })
+    entry.byStore.set(store, points)
+
+    byProductCurrency.set(key, entry)
+  }
+
+  return Array.from(byProductCurrency.values()).map(
+    ({ product, currency, byStore }) => ({
+      product,
+      currency,
+      series: Array.from(byStore.entries()).map(([label, points]) => ({
+        label,
+        points,
+      })),
+    }),
+  )
+}
+
 function PricesPage() {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<Array<string>>([])
   const [renaming, setRenaming] = useState<string | null>(null)
+  const [view, setView] = useState<'table' | 'chart'>('table')
 
   const { data: matches } = useItemNameSearch(query)
   const { data: history, isLoading } = useItemPriceHistory(selected)
@@ -218,6 +302,8 @@ function PricesPage() {
     () => computeStoreWinCounts(history ?? [], cheapestRowIds),
     [history, cheapestRowIds],
   )
+
+  const priceTrends = useMemo(() => buildPriceTrends(history ?? []), [history])
 
   const addItem = (name: string) => {
     if (!selected.includes(name)) setSelected([...selected, name])
@@ -353,10 +439,28 @@ function PricesPage() {
 
       {selected.length > 0 && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex-row items-center justify-between">
             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               Price History
             </CardTitle>
+            <div className="flex rounded-none border">
+              <button
+                type="button"
+                className={`px-2.5 py-1 text-xs flex items-center gap-1.5 ${view === 'table' ? 'bg-accent font-medium' : ''}`}
+                onClick={() => setView('table')}
+              >
+                <Table2 className="h-3 w-3" />
+                Table
+              </button>
+              <button
+                type="button"
+                className={`px-2.5 py-1 text-xs border-l flex items-center gap-1.5 ${view === 'chart' ? 'bg-accent font-medium' : ''}`}
+                onClick={() => setView('chart')}
+              >
+                <LineChartIcon className="h-3 w-3" />
+                Chart
+              </button>
+            </div>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -371,6 +475,24 @@ function PricesPage() {
                 priced lines with no comparable price. Review them from the
                 receipt they came from.
               </p>
+            ) : view === 'chart' ? (
+              <div className="space-y-6">
+                {priceTrends.map(({ product, currency, series }) => (
+                  <div key={`${product}|${currency}`} className="space-y-2">
+                    <h3 className="text-xs font-medium">
+                      {product}{' '}
+                      <span className="text-muted-foreground font-normal">
+                        ({currency})
+                      </span>
+                    </h3>
+                    <LineChart
+                      series={series}
+                      formatX={(x) => new Date(x).toLocaleDateString()}
+                      formatY={(y) => formatPrice(y, currency)}
+                    />
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildPriceTrends,
   comparablePriceOf,
   computeCheapestRowIds,
   computeStoreWinCounts,
@@ -328,5 +329,80 @@ describe('sortHistoryRows', () => {
     const original = [...history]
     sortHistoryRows(history)
     expect(history).toEqual(original)
+  })
+})
+
+describe('buildPriceTrends', () => {
+  it('produces one series per store within a product/currency chart', () => {
+    const history = [
+      row({
+        id: 1,
+        canonicalName: 'Diet Coke',
+        vendor: 'Carrefour',
+        totalPrice: 100,
+        totalSize: 1000,
+        sizeUnit: 'ml',
+        purchaseDate: '2026-01-01',
+      }),
+      row({
+        id: 2,
+        canonicalName: 'Diet Coke',
+        vendor: 'Lulu',
+        totalPrice: 200,
+        totalSize: 1000,
+        sizeUnit: 'ml',
+        purchaseDate: '2026-01-05',
+      }),
+    ]
+
+    const trends = buildPriceTrends(history)
+    expect(trends).toHaveLength(1)
+    expect(trends[0].product).toBe('Diet Coke')
+    expect(trends[0].series.map((s) => s.label).sort()).toEqual([
+      'Carrefour',
+      'Lulu',
+    ])
+    expect(
+      trends[0].series.find((s) => s.label === 'Carrefour')?.points,
+    ).toEqual([{ x: new Date('2026-01-01').getTime(), y: 10 }])
+  })
+
+  it('skips rows with no purchase date or no comparable price', () => {
+    const history = [
+      row({
+        id: 1,
+        canonicalName: 'Diet Coke',
+        totalPrice: 100,
+        purchaseDate: null,
+      }),
+      row({
+        id: 2,
+        canonicalName: 'Diet Coke',
+        totalPrice: -50,
+        purchaseDate: '2026-01-01',
+      }),
+    ]
+    expect(buildPriceTrends(history)).toEqual([])
+  })
+
+  it('keeps different currencies as separate charts', () => {
+    const history = [
+      row({
+        id: 1,
+        canonicalName: 'Diet Coke',
+        currency: 'AED',
+        totalPrice: 100,
+        purchaseDate: '2026-01-01',
+      }),
+      row({
+        id: 2,
+        canonicalName: 'Diet Coke',
+        currency: 'USD',
+        totalPrice: 100,
+        purchaseDate: '2026-01-01',
+      }),
+    ]
+    const trends = buildPriceTrends(history)
+    expect(trends.map((t) => t.currency).sort()).toEqual(['AED', 'USD'])
   })
 })
