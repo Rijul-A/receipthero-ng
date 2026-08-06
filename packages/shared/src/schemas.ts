@@ -14,7 +14,7 @@ export const ConfigSchema = z.object({
     provider: AIProviderSchema.default('openai-compat'),
     apiKey: z.string().optional(),
     // Accept empty string from the form and treat it as "no override"
-    baseURL: z.string().transform(v => v === '' ? undefined : v).pipe(z.string().url().optional()),
+    baseURL: z.string().optional().transform(v => v === '' ? undefined : v).pipe(z.string().url().optional()),
     model: z.string().default('meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8'),
   }),
   // Kept for backward compatibility — resolved in config.ts
@@ -73,7 +73,7 @@ export const PartialConfigSchema = z.object({
     provider: AIProviderSchema.optional(),
     apiKey: z.string().optional(),
     // Accept empty string from the form and treat it as "no override"
-    baseURL: z.string().transform(v => v === '' ? undefined : v).pipe(z.string().url().optional()),
+    baseURL: z.string().optional().transform(v => v === '' ? undefined : v).pipe(z.string().url().optional()),
     model: z.string().optional(),
   }).optional(),
   togetherAi: z.object({
