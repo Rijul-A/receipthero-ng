@@ -4,10 +4,22 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+  pull_request:
+    branches:
+      - main
     paths-ignore:
       - '**.md'
       - '.gitignore'
   workflow_dispatch:
+
+concurrency:
+  group: docker-publish-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   REGISTRY: ghcr.io
@@ -16,6 +28,10 @@ env:
 jobs:
   build-amd64:
     runs-on: ubuntu-latest
+    # Fork PRs get a read-only, secret-less GITHUB_TOKEN and can't push to
+    # GHCR — skip them cleanly instead of failing red. Same-repo PR branches
+    # are unaffected by this check.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       contents: read
       packages: write
@@ -38,6 +54,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Staged under a per-run tag (not a fixed :amd64) so concurrent runs
+      # from different triggers (a PR build and a main push, say) can't
+      # clobber each other's intermediate image before merge-manifests reads it.
       - name: Build and push amd64
         id: build
         uses: docker/build-push-action@v6
@@ -45,7 +64,7 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging-${{ github.run_id }}
           cache-from: type=gha,scope=amd64
           cache-to: type=gha,mode=max,scope=amd64
 
@@ -86,6 +105,7 @@ jobs:
     runs-on: ubuntu-latest
     # needs: [build-amd64, build-arm64]
     needs: [build-amd64]
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       contents: read
       packages: write
@@ -100,9 +120,34 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create and push manifest
+      # Every push gets an immutable sha tag, plus a floating tag named after
+      # the branch it came from (e.g. `main`) tracking that branch's tip.
+      # `latest` and the version tag are reserved for actual `vX.Y.Z` tag
+      # pushes, so a regular commit never becomes "latest".
+      - name: Tag commit
+        if: github.event_name == 'push' && github.ref_type == 'branch'
         run: |
-          docker buildx imagetools create -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+          docker buildx imagetools create \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging-${{ github.run_id }}
+
+      - name: Tag release
+        if: github.event_name == 'push' && github.ref_type == 'tag'
+        run: |
+          docker buildx imagetools create \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging-${{ github.run_id }}
+
+      # PR builds get a floating :pr-<number> tag (updates on every push to
+      # the PR) plus the immutable sha, so a tester can pull a specific PR's
+      # image without it ever touching :latest or a branch tag.
+      - name: Tag pull request
+        if: github.event_name == 'pull_request'
+        run: |
+          docker buildx imagetools create \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging-${{ github.run_id }}
