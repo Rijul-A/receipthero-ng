@@ -370,8 +370,12 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
   )
 
   const parsedTotalPrice = Number(totalPrice)
+  // An empty field (Number('') === 0) isn't the same as an actual zero
+  // price - don't flag it before the user has entered anything.
   const showReviewWarning =
-    Number.isFinite(parsedTotalPrice) && parsedTotalPrice <= 0
+    totalPrice.trim() !== '' &&
+    Number.isFinite(parsedTotalPrice) &&
+    parsedTotalPrice <= 0
 
   const handleSave = () => {
     const parsedQuantity = Number(quantity)

@@ -96,6 +96,46 @@ describe('getReceiptDetail / updateReceipt', () => {
     expect(parsed.time).toBe('14:30')
     expect(parsed.category).toBe('dining')
   })
+
+  it('cascades vendor/currency/storeLocation corrections to already-recorded line items', async () => {
+    await seedLog()
+    await recordReceiptItems({
+      documentId: TEST_DOC_ID,
+      vendor: 'Carrefour Express',
+      currency: 'AED',
+      lineItems: [{ name: 'Milk', quantity: 1, unitPrice: 5, totalPrice: 5 }],
+      config: mockConfig,
+    })
+
+    await updateReceipt(TEST_DOC_ID, {
+      vendor: 'Carrefour',
+      currency: 'USD',
+      storeLocation: 'Deira City Centre',
+    })
+
+    const detail = await getReceiptDetail(TEST_DOC_ID)
+    expect(detail?.items).toHaveLength(1)
+    expect(detail?.items[0].vendor).toBe('Carrefour')
+    expect(detail?.items[0].currency).toBe('USD')
+    expect(detail?.items[0].storeLocation).toBe('Deira City Centre')
+  })
+
+  it('does not touch line items when neither vendor, currency, nor storeLocation is being edited', async () => {
+    await seedLog()
+    await recordReceiptItems({
+      documentId: TEST_DOC_ID,
+      vendor: 'Carrefour',
+      currency: 'AED',
+      lineItems: [{ name: 'Milk', quantity: 1, unitPrice: 5, totalPrice: 5 }],
+      config: mockConfig,
+    })
+
+    await updateReceipt(TEST_DOC_ID, { category: 'groceries' })
+
+    const detail = await getReceiptDetail(TEST_DOC_ID)
+    expect(detail?.items[0].vendor).toBe('Carrefour')
+    expect(detail?.items[0].currency).toBe('AED')
+  })
 })
 
 describe('recalculateReceiptTotal', () => {

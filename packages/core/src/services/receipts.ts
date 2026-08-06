@@ -42,6 +42,15 @@ export interface ReceiptEdit {
  * `currency`, and `storeLocation` also have their own columns (read by
  * currency-totals/spending-report/CSV export) and are kept in sync with the
  * same values.
+ *
+ * `vendor`, `currency`, and `storeLocation` are also denormalized onto every
+ * receipt_items row for this document (recordReceiptItems always writes them
+ * equal to the receipt's own values), so correcting them here has to cascade
+ * to those rows too - otherwise price comparison keeps grouping/filtering
+ * this receipt's items under the old, now-wrong value (e.g. a vendor-name
+ * correction would silently split one store into two buckets on the Prices
+ * page, or a currency correction would leave items excluded from
+ * comparisons under the wrong currency).
  */
 export async function updateReceipt(
   documentId: number,
@@ -82,11 +91,24 @@ export async function updateReceipt(
   if (edits.currency !== undefined) updates.currency = edits.currency
   if (edits.storeLocation !== undefined) updates.storeLocation = edits.storeLocation
 
+  const itemUpdates: Partial<schema.NewReceiptItemEntry> = {}
+  if (edits.vendor !== undefined) itemUpdates.vendor = edits.vendor
+  if (edits.currency !== undefined) itemUpdates.currency = edits.currency
+  if (edits.storeLocation !== undefined) itemUpdates.storeLocation = edits.storeLocation
+
   await db
     .update(schema.processingLogs)
     .set(updates)
     .where(eq(schema.processingLogs.id, existing.id))
     .run()
+
+  if (Object.keys(itemUpdates).length > 0) {
+    await db
+      .update(schema.receiptItems)
+      .set(itemUpdates)
+      .where(eq(schema.receiptItems.documentId, documentId))
+      .run()
+  }
 
   return (
     (await db
