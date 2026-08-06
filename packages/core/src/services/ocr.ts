@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { chat } from '@tanstack/ai';
 import { ProcessedReceiptSchema } from '@sm-rn/shared/types';
 import type { AIAdapter } from './ai-client';
+import { detectImageMimeType } from './image-format';
 
 export const ReceiptExtractionSchema = z.object({
   receipts: z.array(ProcessedReceiptSchema),
@@ -102,7 +103,7 @@ Extract all visible receipt data accurately. If information is not visible, use 
           },
           {
             type: 'image' as const,
-            source: { type: 'data' as const, value: base64Image, mimeType: 'image/jpeg' as const },
+            source: { type: 'data' as const, value: base64Image, mimeType: detectImageMimeType(base64Image) },
           },
         ],
       },

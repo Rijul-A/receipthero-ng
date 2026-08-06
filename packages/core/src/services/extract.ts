@@ -1,7 +1,19 @@
 import type { Config } from '@sm-rn/shared/schemas';
+import { detectImageMimeType } from './image-format';
 
 export interface ExtractionContext {
   existingTags?: string[];
+}
+
+/**
+ * Ensures a base URL ends with /v1, as required by the OpenAI-compatible
+ * chat completions endpoint this module calls directly via fetch(). Users
+ * commonly supply a "plain" host (e.g. Ollama's own docs show just
+ * `http://host:11434`), so this normalizes either form.
+ */
+function withV1(url: string): string {
+  const trimmed = url.replace(/\/+$/, '');
+  return trimmed.endsWith('/v1') ? trimmed : `${trimmed}/v1`;
 }
 
 /** Derive the chat completions base URL and API key from config. */
@@ -11,27 +23,27 @@ function resolveEndpoint(config: Config): { baseURL: string; apiKey: string; mod
     case 'openai-compat':
       if (!ai.apiKey) throw new Error('AI API key is required for openai-compat provider.');
       return {
-        baseURL: ai.baseURL || 'https://api.openai.com/v1',
+        baseURL: withV1(ai.baseURL || 'https://api.openai.com/v1'),
         apiKey: ai.apiKey,
         model: ai.model,
       };
     case 'together-ai':
       if (!ai.apiKey) throw new Error('AI API key is required for Together AI provider.');
       return {
-        baseURL: ai.baseURL || 'https://api.together.xyz/v1',
+        baseURL: withV1(ai.baseURL || 'https://api.together.xyz/v1'),
         apiKey: ai.apiKey,
         model: ai.model,
       };
     case 'openrouter':
       if (!ai.apiKey) throw new Error('AI API key is required for openrouter provider.');
       return {
-        baseURL: ai.baseURL || 'https://openrouter.ai/api/v1',
+        baseURL: withV1(ai.baseURL || 'https://openrouter.ai/api/v1'),
         apiKey: ai.apiKey,
         model: ai.model,
       };
     case 'ollama':
       return {
-        baseURL: ai.baseURL || 'http://localhost:11434/v1',
+        baseURL: withV1(ai.baseURL || 'http://localhost:11434'),
         apiKey: 'ollama',
         model: ai.model,
       };
@@ -123,7 +135,7 @@ export async function extractWithSchema(
           role: 'user',
           content: [
             { type: 'text', text: 'Extract all data from this image.' },
-            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } },
+            { type: 'image_url', image_url: { url: `data:${detectImageMimeType(base64Image)};base64,${base64Image}` } },
           ],
         },
       ],
