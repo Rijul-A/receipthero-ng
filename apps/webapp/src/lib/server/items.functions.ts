@@ -21,9 +21,15 @@ export interface ReceiptItemEntry {
   documentId: number
   vendor: string | null
   itemName: string
+  canonicalName: string | null
   quantity: number
   unitPrice: number | null
   totalPrice: number | null
+  // Total size of this line item (e.g. 1980 for a "6x330ml" pack), normalized
+  // to ml or g, for comparing differently-packaged versions of a product by
+  // true unit price. Null if the AI couldn't determine it.
+  totalSize: number | null
+  sizeUnit: 'ml' | 'g' | 'count' | null
   currency: string | null
   purchaseDate: string | null
   createdAt: string

@@ -1,4 +1,4 @@
-import { sqliteTable, integer, text } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, integer, text, real } from 'drizzle-orm/sqlite-core'
 
 export const retryQueue = sqliteTable('retry_queue', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -124,6 +124,14 @@ export const receiptItems = sqliteTable('receipt_items', {
   quantity: integer('quantity').notNull().default(1),
   unitPrice: integer('unitPrice'), // Stored in cents/base units
   totalPrice: integer('totalPrice'), // Stored in cents/base units
+  // AI-extracted total size of the whole line item (e.g. 1980 for a "6x330ml"
+  // pack), used to compute a true per-100ml/per-100g price across differently
+  // sized/packaged versions of the same product. Null if not determinable.
+  totalSize: real('totalSize'),
+  // Normalized unit for totalSize: 'ml', 'g', or 'count' (for uncountable/
+  // unit-less items like "1 loaf"). Volume/weight are normalized to ml/g by
+  // the AI at extraction time so 'l'/'kg' never need separate handling here.
+  sizeUnit: text('sizeUnit'),
   currency: text('currency'),
   purchaseDate: text('purchaseDate'), // ISO date string, from the receipt itself
   createdAt: text('createdAt').notNull(),

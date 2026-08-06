@@ -36,6 +36,13 @@
       "when": 1786032086132,
       "tag": "0004_safe_gauntlet",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1786033751224,
+      "tag": "0005_clever_baron_strucker",
+      "breakpoints": true
     }
   ]
 }

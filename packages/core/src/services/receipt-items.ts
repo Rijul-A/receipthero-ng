@@ -13,26 +13,43 @@ interface LineItemInput {
   totalPrice?: unknown
 }
 
+interface ItemAnnotation {
+  canonicalName: string
+  totalSize: number | null
+  sizeUnit: 'ml' | 'g' | 'count' | null
+}
+
 // SQLite has no dedicated NULL-coalescing column expression in drizzle-orm,
 // so this raw fragment stands in for "canonicalName, falling back to itemName"
 // wherever we group/match/search by product identity.
 const canonicalOrItemName = sql<string>`coalesce(${schema.receiptItems.canonicalName}, ${schema.receiptItems.itemName})`
 
 /**
- * Asks the AI provider to assign each new raw item name either an existing
- * canonical product name (if it's the same product worded differently across
- * receipts/stores) or a new concise canonical name. One batched call per
- * receipt rather than per item to keep this cheap, and per-call rather than
- * per-search so browsing /prices never triggers an AI request.
+ * Asks the AI provider to, for each new raw item name:
+ * 1. Assign a canonical product name (reusing an existing one where the same
+ *    product appears worded differently across receipts/stores/languages),
+ *    grouping *by product*, not by pack size/configuration — "Diet Coke
+ *    330ml x6" and "Diet Coke 150ml x15" are the same product.
+ * 2. Extract the line item's total size (volume/weight, normalized to
+ *    ml/g — a "6x330ml" pack is totalSize 1980, sizeUnit "ml"), so
+ *    differently-packaged versions of the same product can still be ranked
+ *    correctly by true unit price (price per 100ml/100g) instead of by raw
+ *    pack price, which would unfairly favor smaller packs.
  *
- * Best-effort: on any failure, falls back to using the raw names as-is, so a
- * flaky/local AI provider never blocks receipt processing.
+ * One batched call per receipt rather than per item to keep this cheap, and
+ * per-call rather than per-search so browsing /prices never triggers an AI
+ * request.
+ *
+ * Best-effort: on any failure, falls back to raw names with no size info, so
+ * a flaky/local AI provider never blocks receipt processing.
  */
-async function canonicalizeItemNames(
+async function annotateItemNames(
   rawNames: string[],
   config: Config,
-): Promise<Record<string, string>> {
-  const identity = Object.fromEntries(rawNames.map((n) => [n, n]))
+): Promise<Record<string, ItemAnnotation>> {
+  const identity: Record<string, ItemAnnotation> = Object.fromEntries(
+    rawNames.map((n) => [n, { canonicalName: n, totalSize: null, sizeUnit: null }]),
+  )
 
   try {
     const existing = await db
@@ -43,53 +60,78 @@ async function canonicalizeItemNames(
       .all()
     const existingNames = existing.map((r) => r.name)
 
-    const result = await chatJson<{ mappings: { raw: string; canonical: string }[] }>({
+    const result = await chatJson<{
+      items: {
+        raw: string
+        canonical: string
+        totalSize: number | null
+        sizeUnit: 'ml' | 'g' | 'count' | null
+      }[]
+    }>({
       config,
-      schemaName: 'item_canonicalization',
+      schemaName: 'item_annotation',
       systemPrompt: [
-        'You group grocery/retail receipt line items into canonical product names',
-        'so the same product bought at different stores (with different wording,',
-        'abbreviations, or language) can be tracked as one item for price comparison.',
+        'You analyze grocery/retail receipt line items for cross-vendor price comparison.',
+        'For each raw item name given, determine two things:',
         '',
-        'For each raw item name given, either:',
-        '- Reuse an existing canonical name from the provided list, if it clearly refers',
-        '  to the same product (ignore store-specific phrasing, pack-size noise, brand',
-        '  ordering, or language differences).',
-        '- Otherwise, output a new, concise, human-readable canonical name for it',
-        '  (e.g. "Almarai Fresh Milk 1L" not "ALM MILK FRSH 1L PROMO").',
-        'Do not merge genuinely different products just because they are similar.',
+        '1. canonical: the underlying PRODUCT identity, ignoring store-specific phrasing,',
+        '   brand word ordering, language differences, and pack size/configuration.',
+        '   "Diet Coke 330ml x6" and "Diet Coke 150ml x15" are the SAME product',
+        '   ("Diet Coke") even though their pack sizes differ - pack size is handled',
+        '   separately via totalSize/sizeUnit, not by keeping products apart.',
+        '   Reuse an existing canonical name from the provided list when it refers to',
+        '   the same product. Do not merge genuinely different products (e.g. "Diet',
+        '   Coke" and "Coke Zero" stay separate) just because they are similar.',
+        '',
+        '2. totalSize/sizeUnit: the TOTAL volume or weight this line item represents,',
+        '   normalized to milliliters ("ml") or grams ("g") - e.g. "6x330ml" is',
+        '   totalSize 1980, sizeUnit "ml"; "2kg" is totalSize 2000, sizeUnit "g";',
+        '   "1L" is totalSize 1000, sizeUnit "ml". If the item has no meaningful',
+        '   volume/weight (e.g. a single unsized item, a service, a gift card), use',
+        '   totalSize null and sizeUnit "count" with totalSize as the item count if',
+        '   known, otherwise both null.',
       ].join('\n'),
       userPrompt: JSON.stringify({ existingCanonicalNames: existingNames, rawNames }),
       responseSchema: {
         type: 'object',
         properties: {
-          mappings: {
+          items: {
             type: 'array',
             items: {
               type: 'object',
               properties: {
                 raw: { type: 'string' },
                 canonical: { type: 'string' },
+                totalSize: { type: ['number', 'null'] },
+                sizeUnit: { type: ['string', 'null'], enum: ['ml', 'g', 'count', null] },
               },
-              required: ['raw', 'canonical'],
+              required: ['raw', 'canonical', 'totalSize', 'sizeUnit'],
               additionalProperties: false,
             },
           },
         },
-        required: ['mappings'],
+        required: ['items'],
         additionalProperties: false,
       },
     })
 
     const map = { ...identity }
-    for (const { raw, canonical } of result.mappings) {
-      if (typeof raw === 'string' && typeof canonical === 'string' && canonical.trim()) {
-        map[raw] = canonical.trim()
+    for (const item of result.items) {
+      if (
+        typeof item.raw === 'string' &&
+        typeof item.canonical === 'string' &&
+        item.canonical.trim()
+      ) {
+        map[item.raw] = {
+          canonicalName: item.canonical.trim(),
+          totalSize: typeof item.totalSize === 'number' ? item.totalSize : null,
+          sizeUnit: item.sizeUnit ?? null,
+        }
       }
     }
     return map
   } catch (error) {
-    logger.warn('Item name canonicalization failed, using raw names', {
+    logger.warn('Item name annotation failed, using raw names', {
       error: error instanceof Error ? error.message : String(error),
     })
     return identity
@@ -135,23 +177,28 @@ export async function recordReceiptItems(params: {
 
   if (parsed.length === 0) return
 
-  const canonicalNames = await canonicalizeItemNames(
+  const annotations = await annotateItemNames(
     parsed.map((p) => p.name),
     config,
   )
 
-  const rows: schema.NewReceiptItemEntry[] = parsed.map((item) => ({
-    documentId,
-    vendor,
-    itemName: item.name,
-    canonicalName: canonicalNames[item.name] ?? item.name,
-    quantity: item.quantity,
-    unitPrice: item.unitPrice,
-    totalPrice: item.totalPrice,
-    currency,
-    purchaseDate,
-    createdAt: now,
-  }))
+  const rows: schema.NewReceiptItemEntry[] = parsed.map((item) => {
+    const annotation = annotations[item.name]
+    return {
+      documentId,
+      vendor,
+      itemName: item.name,
+      canonicalName: annotation?.canonicalName ?? item.name,
+      totalSize: annotation?.totalSize ?? null,
+      sizeUnit: annotation?.sizeUnit ?? null,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      totalPrice: item.totalPrice,
+      currency,
+      purchaseDate,
+      createdAt: now,
+    }
+  })
 
   await db.insert(schema.receiptItems).values(rows).run()
 }

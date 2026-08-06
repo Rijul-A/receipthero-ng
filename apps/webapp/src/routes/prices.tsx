@@ -21,15 +21,43 @@ function formatPrice(cents: number | null, currency: string | null): string {
   return `${(cents / 100).toFixed(2)} ${currency ?? ''}`.trim()
 }
 
-/** Effective per-unit price, preferring the stored unitPrice over totalPrice/quantity. */
-function unitPriceOf(row: {
+function formatSize(row: {
+  totalSize: number | null
+  sizeUnit: string | null
+}): string {
+  if (row.totalSize === null || !row.sizeUnit) return '—'
+  if (row.sizeUnit === 'count') return `${row.totalSize}`
+  return `${row.totalSize}${row.sizeUnit}`
+}
+
+/**
+ * True comparable price, preferring price-per-100ml/100g (using the AI-
+ * extracted total pack size) over the raw pack/quantity price, since two
+ * differently-packaged versions of the same product (e.g. "330ml x6" vs
+ * "150ml x15") aren't comparable by pack price alone.
+ */
+function comparablePriceOf(row: {
   unitPrice: number | null
   totalPrice: number | null
   quantity: number
-}) {
-  if (row.unitPrice !== null) return row.unitPrice
-  if (row.totalPrice !== null && row.quantity > 0)
-    return row.totalPrice / row.quantity
+  totalSize: number | null
+  sizeUnit: string | null
+}): { value: number; label: string } | null {
+  if (
+    row.totalSize !== null &&
+    row.totalSize > 0 &&
+    row.totalPrice !== null &&
+    row.sizeUnit
+  ) {
+    const per100 = (row.totalPrice / row.totalSize) * 100
+    const label =
+      row.sizeUnit === 'count' ? 'per 100' : `per 100${row.sizeUnit}`
+    return { value: per100, label }
+  }
+  if (row.unitPrice !== null) return { value: row.unitPrice, label: 'per pack' }
+  if (row.totalPrice !== null && row.quantity > 0) {
+    return { value: row.totalPrice / row.quantity, label: 'per pack' }
+  }
   return null
 }
 
@@ -48,16 +76,18 @@ function PricesPage() {
   }
 
   // You've explicitly grouped these names together (e.g. "Almarai Milk 1L" and
-  // "Al Marai Fresh Milk 1L" from different stores), so the cheapest option is
-  // the single minimum across the whole selection, compared per unit — not
-  // per exact name, and not by raw total (which quantity would skew).
+  // "Al Marai Fresh Milk 1L" from different stores, or "330ml x6" and "150ml
+  // x15" packs of the same product), so the cheapest option is the single
+  // minimum across the whole selection — compared by true unit price
+  // (per 100ml/100g) where size is known, so differently-packaged versions
+  // are ranked fairly rather than by raw pack price.
   const cheapestRowId = useMemo(() => {
     let bestId: number | null = null
-    let bestUnitPrice = Infinity
+    let bestPrice = Infinity
     for (const row of history ?? []) {
-      const unitPrice = unitPriceOf(row)
-      if (unitPrice !== null && unitPrice < bestUnitPrice) {
-        bestUnitPrice = unitPrice
+      const comparable = comparablePriceOf(row)
+      if (comparable !== null && comparable.value < bestPrice) {
+        bestPrice = comparable.value
         bestId = row.id
       }
     }
@@ -175,14 +205,15 @@ function PricesPage() {
                       <th className="py-2 pr-4">Item</th>
                       <th className="py-2 pr-4">Vendor</th>
                       <th className="py-2 pr-4">Date</th>
-                      <th className="py-2 pr-4">Qty</th>
-                      <th className="py-2 pr-4">Unit Price</th>
+                      <th className="py-2 pr-4">Size</th>
+                      <th className="py-2 pr-4">Comparable Price</th>
                       <th className="py-2 pr-4">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {history.map((row) => {
                       const isCheapest = row.id === cheapestRowId
+                      const comparable = comparablePriceOf(row)
                       return (
                         <tr key={row.id} className="border-b last:border-0">
                           <td className="py-2 pr-4">{row.itemName}</td>
@@ -190,14 +221,16 @@ function PricesPage() {
                           <td className="py-2 pr-4">
                             {row.purchaseDate ?? '—'}
                           </td>
-                          <td className="py-2 pr-4">{row.quantity}</td>
+                          <td className="py-2 pr-4">{formatSize(row)}</td>
                           <td className="py-2 pr-4">
                             <span
                               className={
                                 isCheapest ? 'text-green-600 font-medium' : ''
                               }
                             >
-                              {formatPrice(unitPriceOf(row), row.currency)}
+                              {comparable
+                                ? `${formatPrice(comparable.value, row.currency)} (${comparable.label})`
+                                : '—'}
                             </span>
                             {isCheapest && (
                               <Badge
