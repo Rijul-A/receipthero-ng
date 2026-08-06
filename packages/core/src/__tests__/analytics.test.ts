@@ -73,6 +73,21 @@ describe('getVendorSpendReport', () => {
     const smallIdx = rows.findIndex((r) => r.vendor === 'Small Store')
     expect(bigIdx).toBeLessThan(smallIdx)
   })
+
+  it('merges vendor names that differ only by casing instead of fragmenting them', async () => {
+    await seedLog(DOC_IDS[0], { vendor: 'Carrefour', amount: 50, currency: 'AED' })
+    await seedLog(DOC_IDS[1], { vendor: 'CARREFOUR', amount: 30, currency: 'AED' })
+    await seedLog(DOC_IDS[2], { vendor: 'carrefour', amount: 20, currency: 'AED' })
+
+    const rows = await getVendorSpendReport()
+    const carrefourRows = rows.filter((r) => r.vendor.toLowerCase() === 'carrefour')
+
+    expect(carrefourRows).toHaveLength(1)
+    expect(carrefourRows[0].total).toBe(100)
+    expect(carrefourRows[0].count).toBe(3)
+    // Displays whichever casing was encountered first.
+    expect(carrefourRows[0].vendor).toBe('Carrefour')
+  })
 })
 
 describe('getItemFrequencyReport', () => {

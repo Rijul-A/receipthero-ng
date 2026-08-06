@@ -20,6 +20,13 @@ export async function getVendorSpendReport(): Promise<VendorSpend[]> {
   })
 
   const buckets = new Map<string, VendorSpend>()
+  // Unlike item names (which go through a whole canonicalization system)
+  // and category (already normalized in getSpendingReport), vendor has no
+  // dedup mechanism - the AI can extract "Carrefour"/"CARREFOUR"/"carrefour"
+  // across different receipts from the same store. Group case-insensitively
+  // and display whichever casing was seen first for that vendor, so one
+  // store's spend doesn't silently fragment across multiple bars.
+  const displayNameByLower = new Map<string, string>()
 
   for (const log of completedLogs) {
     const raw = log.receiptData || log.extractedData
@@ -35,15 +42,19 @@ export async function getVendorSpendReport(): Promise<VendorSpend[]> {
     const amount = typeof parsed.amount === 'number' ? parsed.amount : null
     if (amount === null) continue
 
-    const vendor =
+    const rawVendor =
       typeof parsed.vendor === 'string' && parsed.vendor.trim()
         ? parsed.vendor.trim()
         : (log.vendor ?? 'Unknown')
+    const vendorLower = rawVendor.toLowerCase()
+    const vendor = displayNameByLower.get(vendorLower) ?? rawVendor
+    displayNameByLower.set(vendorLower, vendor)
+
     const currency = (
       typeof parsed.currency === 'string' ? parsed.currency : (log.currency ?? 'UNKNOWN')
     ).toUpperCase()
 
-    const key = `${vendor}|${currency}`
+    const key = `${vendorLower}|${currency}`
     const existing = buckets.get(key)
     if (existing) {
       existing.total += amount
