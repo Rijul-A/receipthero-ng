@@ -80,4 +80,4 @@ EXPOSE 3000
 
 # 1. Setup database (creates SQLite file and runs migrations)
 # 2. Start worker, API, and webapp concurrently, once the database is ready
-CMD ["sh","-lc","cd /app && pnpm --filter @sm-rn/core run db:setup && { (cd apps/worker && pnpm run start) & (cd apps/api && pnpm run start) & (cd apps/webapp && pnpm run start) & wait -n; }"]
+CMD ["bash","-lc","cd /app && pnpm --filter @sm-rn/core run db:setup && { (cd apps/worker && pnpm run start) & (cd apps/api && pnpm run start) & (cd apps/webapp && pnpm run start) & wait -n; }"]
