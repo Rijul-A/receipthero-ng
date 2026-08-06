@@ -251,6 +251,7 @@ export async function executeWorkflow(
         currency: typeof extractedData.currency === 'string' ? extractedData.currency : undefined,
         purchaseDate: typeof dateValue === 'string' ? dateValue : undefined,
         lineItems: extractedData.line_items,
+        config,
       })
     } catch {
       docLogger.warn(`Failed to record line items for price comparison`)

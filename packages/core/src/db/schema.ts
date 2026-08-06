@@ -117,6 +117,10 @@ export const receiptItems = sqliteTable('receipt_items', {
   documentId: integer('documentId').notNull(),
   vendor: text('vendor'),
   itemName: text('itemName').notNull(),
+  // AI-assigned canonical product name, so "Almarai Milk 1L" and "Al Marai
+  // Fresh Milk 1L" from different stores group together. Falls back to
+  // itemName if canonicalization fails or hasn't run (best-effort).
+  canonicalName: text('canonicalName'),
   quantity: integer('quantity').notNull().default(1),
   unitPrice: integer('unitPrice'), // Stored in cents/base units
   totalPrice: integer('totalPrice'), // Stored in cents/base units

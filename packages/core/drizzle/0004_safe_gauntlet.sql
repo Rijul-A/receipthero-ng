@@ -1,0 +1,1 @@
+ALTER TABLE `receipt_items` ADD `canonicalName` text;

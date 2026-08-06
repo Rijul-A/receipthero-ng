@@ -17,7 +17,11 @@ function withV1(url: string): string {
 }
 
 /** Derive the chat completions base URL and API key from config. */
-function resolveEndpoint(config: Config): { baseURL: string; apiKey: string; model: string } {
+export function resolveEndpoint(config: Config): {
+  baseURL: string
+  apiKey: string
+  model: string
+} {
   const { ai } = config
   switch (ai.provider) {
     case 'openai-compat':

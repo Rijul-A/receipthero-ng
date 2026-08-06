@@ -311,6 +311,7 @@ export async function processPaperlessDocument(
           currency: receipt.currency,
           purchaseDate: receipt.date,
           lineItems: receipt.line_items,
+          config,
         })
       } catch {
         docLogger.warn(` Failed to record line items for price comparison`)
@@ -764,6 +765,7 @@ export async function processPaperlessDocument(
           currency: receipt.currency,
           purchaseDate: receipt.date,
           lineItems: receipt.line_items,
+          config,
         })
       } catch {
         docLogger.warn(` Failed to record line items for price comparison`)

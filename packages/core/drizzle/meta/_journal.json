@@ -29,6 +29,13 @@
       "when": 1786030907188,
       "tag": "0003_mature_cerise",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1786032086132,
+      "tag": "0004_safe_gauntlet",
+      "breakpoints": true
     }
   ]
 }
