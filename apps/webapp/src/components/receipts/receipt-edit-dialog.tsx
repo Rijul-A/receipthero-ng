@@ -115,6 +115,22 @@ function ReceiptDetail({
   }
 
   const handleSaveReceipt = () => {
+    // vendor/currency also cascade to every recorded line item (see
+    // updateReceipt), so an accidental blank here wouldn't just clear the
+    // receipt header - it'd wipe those fields off every item too.
+    if (!vendor.trim()) {
+      toast.error('Store name cannot be empty')
+      return
+    }
+    if (!date.trim()) {
+      toast.error('Date cannot be empty')
+      return
+    }
+    if (!currency.trim()) {
+      toast.error('Currency cannot be empty')
+      return
+    }
+
     updateReceipt.mutate(
       {
         documentId,
@@ -382,29 +398,57 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
     Number.isFinite(parsedDebouncedTotalPrice) &&
     parsedDebouncedTotalPrice <= 0
 
+  // Validates every field up front and either submits a complete edit or
+  // aborts with a specific error - never a partial save (some fields
+  // silently dropped, others silently coerced) under a blanket "success".
   const handleSave = () => {
+    if (!name.trim()) {
+      toast.error('Name cannot be empty')
+      return
+    }
+
     const parsedQuantity = Number(quantity)
-    const parsedTotalSize = Number(totalSize)
+    if (
+      quantity.trim() === '' ||
+      !Number.isFinite(parsedQuantity) ||
+      parsedQuantity <= 0
+    ) {
+      toast.error('Quantity must be a positive number')
+      return
+    }
+
+    // totalPrice may legitimately be zero or negative (free item, refund/
+    // discount line) - only an empty or unparseable field is invalid, not
+    // any particular value.
+    if (totalPrice.trim() === '' || !Number.isFinite(parsedTotalPrice)) {
+      toast.error('Price must be a number')
+      return
+    }
+
     // Clearing the size field clears both size and unit together - a size
     // without a unit (or vice versa) isn't a meaningful state.
-    const sizeEdits =
-      totalSize.trim() === ''
-        ? { totalSize: null, sizeUnit: null }
-        : Number.isFinite(parsedTotalSize) && parsedTotalSize > 0
-          ? { totalSize: parsedTotalSize, sizeUnit: sizeUnit || null }
-          : {}
+    let sizeEdits: {
+      totalSize: number | null
+      sizeUnit: 'ml' | 'g' | 'count' | null
+    }
+    if (totalSize.trim() === '') {
+      sizeEdits = { totalSize: null, sizeUnit: null }
+    } else {
+      const parsedTotalSize = Number(totalSize)
+      if (!Number.isFinite(parsedTotalSize) || parsedTotalSize <= 0) {
+        toast.error('Total size must be a positive number, or left blank')
+        return
+      }
+      sizeEdits = { totalSize: parsedTotalSize, sizeUnit: sizeUnit || null }
+    }
 
     updateItem.mutate(
       {
         id: item.id,
         edits: {
           canonicalName: name,
-          ...(Number.isFinite(parsedQuantity) && parsedQuantity > 0
-            ? { quantity: parsedQuantity }
-            : {}),
-          ...(Number.isFinite(parsedTotalPrice)
-            ? { totalPrice: parsedTotalPrice }
-            : {}),
+          quantity: parsedQuantity,
+          totalPrice: parsedTotalPrice,
           ...sizeEdits,
         },
       },
