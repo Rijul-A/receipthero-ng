@@ -44,8 +44,13 @@ export async function getSpendingReport(groupBy: 'week' | 'month'): Promise<Spen
     if (!date || amount === null || Number.isNaN(new Date(date).getTime())) continue
 
     const currency = typeof parsed.currency === 'string' ? parsed.currency.toUpperCase() : 'UNKNOWN'
-    const category =
-      typeof parsed.category === 'string' && parsed.category ? parsed.category : 'uncategorized'
+    // Category is free-form AI output with no fixed vocabulary, so
+    // "Groceries"/"groceries"/"Grocery" from different receipts would
+    // otherwise fragment into separate rows instead of merging - same class
+    // of bug as un-canonicalized item names in the price-comparison feature.
+    const rawCategory =
+      typeof parsed.category === 'string' ? parsed.category.trim().toLowerCase() : ''
+    const category = rawCategory || 'uncategorized'
     const period = groupBy === 'week' ? getWeekBoundaries(date).weekStart : date.slice(0, 7)
 
     const key = `${period}|${currency}|${category}`

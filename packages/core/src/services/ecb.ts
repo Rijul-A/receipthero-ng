@@ -158,19 +158,25 @@ function getDefaultCurrencies(): string[] {
 
 /**
  * Calculates the Monday-Sunday week boundaries for a given date.
+ *
+ * Uses UTC throughout. `dateStr` is a plain YYYY-MM-DD string with no
+ * timezone of its own, so `new Date(dateStr)` parses it as UTC midnight -
+ * reading it back with local-timezone getters (getDay/getDate/setDate)
+ * would shift the result by a day (or, near a week boundary, a whole week)
+ * on any host running in a negative-UTC-offset timezone.
  */
 export function getWeekBoundaries(dateStr: string): { weekStart: string; weekEnd: string } {
   const date = new Date(dateStr)
-  const dayOfWeek = date.getDay() // 0 = Sunday, 1 = Monday, ...
+  const dayOfWeek = date.getUTCDay() // 0 = Sunday, 1 = Monday, ...
 
   // Calculate days to subtract to get to Monday
   const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
   const monday = new Date(date)
-  monday.setDate(date.getDate() - daysToMonday)
+  monday.setUTCDate(date.getUTCDate() - daysToMonday)
 
   // Calculate Sunday (6 days after Monday)
   const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
+  sunday.setUTCDate(monday.getUTCDate() + 6)
 
   return {
     weekStart: monday.toISOString().split('T')[0],

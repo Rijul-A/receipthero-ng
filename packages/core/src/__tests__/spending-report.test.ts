@@ -117,6 +117,33 @@ describe('getSpendingReport', () => {
     })
   })
 
+  it('merges categories that differ only by casing/whitespace instead of fragmenting them', async () => {
+    await seed(DOC_IDS[0], {
+      date: '2026-05-01',
+      amount: 10,
+      currency: 'AED',
+      category: 'Groceries',
+    })
+    await seed(DOC_IDS[1], {
+      date: '2026-05-02',
+      amount: 15,
+      currency: 'AED',
+      category: ' groceries ',
+    })
+
+    const rows = await getSpendingReport('month')
+    const may = rows.filter((r) => r.period === '2026-05')
+
+    expect(may).toHaveLength(1)
+    expect(may[0]).toEqual({
+      period: '2026-05',
+      currency: 'AED',
+      category: 'groceries',
+      total: 25,
+      count: 2,
+    })
+  })
+
   it('falls back to "uncategorized" and skips receipts with no usable date', async () => {
     await seed(DOC_IDS[0], { date: '2026-04-01', amount: 10, currency: 'AED' })
     await seed(DOC_IDS[1], { amount: 10, currency: 'AED', category: 'groceries' })
