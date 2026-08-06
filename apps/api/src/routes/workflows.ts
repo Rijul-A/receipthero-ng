@@ -14,7 +14,6 @@ import {
   validateZodSource,
   extractWithSchema,
   loadConfig,
-  createAIAdapter,
 } from '@sm-rn/core';
 
 const app = new Hono();
@@ -94,7 +93,6 @@ app.post('/:id/test', async (c) => {
 
   try {
     const config = loadConfig();
-    const adapter = createAIAdapter(config);
 
     // Parse the stored JSON Schema string back to an object
     const jsonSchema = typeof workflow.jsonSchema === 'string'

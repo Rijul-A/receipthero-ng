@@ -1,5 +1,5 @@
 import type { Config } from '@sm-rn/shared/schemas';
-import type { ProcessingLog, ProcessingEvent } from '@sm-rn/shared/types';
+import type { ProcessingEvent, ProcessingLog } from '@sm-rn/shared/types';
 
 // API base URL - defaults to localhost:3001 for development
 export const API_BASE_URL =
@@ -35,7 +35,7 @@ export interface HealthStatus {
     skipped: number;
     inQueue: number;
   };
-  errors?: string[];
+  errors?: Array<string>;
 }
 
 export interface WorkerStatus {
@@ -74,7 +74,7 @@ export interface ApiError {
 
 export interface ZodIssue {
   code: string;
-  path: (string | number)[];
+  path: Array<string | number>;
   message: string;
   expected?: string;
   received?: string;
@@ -85,7 +85,7 @@ export interface ApiErrorResponse {
   error: {
     name: string;
     message: string;
-    issues?: ZodIssue[];
+    issues?: Array<ZodIssue>;
   };
 }
 
@@ -166,7 +166,7 @@ export class FetchError extends Error {
     return undefined;
   }
 
-  get validationIssues(): ZodIssue[] | undefined {
+  get validationIssues(): Array<ZodIssue> | undefined {
     if (this.data && 'error' in this.data && typeof this.data.error === 'object') {
       const { issues, message } = this.data.error;
       if (issues) return issues;
@@ -175,7 +175,7 @@ export class FetchError extends Error {
       if (typeof message === 'string' && message.startsWith('[') && message.endsWith(']')) {
         try {
           const parsed = JSON.parse(message);
-          if (Array.isArray(parsed)) return parsed as ZodIssue[];
+          if (Array.isArray(parsed)) return parsed as Array<ZodIssue>;
         } catch {
           return undefined;
         }

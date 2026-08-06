@@ -1,21 +1,21 @@
-import { type ProcessingLog } from '@/lib/api';
+import { Activity, Brain, CheckCircle2, ExternalLink, Eye, FileText, Loader2, RefreshCw, XCircle } from 'lucide-react';
+import { useState } from 'react';
+import { JsonViewer } from './devtools/json-viewer';
+import { CliOutput } from './ui/cli-output';
+import type {ProcessingLog} from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FileText, CheckCircle2, XCircle, Loader2, Eye, ExternalLink, Activity, Brain, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { JsonViewer } from './devtools/json-viewer';
-import { CliOutput } from './ui/cli-output';
-import { useRetryProcessing, useDocumentLogs, useDocumentThumbnail, useDocumentImage } from '@/lib/queries';
+import { useDocumentImage, useDocumentLogs, useDocumentThumbnail, useRetryProcessing } from '@/lib/queries';
 
-export function ProcessingList({ logs }: { logs: ProcessingLog[] }) {
+export function ProcessingList({ logs }: { logs: Array<ProcessingLog> }) {
   const [selectedLog, setSelectedLog] = useState<ProcessingLog | null>(null);
 
   const activeLogs = logs.filter(l => l.status !== 'completed' && l.status !== 'failed' && l.status !== 'skipped');
@@ -113,7 +113,7 @@ function ProcessingDetailsDialog({ log, open, onOpenChange }: {
     : [{ 
         text: log.message || 'Waiting for progress updates...', 
         timestamp: log.updatedAt, 
-        level: (log.status === 'failed' ? 'error' : 'info') as 'info' | 'error'
+        level: (log.status === 'failed' ? 'error' : 'info')
       }];
 
   return (

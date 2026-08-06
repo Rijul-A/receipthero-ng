@@ -228,7 +228,7 @@ export function loadConfig(): Config {
         logger.info('No workflows found in database. Seeding default workflow from config...');
         await seedDefaultWorkflows();
       }
-    } catch (e) {
+    } catch {
       // Ignore errors during migration check
     }
   }, 0);

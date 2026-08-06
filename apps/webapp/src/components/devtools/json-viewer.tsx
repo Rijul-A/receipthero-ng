@@ -1,9 +1,9 @@
 import JsonView from '@uiw/react-json-view';
 import { nordTheme } from '@uiw/react-json-view/nord';
-import { cn } from '@/lib/utils';
 import { useState } from 'react';
-import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 
 interface JsonViewerProps {
   data: any;

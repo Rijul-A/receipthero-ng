@@ -1,6 +1,6 @@
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { SlidingNumber } from '@/components/ui/sliding-number';
 import type { CurrencyTotalsResponse } from '@/lib/queries';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SlidingNumber } from '@/components/ui/sliding-number';
 
 // Get currency symbol for display
 function getCurrencySymbol(currency: string): string {
@@ -23,7 +23,7 @@ function getCurrencySymbol(currency: string): string {
 
 interface CurrencyTotalsCardProps {
   currencyTotals: CurrencyTotalsResponse | undefined;
-  targetCurrencies?: string[];
+  targetCurrencies?: Array<string>;
 }
 
 export function CurrencyTotalsCard({ currencyTotals, targetCurrencies }: CurrencyTotalsCardProps) {

@@ -1,40 +1,41 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  clearQueue as clearQueueFn,
+  clearSkippedDocuments,
+  getAppLogs,
+  getAvailableCurrencies as getAvailableCurrenciesFn,
+  getConfig as getConfigFn,
+  getCurrencyTotals as getCurrencyTotalsFn,
+  getDocumentImage,
+  getDocumentLogs,
+  getDocumentThumbnail,
+  getHealthStatus,
+  getProcessingLogs,
+  getQueueStatus as getQueueStatusFn,
+  getWebhookStatus as getWebhookStatusFn,
+  pauseWorker as pauseWorkerFn,
+  resumeWorker as resumeWorkerFn,
+  retryAllQueue as retryAllQueueFn,
+  retryDocument,
+  saveConfig as saveConfigFn,
+  testAiConnection,
+  testPaperlessConnection,
+  triggerScanAndWait
+} from './server';
+import type {CurrencyTotalsResponse, DocumentImageResponse, HealthStatus, QueueActionResponse, QueueStatus, SaveConfigResponse, TestConnectionResponse, TriggerScanResponse, WebhookStatusResponse, WorkerStatus} from './server';
 import type { Config } from '@sm-rn/shared/schemas';
 import type { ProcessingLog } from '@sm-rn/shared/types';
 
-import {
-  getHealthStatus,
-  getConfig as getConfigFn,
-  saveConfig as saveConfigFn,
-  getAvailableCurrencies as getAvailableCurrenciesFn,
-  pauseWorker as pauseWorkerFn,
-  resumeWorker as resumeWorkerFn,
-  triggerScanAndWait,
-  getQueueStatus as getQueueStatusFn,
-  retryAllQueue as retryAllQueueFn,
-  clearQueue as clearQueueFn,
-  clearSkippedDocuments,
-  getProcessingLogs,
-  getDocumentLogs,
-  getAppLogs,
-  retryDocument,
-  testPaperlessConnection,
-  testAiConnection,
-  getCurrencyTotals as getCurrencyTotalsFn,
-  getDocumentThumbnail,
-  getDocumentImage,
-  getWebhookStatus as getWebhookStatusFn,
-  type HealthStatus,
-  type SaveConfigResponse,
-  type TestConnectionResponse,
-  type WorkerStatus,
-  type QueueStatus,
-  type QueueActionResponse,
-  type TriggerScanResponse,
-  type CurrencyTotalsResponse,
-  type DocumentImageResponse,
-  type WebhookStatusResponse,
-} from './server';
 
 // Re-export types for convenience
 export type {

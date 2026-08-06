@@ -3,6 +3,7 @@ import { cleanup } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
+import type * as TanstackRouter from '@tanstack/react-router'
 
 // Cleanup after each test
 afterEach(() => {
@@ -26,7 +27,7 @@ Object.defineProperty(window, 'matchMedia', {
 
 // Mock TanStack Router - used by page components
 vi.mock('@tanstack/react-router', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@tanstack/react-router')>()
+  const actual = await importOriginal<typeof TanstackRouter>()
   return {
     ...actual,
     Link: ({ children, to, ...props }: any) =>

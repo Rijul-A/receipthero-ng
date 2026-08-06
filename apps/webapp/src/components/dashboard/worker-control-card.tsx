@@ -1,8 +1,8 @@
-import { Pause, Play, RotateCcw, Trash2, Loader2 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Loader2, Pause, Play, RotateCcw, Trash2 } from 'lucide-react';
+import type { HealthStatus } from '@/lib/queries';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import type { HealthStatus } from '@/lib/queries';
 
 interface WorkerControlCardProps {
   worker: HealthStatus['worker'] | undefined;

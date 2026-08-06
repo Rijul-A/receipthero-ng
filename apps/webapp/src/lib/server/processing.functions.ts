@@ -1,6 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { createServerFn } from '@tanstack/react-start';
-import type { ProcessingLog, LogEntry } from '@sm-rn/shared/types';
+import type { LogEntry, ProcessingLog } from '@sm-rn/shared/types';
 
 // API base URL - in production this would be internal, in dev it's localhost
 const API_BASE_URL = process.env.API_URL || 'http://localhost:3001';
@@ -40,7 +40,7 @@ export type { ProcessingLog };
  * Get recent processing logs - proxies to GET /api/events
  */
 export const getProcessingLogs = createServerFn({ method: 'GET' }).handler(async () => {
-    return apiCall<ProcessingLog[]>('/api/events');
+    return apiCall<Array<ProcessingLog>>('/api/events');
 });
 
 /**
@@ -58,9 +58,9 @@ export const getDocumentLogs = createServerFn({ method: 'POST' })
         }
 
         try {
-            const result = await apiCall<LogEntry[]>(`/api/events/logs/document/${documentId}`);
-            console.log('[getDocumentLogs] Got', result?.length ?? 0, 'logs');
-            return result ?? [];
+            const result = await apiCall<Array<LogEntry>>(`/api/events/logs/document/${documentId}`);
+            console.log('[getDocumentLogs] Got', result.length, 'logs');
+            return result;
         } catch (error) {
             console.error('[getDocumentLogs] Error:', error);
             return [];
@@ -76,8 +76,7 @@ export const getAppLogs = createServerFn({ method: 'POST' })
         const source = ctx.data.source;
         const queryParam = source ? `?source=${source}` : '';
         try {
-            const result = await apiCall<LogEntry[]>(`/api/events/logs${queryParam}`);
-            return result ?? [];
+            return await apiCall<Array<LogEntry>>(`/api/events/logs${queryParam}`);
         } catch (error) {
             console.error('[getAppLogs] Error:', error);
             return [];

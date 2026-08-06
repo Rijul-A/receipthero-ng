@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { createServerFn } from '@tanstack/react-start';
 import type { Config } from '@sm-rn/shared/schemas';
 
@@ -33,7 +33,7 @@ export interface SaveConfigResponse {
     error?: {
         name: string;
         message: string;
-        issues?: unknown[];
+        issues?: Array<unknown>;
     };
 }
 
@@ -65,7 +65,7 @@ export interface CurrencyInfo {
 
 export interface CurrenciesResponse {
     success: boolean;
-    currencies: CurrencyInfo[];
+    currencies: Array<CurrencyInfo>;
 }
 
 /**

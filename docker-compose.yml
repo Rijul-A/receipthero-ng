@@ -7,7 +7,7 @@ services:
     environment:
       - DATABASE_PATH=/app/data/receipthero.db
       - CONFIG_PATH=/app/data/config.json
-      - BUN_DEV_SERVER_PORT=3099  # Move Bun's internal dev server out of the way
+      - PORT=3000  # Webapp's Nitro server binds here; API is hardcoded to 3001
     volumes:
       - ./data:/app/data
     ports:

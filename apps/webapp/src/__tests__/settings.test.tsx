@@ -1,7 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
+
+// Import after mocking
+import { toast } from 'sonner'
+import { useConfig, useSaveConfig, useTestAi, useTestPaperless } from '../lib/queries'
+// Import the Route to get the component
+import { Route } from '../routes/settings'
 import { createTestQueryClient, mockConfigData } from './setup'
 
 // Mock the queries module
@@ -13,12 +19,6 @@ vi.mock('../lib/queries', () => ({
   useAvailableCurrencies: vi.fn(() => ({ data: [] })),
   useWebhookStatus: vi.fn(() => ({ data: undefined })),
 }))
-
-// Import after mocking
-import { useConfig, useSaveConfig, useTestPaperless, useTestAi } from '../lib/queries'
-import { toast } from 'sonner'
-// Import the Route to get the component
-import { Route } from '../routes/settings'
 
 const mockUseConfig = useConfig as ReturnType<typeof vi.fn>
 const mockUseSaveConfig = useSaveConfig as ReturnType<typeof vi.fn>

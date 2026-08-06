@@ -310,7 +310,7 @@ export class PaperlessClient {
     const tags = await this.getTags();
     const processedTag = tags.find((t: any) => t.name.toLowerCase() === processedTagName.toLowerCase());
 
-    let queryParts: string[] = [];
+    const queryParts: string[] = [];
 
     if (useDocumentType) {
       // Filter by document_type instead of tag

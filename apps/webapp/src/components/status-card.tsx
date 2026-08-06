@@ -1,10 +1,10 @@
 import * as React from "react"
 import {
   Card,
+  CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
-  CardContent,
 } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 

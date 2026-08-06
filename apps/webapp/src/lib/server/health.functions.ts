@@ -25,7 +25,7 @@ export interface HealthStatus {
         skipped: number;
         inQueue: number;
     };
-    errors?: string[];
+    errors?: Array<string>;
 }
 
 /**

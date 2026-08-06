@@ -3,7 +3,7 @@ import { extractWithSchema } from '../services/extract';
 
 // Mock the TanStack AI chat function
 mock.module('@tanstack/ai', () => ({
-  chat: async ({ outputSchema, messages }: any) => {
+  chat: async (_args: any) => {
     // Basic mock response matching the wrapped schema structure
     return {
       items: [

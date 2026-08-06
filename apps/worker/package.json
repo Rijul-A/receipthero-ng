@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "PORT=3002 bun run src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --config ../../eslint.config.js .",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@sm-rn/core": "workspace:*",

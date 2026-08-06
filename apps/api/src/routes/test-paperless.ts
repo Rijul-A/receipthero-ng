@@ -12,7 +12,8 @@ const TestPaperlessSchema = z.object({
 });
 
 testPaperless.post('/', zValidator('json', TestPaperlessSchema), async (c) => {
-  let { host, apiKey } = c.req.valid('json');
+  const { host, apiKey: submittedApiKey } = c.req.valid('json');
+  let apiKey = submittedApiKey;
   // Handle masked API key
   if (apiKey.includes('...')) {
     try {

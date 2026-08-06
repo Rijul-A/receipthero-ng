@@ -142,7 +142,7 @@ export async function processPaperlessDocument(
           progress: 50,
           message: 'Reusing existing extraction data'
         });
-      } catch (e) {
+      } catch {
         docLogger.warn(` Failed to parse existing receipt data, falling back to full extraction`);
       }
     } else {
@@ -561,7 +561,7 @@ export async function processPaperlessDocument(
             progress: 50,
             message: 'Reusing existing extraction data'
           });
-        } catch (e) {
+        } catch {
           docLogger.warn(` Failed to parse existing receipt data, falling back to full extraction`);
         }
       } else {
@@ -1187,7 +1187,7 @@ export async function processDocumentsByIds(documentIds: number[]): Promise<{
 
   let processed = 0;
   let failed = 0;
-  let skipped = 0;
+  const skipped = 0;
 
   for (const documentId of documentIds) {
     try {

@@ -1,6 +1,6 @@
 import { db, schema } from '../db';
 import { eq, desc } from 'drizzle-orm';
-import type { Workflow, NewWorkflow } from '../db/schema';
+import type { Workflow } from '../db/schema';
 import { z } from 'zod';
 import { loadConfig } from './config';
 import { ProcessedReceiptSchema } from '@sm-rn/shared/types';

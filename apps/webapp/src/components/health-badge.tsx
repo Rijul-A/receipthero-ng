@@ -35,13 +35,9 @@ export function HealthBadge({ status, className }: HealthBadgeProps) {
     )
   }
 
-  if (status === "loading") {
-    return (
-      <Badge variant="secondary" className={className}>
-        Loading...
-      </Badge>
-    )
-  }
-
-  return null
+  return (
+    <Badge variant="secondary" className={className}>
+      Loading...
+    </Badge>
+  )
 }

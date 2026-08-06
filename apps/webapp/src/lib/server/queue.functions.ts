@@ -36,7 +36,7 @@ export interface QueueStatus {
     success: boolean;
     queue: {
         size: number;
-        items: QueueItem[];
+        items: Array<QueueItem>;
     };
     skipped: {
         count: number;
@@ -78,7 +78,7 @@ export const clearQueue = createServerFn({ method: 'POST' }).handler(async (): P
  * Get skipped documents - proxies to GET /api/queue/skipped
  */
 export const getSkippedDocuments = createServerFn({ method: 'GET' }).handler(async () => {
-    return apiCall<{ success: boolean; count: number; items: any[] }>('/api/queue/skipped');
+    return apiCall<{ success: boolean; count: number; items: Array<any> }>('/api/queue/skipped');
 });
 
 /**
