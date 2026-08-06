@@ -17,6 +17,16 @@ async function apiCall<T>(endpoint: string): Promise<T> {
   return response.json() as T
 }
 
+export interface DateRange {
+  startDate?: string
+  endDate?: string
+}
+
+function addDateRangeParams(params: URLSearchParams, range?: DateRange): void {
+  if (range?.startDate) params.set('startDate', range.startDate)
+  if (range?.endDate) params.set('endDate', range.endDate)
+}
+
 export interface CurrencyTotal {
   currency: string
   total: number
@@ -73,10 +83,12 @@ export interface SpendingReportResponse {
  * Proxies to GET /api/stats/spending?groupBy=...
  */
 export const getSpendingReport = createServerFn({ method: 'GET' })
-  .inputValidator((input: { groupBy: 'week' | 'month' }) => input)
+  .inputValidator((input: { groupBy: 'week' | 'month' } & DateRange) => input)
   .handler(async (ctx) => {
+    const params = new URLSearchParams({ groupBy: ctx.data.groupBy })
+    addDateRangeParams(params, ctx.data)
     return apiCall<SpendingReportResponse>(
-      `/api/stats/spending?groupBy=${ctx.data.groupBy}`,
+      `/api/stats/spending?${params.toString()}`,
     )
   })
 
@@ -85,10 +97,12 @@ export const getSpendingReport = createServerFn({ method: 'GET' })
  * Proxies to GET /api/stats/spending/export?groupBy=...
  */
 export const exportSpendingReportCsv = createServerFn({ method: 'GET' })
-  .inputValidator((input: { groupBy: 'week' | 'month' }) => input)
+  .inputValidator((input: { groupBy: 'week' | 'month' } & DateRange) => input)
   .handler(async (ctx) => {
+    const params = new URLSearchParams({ groupBy: ctx.data.groupBy })
+    addDateRangeParams(params, ctx.data)
     const response = await fetch(
-      `${API_URL}/api/stats/spending/export?groupBy=${ctx.data.groupBy}`,
+      `${API_URL}/api/stats/spending/export?${params.toString()}`,
     )
     if (!response.ok) {
       throw new Error(`API error: ${response.status} ${response.statusText}`)
@@ -108,11 +122,13 @@ export interface VendorSpend {
  * Total spend per vendor, by currency.
  * Proxies to GET /api/stats/vendor-totals
  */
-export const getVendorSpendReport = createServerFn({ method: 'GET' }).handler(
-  async () => {
+export const getVendorSpendReport = createServerFn({ method: 'GET' })
+  .inputValidator((input: DateRange = {}) => input)
+  .handler(async (ctx) => {
+    const params = new URLSearchParams()
+    addDateRangeParams(params, ctx.data)
     const { rows } = await apiCall<{ rows: Array<VendorSpend> }>(
-      '/api/stats/vendor-totals',
+      `/api/stats/vendor-totals?${params.toString()}`,
     )
     return rows
-  },
-)
+  })

@@ -5,6 +5,7 @@
  */
 
 import { createServerFn } from '@tanstack/react-start'
+import type { DateRange } from './stats.functions'
 
 const API_URL = process.env.API_URL || 'http://localhost:3001'
 
@@ -121,10 +122,14 @@ export interface ItemFrequency {
  * Proxies to GET /api/items/frequency?limit=...
  */
 export const getItemFrequencyReport = createServerFn({ method: 'GET' })
-  .inputValidator((input: { limit?: number }) => input)
+  .inputValidator((input: { limit?: number } & DateRange) => input)
   .handler(async (ctx) => {
+    const params = new URLSearchParams()
+    if (ctx.data.limit) params.set('limit', String(ctx.data.limit))
+    if (ctx.data.startDate) params.set('startDate', ctx.data.startDate)
+    if (ctx.data.endDate) params.set('endDate', ctx.data.endDate)
     const { rows } = await apiCall<{ rows: Array<ItemFrequency> }>(
-      `/api/items/frequency${ctx.data.limit ? `?limit=${ctx.data.limit}` : ''}`,
+      `/api/items/frequency?${params.toString()}`,
     )
     return rows
   })

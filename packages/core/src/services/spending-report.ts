@@ -19,9 +19,16 @@ export interface SpendingReportRow {
  *
  * Uses the receipt's own extracted `date`, not the processing timestamp,
  * since processing can lag behind the actual purchase by however long it
- * takes Paperless/the worker to pick the document up.
+ * takes Paperless/the worker to pick the document up. `dateRange` filters
+ * on that same field for the same reason - a receipt processed today for a
+ * purchase last month should count toward last month's range, not today's.
+ * Both bounds are inclusive, plain "YYYY-MM-DD" strings compare
+ * lexicographically the same as chronologically.
  */
-export async function getSpendingReport(groupBy: 'week' | 'month'): Promise<SpendingReportRow[]> {
+export async function getSpendingReport(
+  groupBy: 'week' | 'month',
+  dateRange?: { start?: string; end?: string },
+): Promise<SpendingReportRow[]> {
   const completedLogs = await db.query.processingLogs.findMany({
     where: eq(schema.processingLogs.status, 'completed'),
   })
@@ -42,6 +49,8 @@ export async function getSpendingReport(groupBy: 'week' | 'month'): Promise<Spen
     const date = typeof parsed.date === 'string' ? parsed.date : null
     const amount = typeof parsed.amount === 'number' ? parsed.amount : null
     if (!date || amount === null || Number.isNaN(new Date(date).getTime())) continue
+    if (dateRange?.start && date < dateRange.start) continue
+    if (dateRange?.end && date > dateRange.end) continue
 
     const currency = typeof parsed.currency === 'string' ? parsed.currency.toUpperCase() : 'UNKNOWN'
     // Category is free-form AI output with no fixed vocabulary, so

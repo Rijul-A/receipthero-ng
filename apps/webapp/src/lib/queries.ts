@@ -43,6 +43,7 @@ import {
 import { downloadTextFile } from './utils'
 import type {
   CurrencyTotalsResponse,
+  DateRange,
   DocumentImageResponse,
   HealthStatus,
   ItemEdit,
@@ -98,9 +99,10 @@ export const configKeys = {
 export const statsKeys = {
   all: ['stats'] as const,
   currencyTotals: () => [...statsKeys.all, 'currency-totals'] as const,
-  spending: (groupBy: 'week' | 'month') =>
-    [...statsKeys.all, 'spending', groupBy] as const,
-  vendorTotals: () => [...statsKeys.all, 'vendor-totals'] as const,
+  spending: (groupBy: 'week' | 'month', dateRange?: DateRange) =>
+    [...statsKeys.all, 'spending', groupBy, dateRange ?? null] as const,
+  vendorTotals: (dateRange?: DateRange) =>
+    [...statsKeys.all, 'vendor-totals', dateRange ?? null] as const,
 }
 
 export const workerKeys = {
@@ -125,7 +127,8 @@ export const itemKeys = {
     [...itemKeys.all, 'history', itemNames] as const,
   renamePreview: (from: string) =>
     [...itemKeys.all, 'rename-preview', from] as const,
-  frequency: (limit: number) => [...itemKeys.all, 'frequency', limit] as const,
+  frequency: (limit: number, dateRange?: DateRange) =>
+    [...itemKeys.all, 'frequency', limit, dateRange ?? null] as const,
 }
 
 export const receiptKeys = {
@@ -302,12 +305,17 @@ export function useExportReceiptsCsv() {
 
 /**
  * Fetches spend aggregated by week or month, by currency and category.
+ * `dateRange` (both bounds optional, inclusive) filters to receipts whose
+ * own extracted date falls within it.
  */
-export function useSpendingReport(groupBy: 'week' | 'month') {
+export function useSpendingReport(
+  groupBy: 'week' | 'month',
+  dateRange?: DateRange,
+) {
   return useQuery<Array<SpendingReportRow>>({
-    queryKey: statsKeys.spending(groupBy),
+    queryKey: statsKeys.spending(groupBy, dateRange),
     queryFn: async () =>
-      (await getSpendingReportFn({ data: { groupBy } })).rows,
+      (await getSpendingReportFn({ data: { groupBy, ...dateRange } })).rows,
     staleTime: 1000 * 60 * 5,
   })
 }
@@ -316,10 +324,10 @@ export function useSpendingReport(groupBy: 'week' | 'month') {
  * Total spend per vendor, by currency - "where does my money actually go",
  * as opposed to the per-item price comparison on the Prices page.
  */
-export function useVendorSpendReport() {
+export function useVendorSpendReport(dateRange?: DateRange) {
   return useQuery<Array<VendorSpend>>({
-    queryKey: statsKeys.vendorTotals(),
-    queryFn: () => getVendorSpendReportFn(),
+    queryKey: statsKeys.vendorTotals(dateRange),
+    queryFn: () => getVendorSpendReportFn({ data: dateRange ?? {} }),
     staleTime: 1000 * 60 * 5,
   })
 }
@@ -328,10 +336,10 @@ export function useVendorSpendReport() {
  * Per-product total spend and purchase frequency, across all recorded line
  * items.
  */
-export function useItemFrequencyReport(limit = 50) {
+export function useItemFrequencyReport(limit = 50, dateRange?: DateRange) {
   return useQuery<Array<ItemFrequency>>({
-    queryKey: itemKeys.frequency(limit),
-    queryFn: () => getItemFrequencyReportFn({ data: { limit } }),
+    queryKey: itemKeys.frequency(limit, dateRange),
+    queryFn: () => getItemFrequencyReportFn({ data: { limit, ...dateRange } }),
     staleTime: 1000 * 60 * 5,
   })
 }
@@ -341,8 +349,16 @@ export function useItemFrequencyReport(limit = 50) {
  */
 export function useExportSpendingReportCsv() {
   return useMutation({
-    mutationFn: async (groupBy: 'week' | 'month') => {
-      const csv = await exportSpendingReportCsvFn({ data: { groupBy } })
+    mutationFn: async ({
+      groupBy,
+      dateRange,
+    }: {
+      groupBy: 'week' | 'month'
+      dateRange?: DateRange
+    }) => {
+      const csv = await exportSpendingReportCsvFn({
+        data: { groupBy, ...dateRange },
+      })
       downloadTextFile(`spending-${groupBy}.csv`, csv)
     },
   })

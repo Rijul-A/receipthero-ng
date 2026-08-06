@@ -154,4 +154,52 @@ describe('getSpendingReport', () => {
     expect(april).toHaveLength(1)
     expect(april[0].category).toBe('uncategorized')
   })
+
+  it('filters to receipts whose date falls within an inclusive dateRange', async () => {
+    await seed(DOC_IDS[0], {
+      date: '2026-06-01',
+      amount: 10,
+      currency: 'AED',
+      category: 'groceries',
+    })
+    await seed(DOC_IDS[1], {
+      date: '2026-06-15',
+      amount: 20,
+      currency: 'AED',
+      category: 'groceries',
+    })
+    await seed(DOC_IDS[2], {
+      date: '2026-06-30',
+      amount: 30,
+      currency: 'AED',
+      category: 'groceries',
+    })
+
+    const rows = await getSpendingReport('month', { start: '2026-06-15', end: '2026-06-15' })
+    const june = rows.filter((r) => r.period === '2026-06')
+
+    expect(june).toHaveLength(1)
+    expect(june[0].total).toBe(20)
+  })
+
+  it('applies only the given bound when the other is omitted', async () => {
+    await seed(DOC_IDS[0], {
+      date: '2026-07-01',
+      amount: 10,
+      currency: 'AED',
+      category: 'groceries',
+    })
+    await seed(DOC_IDS[1], {
+      date: '2026-07-31',
+      amount: 20,
+      currency: 'AED',
+      category: 'groceries',
+    })
+
+    const fromMidJuly = await getSpendingReport('month', { start: '2026-07-15' })
+    expect(fromMidJuly.find((r) => r.period === '2026-07')?.total).toBe(20)
+
+    const untilMidJuly = await getSpendingReport('month', { end: '2026-07-15' })
+    expect(untilMidJuly.find((r) => r.period === '2026-07')?.total).toBe(10)
+  })
 })

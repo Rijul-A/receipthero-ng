@@ -9,12 +9,18 @@ import type {
 import type { BarChartDatum } from '@/components/charts/bar-chart'
 import type { DonutChartDatum } from '@/components/charts/donut-chart'
 import type { LineChartSeries } from '@/components/charts/line-chart'
+import type { DateRangeValue } from '@/components/date-range-picker'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { BarChart } from '@/components/charts/bar-chart'
 import { DonutChart } from '@/components/charts/donut-chart'
 import { LineChart } from '@/components/charts/line-chart'
 import { RenameVendorDialog } from '@/components/analytics/rename-vendor-dialog'
+import {
+  DateRangePicker,
+  EMPTY_DATE_RANGE,
+  toDateRangeParams,
+} from '@/components/date-range-picker'
 import {
   useItemFrequencyReport,
   useSpendingReport,
@@ -162,10 +168,18 @@ export function formatPurchaseFrequency(item: ItemFrequency): string {
 function AnalyticsPage() {
   const [groupBy, setGroupBy] = useState<'week' | 'month'>('month')
   const [renamingVendor, setRenamingVendor] = useState<string | null>(null)
-  const { data: spendingRows, isLoading: spendingLoading } =
-    useSpendingReport(groupBy)
-  const { data: vendorRows, isLoading: vendorLoading } = useVendorSpendReport()
-  const { data: itemRows, isLoading: itemsLoading } = useItemFrequencyReport(15)
+  const [dateRange, setDateRange] = useState<DateRangeValue>(EMPTY_DATE_RANGE)
+  const dateRangeParams = toDateRangeParams(dateRange)
+  const { data: spendingRows, isLoading: spendingLoading } = useSpendingReport(
+    groupBy,
+    dateRangeParams,
+  )
+  const { data: vendorRows, isLoading: vendorLoading } =
+    useVendorSpendReport(dateRangeParams)
+  const { data: itemRows, isLoading: itemsLoading } = useItemFrequencyReport(
+    15,
+    dateRangeParams,
+  )
 
   const spendOverTime = useMemo(
     () => buildSpendOverTimeSeries(spendingRows ?? []),
@@ -186,11 +200,14 @@ function AnalyticsPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
-      <div className="space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
-        <p className="text-muted-foreground">
-          Spending patterns across everything you've processed.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
+          <p className="text-muted-foreground">
+            Spending patterns across everything you've processed.
+          </p>
+        </div>
+        <DateRangePicker value={dateRange} onChange={setDateRange} />
       </div>
 
       <Card>

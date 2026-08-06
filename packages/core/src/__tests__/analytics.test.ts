@@ -132,6 +132,39 @@ describe('getVendorSpendReport', () => {
     expect(deira?.count).toBe(2)
     expect(moe?.total).toBe(100)
   })
+
+  it('filters to receipts whose own date falls within an inclusive dateRange', async () => {
+    await seedLog(DOC_IDS[0], {
+      vendor: 'Carrefour',
+      amount: 10,
+      currency: 'AED',
+      date: '2026-08-01',
+    })
+    await seedLog(DOC_IDS[1], {
+      vendor: 'Carrefour',
+      amount: 20,
+      currency: 'AED',
+      date: '2026-08-15',
+    })
+    await seedLog(DOC_IDS[2], {
+      vendor: 'Carrefour',
+      amount: 30,
+      currency: 'AED',
+      date: '2026-08-31',
+    })
+
+    const rows = await getVendorSpendReport({ start: '2026-08-10', end: '2026-08-20' })
+    const carrefour = rows.find((r) => r.vendor === 'Carrefour')
+    expect(carrefour?.total).toBe(20)
+    expect(carrefour?.count).toBe(1)
+  })
+
+  it('excludes a receipt with no usable date once a dateRange is given', async () => {
+    await seedLog(DOC_IDS[0], { vendor: 'Carrefour', amount: 10, currency: 'AED' })
+
+    const rows = await getVendorSpendReport({ start: '2026-01-01' })
+    expect(rows.find((r) => r.vendor === 'Carrefour')).toBeUndefined()
+  })
 })
 
 describe('getItemFrequencyReport', () => {
@@ -200,5 +233,39 @@ describe('getItemFrequencyReport', () => {
 
     const rows = await getItemFrequencyReport()
     expect(rows.find((r) => r.name === 'Unresolved Raw Name')).toBeTruthy()
+  })
+
+  it('filters to purchases within an inclusive dateRange', async () => {
+    await seedItem(DOC_IDS[0], {
+      itemName: 'Analytics Test Milk',
+      canonicalName: 'Analytics Test Milk',
+      currency: 'AED',
+      totalPrice: 500,
+      purchaseDate: '2026-03-01',
+    })
+    await seedItem(DOC_IDS[1], {
+      itemName: 'Analytics Test Milk',
+      canonicalName: 'Analytics Test Milk',
+      currency: 'AED',
+      totalPrice: 600,
+      purchaseDate: '2026-03-31',
+    })
+
+    const rows = await getItemFrequencyReport(50, { start: '2026-03-15' })
+    const milk = rows.find((r) => r.name === 'Analytics Test Milk')
+    expect(milk?.totalSpent).toBe(6)
+    expect(milk?.purchaseCount).toBe(1)
+  })
+
+  it('excludes a row with no purchaseDate once a dateRange is given', async () => {
+    await seedItem(DOC_IDS[0], {
+      itemName: 'Analytics Test Undated',
+      canonicalName: 'Analytics Test Undated',
+      currency: 'AED',
+      totalPrice: 100,
+    })
+
+    const rows = await getItemFrequencyReport(50, { start: '2026-01-01' })
+    expect(rows.find((r) => r.name === 'Analytics Test Undated')).toBeUndefined()
   })
 })

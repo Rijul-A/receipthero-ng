@@ -20,8 +20,16 @@ export interface VendorSpend {
  * of the same chain can price differently, and treating them as one vendor
  * here while the Prices page tells them apart would be an inconsistent
  * (and confusing) story about "the same store".
+ *
+ * `dateRange` filters on the receipt's own extracted date (not the
+ * processing timestamp), same reasoning and inclusive-bounds convention as
+ * getSpendingReport. A receipt with no usable date is excluded once a
+ * range is given, since there's no way to confirm it falls inside it.
  */
-export async function getVendorSpendReport(): Promise<VendorSpend[]> {
+export async function getVendorSpendReport(dateRange?: {
+  start?: string
+  end?: string
+}): Promise<VendorSpend[]> {
   const completedLogs = await db.query.processingLogs.findMany({
     where: eq(schema.processingLogs.status, 'completed'),
   })
@@ -40,7 +48,13 @@ export async function getVendorSpendReport(): Promise<VendorSpend[]> {
     const raw = log.receiptData || log.extractedData
     if (!raw) continue
 
-    let parsed: { vendor?: unknown; amount?: unknown; currency?: unknown; storeLocation?: unknown }
+    let parsed: {
+      vendor?: unknown
+      amount?: unknown
+      currency?: unknown
+      storeLocation?: unknown
+      date?: unknown
+    }
     try {
       parsed = JSON.parse(raw)
     } catch {
@@ -49,6 +63,13 @@ export async function getVendorSpendReport(): Promise<VendorSpend[]> {
 
     const amount = typeof parsed.amount === 'number' ? parsed.amount : null
     if (amount === null) continue
+
+    if (dateRange?.start || dateRange?.end) {
+      const date = typeof parsed.date === 'string' ? parsed.date : null
+      if (!date) continue
+      if (dateRange.start && date < dateRange.start) continue
+      if (dateRange.end && date > dateRange.end) continue
+    }
 
     const rawVendor =
       typeof parsed.vendor === 'string' && parsed.vendor.trim()
@@ -104,9 +125,27 @@ export interface ItemFrequency {
  * purchaseCount only counts rows with a positive price (real purchases);
  * totalSpent sums every row including negative/zero ones, so a refund
  * correctly nets out of the total without being counted as a "purchase".
+ *
+ * `dateRange` filters on purchaseDate (inclusive bounds, same convention as
+ * getSpendingReport). A row with no purchaseDate is excluded once a range
+ * is given, since there's no way to confirm it falls inside it.
  */
-export async function getItemFrequencyReport(limit = 50): Promise<ItemFrequency[]> {
-  const rows = await db.query.receiptItems.findMany()
+export async function getItemFrequencyReport(
+  limit = 50,
+  dateRange?: { start?: string; end?: string },
+): Promise<ItemFrequency[]> {
+  const allRows = await db.query.receiptItems.findMany()
+  const start = dateRange?.start
+  const end = dateRange?.end
+  const rows =
+    start || end
+      ? allRows.filter((row) => {
+          if (!row.purchaseDate) return false
+          if (start && row.purchaseDate < start) return false
+          if (end && row.purchaseDate > end) return false
+          return true
+        })
+      : allRows
 
   interface Bucket extends ItemFrequency {
     totalCents: number

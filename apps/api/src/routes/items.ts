@@ -18,17 +18,26 @@ import { toCsv } from '../lib/csv'
 const items = new Hono()
 
 /**
- * GET /api/items/frequency?limit=50
+ * GET /api/items/frequency?limit=50&startDate=...&endDate=...
  *
  * Per-product total spend and purchase frequency across all recorded line
  * items - "how much have I spent on X, and how often do I buy it".
+ * startDate/endDate (both optional, inclusive) filter to items whose own
+ * purchaseDate falls in that range.
  */
 items.get(
   '/frequency',
-  zValidator('query', z.object({ limit: z.coerce.number().int().positive().max(200).default(50) })),
+  zValidator(
+    'query',
+    z.object({
+      limit: z.coerce.number().int().positive().max(200).default(50),
+      startDate: z.string().min(1).optional(),
+      endDate: z.string().min(1).optional(),
+    }),
+  ),
   async (c) => {
-    const { limit } = c.req.valid('query')
-    const rows = await getItemFrequencyReport(limit)
+    const { limit, startDate, endDate } = c.req.valid('query')
+    const rows = await getItemFrequencyReport(limit, { start: startDate, end: endDate })
     return c.json({ rows })
   },
 )

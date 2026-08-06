@@ -171,31 +171,47 @@ stats.get('/export/receipts', async (c) => {
 })
 
 /**
- * GET /api/stats/spending?groupBy=week|month
+ * GET /api/stats/spending?groupBy=week|month&startDate=...&endDate=...
  *
  * Spend aggregated by week or month, broken down by currency and category.
+ * startDate/endDate (both optional, inclusive) filter to receipts whose own
+ * extracted date falls in that range.
  */
 stats.get(
   '/spending',
-  zValidator('query', z.object({ groupBy: z.enum(['week', 'month']).default('month') })),
+  zValidator(
+    'query',
+    z.object({
+      groupBy: z.enum(['week', 'month']).default('month'),
+      startDate: z.string().min(1).optional(),
+      endDate: z.string().min(1).optional(),
+    }),
+  ),
   async (c) => {
-    const { groupBy } = c.req.valid('query')
-    const rows = await getSpendingReport(groupBy)
+    const { groupBy, startDate, endDate } = c.req.valid('query')
+    const rows = await getSpendingReport(groupBy, { start: startDate, end: endDate })
     return c.json({ groupBy, rows })
   },
 )
 
 /**
- * GET /api/stats/spending/export?groupBy=week|month
+ * GET /api/stats/spending/export?groupBy=week|month&startDate=...&endDate=...
  *
  * CSV export of the spending report.
  */
 stats.get(
   '/spending/export',
-  zValidator('query', z.object({ groupBy: z.enum(['week', 'month']).default('month') })),
+  zValidator(
+    'query',
+    z.object({
+      groupBy: z.enum(['week', 'month']).default('month'),
+      startDate: z.string().min(1).optional(),
+      endDate: z.string().min(1).optional(),
+    }),
+  ),
   async (c) => {
-    const { groupBy } = c.req.valid('query')
-    const rows = await getSpendingReport(groupBy)
+    const { groupBy, startDate, endDate } = c.req.valid('query')
+    const rows = await getSpendingReport(groupBy, { start: startDate, end: endDate })
 
     const csv = toCsv(
       rows.map((r) => ({ ...r, total: r.total.toFixed(2) })),
@@ -209,13 +225,24 @@ stats.get(
 )
 
 /**
- * GET /api/stats/vendor-totals
+ * GET /api/stats/vendor-totals?startDate=...&endDate=...
  *
  * Total spend per vendor, broken down by currency.
  */
-stats.get('/vendor-totals', async (c) => {
-  const rows = await getVendorSpendReport()
-  return c.json({ rows })
-})
+stats.get(
+  '/vendor-totals',
+  zValidator(
+    'query',
+    z.object({
+      startDate: z.string().min(1).optional(),
+      endDate: z.string().min(1).optional(),
+    }),
+  ),
+  async (c) => {
+    const { startDate, endDate } = c.req.valid('query')
+    const rows = await getVendorSpendReport({ start: startDate, end: endDate })
+    return c.json({ rows })
+  },
+)
 
 export default stats

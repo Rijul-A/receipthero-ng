@@ -52,6 +52,7 @@ export {
   type SpendingReportRow,
   type SpendingReportResponse,
   type VendorSpend,
+  type DateRange,
 } from './stats.functions'
 export {
   getDocumentThumbnail,

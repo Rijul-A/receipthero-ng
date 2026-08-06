@@ -2,8 +2,14 @@ import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Download } from 'lucide-react'
 import { toast } from 'sonner'
+import type { DateRangeValue } from '@/components/date-range-picker'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import {
+  DateRangePicker,
+  EMPTY_DATE_RANGE,
+  toDateRangeParams,
+} from '@/components/date-range-picker'
 import { useExportSpendingReportCsv, useSpendingReport } from '@/lib/queries'
 
 export const Route = createFileRoute('/reports')({
@@ -16,13 +22,18 @@ function formatTotal(total: number, currency: string): string {
 
 function ReportsPage() {
   const [groupBy, setGroupBy] = useState<'week' | 'month'>('month')
-  const { data: rows, isLoading } = useSpendingReport(groupBy)
+  const [dateRange, setDateRange] = useState<DateRangeValue>(EMPTY_DATE_RANGE)
+  const { data: rows, isLoading } = useSpendingReport(
+    groupBy,
+    toDateRangeParams(dateRange),
+  )
   const exportCsv = useExportSpendingReportCsv()
 
   const handleExport = () => {
-    exportCsv.mutate(groupBy, {
-      onError: (error) => toast.error(error.message),
-    })
+    exportCsv.mutate(
+      { groupBy, dateRange: toDateRangeParams(dateRange) },
+      { onError: (error) => toast.error(error.message) },
+    )
   }
 
   // Per-period, per-currency subtotal (summed across categories) — shown as
@@ -62,7 +73,8 @@ function ReportsPage() {
             month.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <DateRangePicker value={dateRange} onChange={setDateRange} />
           <div className="flex rounded-none border">
             <button
               type="button"
