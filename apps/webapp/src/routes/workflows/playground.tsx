@@ -1,19 +1,19 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useCallback, useRef, useState } from 'react';
-import { useWorkflows, useTestWorkflow } from '../../hooks/useWorkflows';
 import {
-  Upload,
-  FlaskConical,
-  ClipboardPaste,
-  X,
-  ChevronDown,
-  CheckCircle2,
   AlertCircle,
-  Loader2,
   Brain,
+  CheckCircle2,
+  ChevronDown,
+  ClipboardPaste,
+  FlaskConical,
+  Loader2,
+  Upload,
+  X,
 } from 'lucide-react';
-import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
+import { useTestWorkflow, useWorkflows } from '../../hooks/useWorkflows';
+import { Button } from '../../components/ui/button';
 
 export const Route = createFileRoute('/workflows/playground')({
   component: PlaygroundPage,
@@ -71,7 +71,7 @@ function DropZone({ image, onImage, onClear }: DropZoneProps) {
     (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragging(false);
-      const file = e.dataTransfer.files[0];
+      const file = e.dataTransfer.files.item(0);
       if (file) handleFile(file);
     },
     [handleFile],
@@ -165,7 +165,7 @@ function DropZone({ image, onImage, onClear }: DropZoneProps) {
 
 interface ResultPanelProps {
   result: {
-    items: unknown[];
+    items: Array<unknown>;
     workflowId: number;
     workflowName: string;
     ai?: { provider: string; model: string; baseURL?: string };

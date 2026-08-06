@@ -1,6 +1,5 @@
 
 import { Database } from 'bun:sqlite';
-import * as path from 'path';
 
 const DB_PATH = './receipthero.db';
 console.log(`Checking database at: ${DB_PATH}`);

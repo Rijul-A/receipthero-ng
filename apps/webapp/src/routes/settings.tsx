@@ -1,24 +1,25 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { useState, useEffect } from 'react'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { 
-  Settings2, 
-  Receipt, 
+  Activity, 
+  ArrowLeft, 
+  ArrowRight, 
   Brain, 
-  Save, 
-  Loader2, 
   Check, 
-  ArrowLeft,
-  ArrowRight,
-  Workflow,
-  Activity,
-  Server,
-  Coins,
-  Webhook,
+  Coins, 
   Copy,
+  Loader2,
+  Receipt,
   RefreshCw,
+  Save,
+  Server,
+  Settings2,
+  Webhook,
+  Workflow,
 } from 'lucide-react'
 
+import {   PartialConfigSchema } from '@sm-rn/shared/schemas'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
@@ -34,15 +35,14 @@ import { Separator } from '../components/ui/separator'
 import { Switch } from '../components/ui/switch'
 
 import { 
+  useAvailableCurrencies, 
   useConfig, 
   useSaveConfig, 
-  useTestPaperless, 
   useTestAi,
-  useAvailableCurrencies,
+  useTestPaperless,
   useWebhookStatus
 } from '../lib/queries'
-import { FetchError, type ZodIssue } from '../lib/api'
-import { type Config, type AIProvider, PartialConfigSchema } from '@sm-rn/shared/schemas'
+import { FetchError  } from '../lib/api'
 import {
   Combobox,
   ComboboxChip,
@@ -55,6 +55,8 @@ import {
   ComboboxValue,
   useComboboxAnchor,
 } from '../components/ui/combobox'
+import type {AIProvider, Config} from '@sm-rn/shared/schemas';
+import type {ZodIssue} from '../lib/api';
 
 export const Route = createFileRoute('/settings')({
   component: SettingsPage,
@@ -177,7 +179,7 @@ function SettingsPage() {
     })
   }
 
-  const handleCurrencyConversionChange = (field: 'enabled' | 'targetCurrencies', value: boolean | string[]) => {
+  const handleCurrencyConversionChange = (field: 'enabled' | 'targetCurrencies', value: boolean | Array<string>) => {
     setLocalConfig(prev => ({
       ...prev,
       processing: {
@@ -195,7 +197,7 @@ function SettingsPage() {
   const handleRateLimitChange = (field: keyof NonNullable<Config['rateLimit']>, value: any) => {
     setLocalConfig(prev => ({
       ...prev,
-      rateLimit: { ...prev.rateLimit!, [field]: value }
+      rateLimit: { ...prev.rateLimit, [field]: value }
     }))
     setErrors(prev => {
       const next = { ...prev }
@@ -207,7 +209,7 @@ function SettingsPage() {
   const handleObservabilityChange = (field: keyof NonNullable<Config['observability']>, value: any) => {
     setLocalConfig(prev => ({
       ...prev,
-      observability: { ...prev.observability!, [field]: value }
+      observability: { ...prev.observability, [field]: value }
     }))
     setErrors(prev => {
       const next = { ...prev }
@@ -219,7 +221,7 @@ function SettingsPage() {
   const handleWebhooksChange = (field: keyof NonNullable<Config['webhooks']>, value: any) => {
     setLocalConfig(prev => ({
       ...prev,
-      webhooks: { ...prev.webhooks!, [field]: value }
+      webhooks: { ...prev.webhooks, [field]: value }
     }))
     setErrors(prev => {
       const next = { ...prev }
@@ -682,7 +684,7 @@ function SettingsPage() {
                   </div>
                   <Switch
                     id="use-document-type"
-                    checked={localConfig.processing.useDocumentType ?? false}
+                    checked={localConfig.processing.useDocumentType}
                     onCheckedChange={(checked) => handleProcessingChange('useDocumentType', checked as any)}
                   />
                 </div>
@@ -693,7 +695,7 @@ function SettingsPage() {
                       <Label htmlFor="document-type-name">Document Type Name</Label>
                       <Input
                         id="document-type-name"
-                        value={localConfig.processing.documentTypeName ?? 'receipt'}
+                        value={localConfig.processing.documentTypeName}
                         onChange={(e) => handleProcessingChange('documentTypeName', e.target.value)}
                         placeholder="receipt"
                       />
@@ -770,25 +772,25 @@ function SettingsPage() {
                     type="checkbox"
                     id="currency-conversion-enabled"
                     className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                    checked={localConfig.processing.currencyConversion?.enabled || false}
+                    checked={localConfig.processing.currencyConversion.enabled}
                     onChange={(e) => handleCurrencyConversionChange('enabled', e.target.checked)}
                   />
                   <Label htmlFor="currency-conversion-enabled">Enable Currency Conversion</Label>
                 </div>
 
-                {localConfig.processing.currencyConversion?.enabled && (
+                {localConfig.processing.currencyConversion.enabled && (
                   <div className="grid gap-4 pl-6 border-l-2 border-gray-100 ml-2">
                     <div className="grid gap-2">
                       <Label>Target Currencies</Label>
                       <Combobox
                         items={availableCurrencies.map(c => c.code)}
                         multiple
-                        value={localConfig.processing.currencyConversion?.targetCurrencies || []}
+                        value={localConfig.processing.currencyConversion.targetCurrencies}
                         onValueChange={(currencies) => handleCurrencyConversionChange('targetCurrencies', currencies)}
                       >
                         <ComboboxChips ref={currencyAnchor}>
                           <ComboboxValue>
-                            {(localConfig.processing.currencyConversion?.targetCurrencies || ["GBP"]).map((currency) => (
+                            {localConfig.processing.currencyConversion.targetCurrencies.map((currency) => (
                               <ComboboxChip key={currency}>{currency}</ComboboxChip>
                             ))}
                           </ComboboxValue>
@@ -841,12 +843,12 @@ function SettingsPage() {
               </div>
               <Switch
                 id="webhooks-enabled"
-                checked={localConfig.webhooks?.enabled ?? false}
+                checked={localConfig.webhooks.enabled}
                 onCheckedChange={(checked) => handleWebhooksChange('enabled', checked)}
               />
             </div>
 
-            {localConfig.webhooks?.enabled && (
+            {localConfig.webhooks.enabled && (
               <div className="grid gap-4 pl-6 border-l-2 border-gray-100 ml-2">
                 {/* Webhook URL (read-only) */}
                 <div className="grid gap-2">
@@ -874,7 +876,7 @@ function SettingsPage() {
                       id="webhook-secret"
                       type="password"
                       placeholder="Leave empty for no authentication"
-                      value={localConfig.webhooks?.secret || ''}
+                      value={localConfig.webhooks.secret || ''}
                       onChange={(e) => handleWebhooksChange('secret', e.target.value)}
                       className={errors['webhooks.secret'] ? 'border-destructive' : ''}
                     />
@@ -921,7 +923,7 @@ function SettingsPage() {
                     <li>Create a new workflow triggered on <strong>Document Added</strong></li>
                     <li>Add a <strong>Webhook</strong> action with the URL above</li>
                     <li>Set the body to: <code className="bg-background px-1 rounded">{'{"document_id": "{{ document_id }}"}'}</code></li>
-                    {localConfig.webhooks?.secret && (
+                    {localConfig.webhooks.secret && (
                       <li>Add a custom header: <code className="bg-background px-1 rounded">Authorization: Bearer {'<your-secret>'}</code></li>
                     )}
                     <li>Save and test with a new document upload</li>
@@ -955,13 +957,13 @@ function SettingsPage() {
                       type="checkbox"
                       id="ratelimit-enabled"
                       className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                      checked={localConfig.rateLimit?.enabled || false}
+                      checked={localConfig.rateLimit.enabled}
                       onChange={(e) => handleRateLimitChange('enabled', e.target.checked)}
                     />
                     <Label htmlFor="ratelimit-enabled">Enable Rate Limiting</Label>
                   </div>
 
-                  {localConfig.rateLimit?.enabled && (
+                  {localConfig.rateLimit.enabled && (
                     <div className="grid gap-4 pl-6 border-l-2 border-gray-100 ml-2">
                       <div className="grid gap-2">
                         <Label htmlFor="upstash-url">Upstash Redis URL</Label>
@@ -970,7 +972,7 @@ function SettingsPage() {
                           placeholder="https://..."
                           className={`font-mono text-xs ${errors['rateLimit.upstashUrl'] ? 'border-destructive' : ''}`}
                           rows={2}
-                          value={localConfig.rateLimit?.upstashUrl || ''}
+                          value={localConfig.rateLimit.upstashUrl || ''}
                           onChange={(e) => handleRateLimitChange('upstashUrl', e.target.value)}
                         />
                         <ErrorMessage path="rateLimit.upstashUrl" />
@@ -982,7 +984,7 @@ function SettingsPage() {
                           placeholder="Secret token"
                           className={`font-mono text-xs ${errors['rateLimit.upstashToken'] ? 'border-destructive' : ''}`}
                           rows={3}
-                          value={localConfig.rateLimit?.upstashToken || ''}
+                          value={localConfig.rateLimit.upstashToken || ''}
                           onChange={(e) => handleRateLimitChange('upstashToken', e.target.value)}
                         />
                         <ErrorMessage path="rateLimit.upstashToken" />
@@ -1006,13 +1008,13 @@ function SettingsPage() {
                       type="checkbox"
                       id="helicone-enabled"
                       className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                      checked={localConfig.observability?.heliconeEnabled || false}
+                      checked={localConfig.observability.heliconeEnabled}
                       onChange={(e) => handleObservabilityChange('heliconeEnabled', e.target.checked)}
                     />
                     <Label htmlFor="helicone-enabled">Enable Helicone</Label>
                   </div>
 
-                  {localConfig.observability?.heliconeEnabled && (
+                  {localConfig.observability.heliconeEnabled && (
                     <div className="grid gap-4 pl-6 border-l-2 border-gray-100 ml-2">
                       <div className="grid gap-2">
                         <Label htmlFor="helicone-key">Helicone API Key</Label>
@@ -1021,7 +1023,7 @@ function SettingsPage() {
                           placeholder="sk-..."
                           className={`font-mono text-xs ${errors['observability.heliconeApiKey'] ? 'border-destructive' : ''}`}
                           rows={2}
-                          value={localConfig.observability?.heliconeApiKey || ''}
+                          value={localConfig.observability.heliconeApiKey || ''}
                           onChange={(e) => handleObservabilityChange('heliconeApiKey', e.target.value)}
                         />
                         <ErrorMessage path="observability.heliconeApiKey" />

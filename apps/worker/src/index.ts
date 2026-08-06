@@ -36,7 +36,6 @@ async function workerLoop() {
       // ── Webhook Queue Processing (priority) ──────────────────────────
       // Process webhook-queued documents before checking scheduled scans.
       // This ensures near-instant processing when Paperless sends a webhook.
-      let webhookProcessed = false;
       const hasWebhookItems = await webhookQueueService.hasPending();
       if (hasWebhookItems) {
         const webhookLock = await workerState.acquireLock();
@@ -51,7 +50,6 @@ async function workerLoop() {
                 for (const id of pendingIds) {
                   await webhookQueueService.markCompleted(id);
                 }
-                webhookProcessed = true;
               } catch (error: any) {
                 logger.error('Webhook queue processing failed', error.message || error);
                 for (const id of pendingIds) {

@@ -1,5 +1,6 @@
-import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
+import { AlertTriangle, Loader2, RefreshCw, Settings2 } from 'lucide-react';
 import { useDashboard } from '@/hooks/use-dashboard';
 import { ProcessingList } from '@/components/processing-list';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
@@ -11,7 +12,6 @@ import { HealthChecksCard } from '@/components/dashboard/health-checks-card';
 import { ConfigSummaryCard } from '@/components/dashboard/config-summary-card';
 import { SystemLogsSection } from '@/components/dashboard/system-logs-section';
 import { LoadingState } from '@/components/dashboard/loading-state';
-import { AlertTriangle, Loader2, RefreshCw, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export const Route = createFileRoute('/')({
@@ -100,7 +100,7 @@ function DashboardPage() {
         <StatusCards health={health} config={config} />
         <CurrencyTotalsCard 
           currencyTotals={currencyTotalsQuery.data} 
-          targetCurrencies={config?.processing?.currencyConversion?.targetCurrencies}
+          targetCurrencies={config?.processing.currencyConversion.targetCurrencies}
         />
         <IntegrationStatsCard stats={health?.stats} />
         <WorkerControlCard

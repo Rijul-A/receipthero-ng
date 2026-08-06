@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { createServerFn } from '@tanstack/react-start';
 
 // API base URL - in production this would be internal, in dev it's localhost

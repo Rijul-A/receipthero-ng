@@ -25,9 +25,9 @@ export interface CurrencyTotal {
 
 export interface CurrencyTotalsResponse {
     success: boolean;
-    totals: CurrencyTotal[];
+    totals: Array<CurrencyTotal>;
     totalReceipts: number;
-    targetCurrencies: string[];
+    targetCurrencies: Array<string>;
     message?: string;
     error?: string;
 }

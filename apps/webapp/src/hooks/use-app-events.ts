@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { WS_BASE_URL, type ProcessingLog, type AppEvent, type LogEntry } from '@/lib/api';
-import { useProcessingLogs, useAppLogs } from '@/lib/queries';
+import type {AppEvent, LogEntry, ProcessingLog} from '@/lib/api';
+import {    WS_BASE_URL } from '@/lib/api';
+import { useAppLogs, useProcessingLogs } from '@/lib/queries';
 
 export function useAppEvents() {
   const queryClient = useQueryClient();
   const { data: initialProcessing, isLoading: isLoadingProcessing } = useProcessingLogs();
   const { data: initialLogs, isLoading: isLoadingLogs } = useAppLogs();
 
-  const [processingLogs, setProcessingLogs] = useState<ProcessingLog[]>([]);
-  const [appLogs, setAppLogs] = useState<LogEntry[]>([]);
+  const [processingLogs, setProcessingLogs] = useState<Array<ProcessingLog>>([]);
+  const [appLogs, setAppLogs] = useState<Array<LogEntry>>([]);
 
   useEffect(() => {
     if (initialProcessing) setProcessingLogs(initialProcessing);

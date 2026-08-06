@@ -6,13 +6,22 @@
 # Based on: https://pnpm.io/docker
 # =============================
 
+FROM node:22-slim AS node
+
 FROM oven/bun:1 AS base
 WORKDIR /app
 
-# Setup pnpm via corepack
+# Pull Node.js 22 + npm straight from the official Node image and install
+# pnpm through npm, so pnpm runs on Node (not Bun) everywhere. pnpm's store
+# implementation requires node:sqlite, which is only stable on Node >=22.5;
+# Bun's polyfill for it is incomplete and Debian's apt nodejs is too old (v20)
+# - either gap crashes `pnpm install` with "No such built-in module: node:sqlite".
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN bun add -g pnpm
+RUN npm install -g pnpm
 
 # =============================
 # Install dependencies
@@ -69,9 +78,6 @@ RUN cd apps/webapp && pnpm run build
 # Expose webapp port only - API (3001) and Worker are internal
 EXPOSE 3000
 
-# Install NodeJS for the next command
-RUN apt-get update && apt-get install -y nodejs npm && rm -rf /var/lib/apt/lists/*
-
 # 1. Setup database (creates SQLite file and runs migrations)
-# 2. Start worker, API, and webapp concurrently
-CMD ["sh","-lc","cd /app && pnpm --filter @sm-rn/core run db:setup && (cd apps/worker && pnpm run start) & (cd apps/api && pnpm run start) & cd apps/webapp && pnpm run start"]
+# 2. Start worker, API, and webapp concurrently, once the database is ready
+CMD ["sh","-lc","cd /app && pnpm --filter @sm-rn/core run db:setup && { (cd apps/worker && pnpm run start) & (cd apps/api && pnpm run start) & (cd apps/webapp && pnpm run start) & wait -n; }"]

@@ -2,6 +2,8 @@
   "name": "receipthero-monorepo",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
+  "type": "module",
   "workspaces": {
     "packages": [
       "apps/*",
@@ -29,16 +31,33 @@
     }
   },
   "packageManager": "pnpm@10.28.1",
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "dev": "turbo run dev",
     "start": "turbo run start",
     "build": "turbo run build",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "format": "turbo run format",
+    "format:check": "prettier --check .",
     "deps:reset": "pnpx npkill -D -y",
-    "db:nuke": "rm -rf ./receipthero.db && rm -rf ./packages/core/drizzle"
+    "db:nuke": "rm -rf ./receipthero.db && rm -rf ./packages/core/drizzle",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": "eslint --fix",
+    "*.{ts,tsx,js,jsx,json,md,yml,yaml}": "prettier --write"
   },
   "devDependencies": {
-    "turbo": "^2.8.1"
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.0",
+    "prettier": "^3.5.3",
+    "turbo": "^2.8.1",
+    "typescript-eslint": "^8.54.0"
   }
 }

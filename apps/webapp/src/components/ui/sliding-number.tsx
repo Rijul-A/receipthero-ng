@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, memo } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 export interface SlidingNumberProps extends React.HTMLAttributes<HTMLSpanElement> {

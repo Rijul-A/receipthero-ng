@@ -1,6 +1,6 @@
-import { Activity, Server, FileText, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import type { HealthStatus, Config } from '@/lib/queries';
+import { Activity, AlertTriangle, CheckCircle, FileText, Server, XCircle } from 'lucide-react';
+import type { Config, HealthStatus } from '@/lib/queries';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface StatusCardsProps {
   health: HealthStatus | undefined;
@@ -77,7 +77,7 @@ export function StatusCards({ health, config }: StatusCardsProps) {
              )}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            {config?.ai?.provider
+            {config?.ai.provider
               ? `${config.ai.provider}${config.ai.model ? ` / ${config.ai.model.split('/').pop()}` : ''}`
               : 'Not configured'}
           </p>

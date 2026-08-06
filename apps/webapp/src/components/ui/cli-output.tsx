@@ -1,8 +1,8 @@
 import * as React from "react"
-import { cn } from "@/lib/utils"
-import { Copy, Trash2, Maximize2, Minimize2 } from "lucide-react"
+import { Copy, Maximize2, Minimize2, Trash2 } from "lucide-react"
 import { Button } from "./button"
 import { Card } from "./card"
+import { cn } from "@/lib/utils"
 
 export interface CliOutputLine {
   text: string
@@ -11,7 +11,7 @@ export interface CliOutputLine {
 }
 
 interface CliOutputProps {
-  output: (CliOutputLine | string)[]
+  output: Array<CliOutputLine | string>
   prompt?: string
   autoScroll?: boolean
   maxLines?: number
@@ -50,6 +50,7 @@ export function CliOutput({
   const parseAnsi = (text: string) => {
     // Simple ANSI parser for common colors
     // In a real scenario, we'd use a library like ansi-to-react
+    // eslint-disable-next-line no-control-regex -- \x1b is the actual ANSI escape byte we're matching
     return text.split(/(\x1b\[[0-9;]*m)/g).map((part, i) => {
       if (part.startsWith("\x1b[")) {
         if (part.includes("32m")) return <span key={i} className="text-green-400" /> // Green

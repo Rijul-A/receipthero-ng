@@ -1,12 +1,19 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { createTestQueryClient, mockHealthData, mockConfigData } from './setup'
+
+// Import after mocking
+import { useAppLogs, useClearQueue, useConfig, useCurrencyTotals, useDocumentLogs, useDocumentThumbnail, useHealth, usePauseWorker, useProcessingLogs, useResumeWorker, useRetryAllQueue, useRetryProcessing, useTriggerScan } from '../lib/queries'
+import { useAppEvents } from '../hooks/use-app-events'
+// Import the Route to get the component
+import { Route } from '../routes/index'
+import { createTestQueryClient, mockConfigData, mockHealthData } from './setup'
+import type * as QueriesModule from '../lib/queries'
 
 // Mock the queries module — use importOriginal to avoid missing export errors
 vi.mock('../lib/queries', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../lib/queries')>()
+  const actual = await importOriginal<typeof QueriesModule>()
   return {
     ...actual,
     useHealth: vi.fn(),
@@ -30,12 +37,6 @@ vi.mock('../lib/queries', async (importOriginal) => {
 vi.mock('../hooks/use-app-events', () => ({
   useAppEvents: vi.fn(),
 }))
-
-// Import after mocking
-import { useHealth, useConfig, useProcessingLogs, useAppLogs, useCurrencyTotals, usePauseWorker, useResumeWorker, useRetryAllQueue, useClearQueue, useTriggerScan, useRetryProcessing, useDocumentLogs, useDocumentThumbnail } from '../lib/queries'
-import { useAppEvents } from '../hooks/use-app-events'
-// Import the Route to get the component
-import { Route } from '../routes/index'
 
 const mockUseHealth = useHealth as ReturnType<typeof vi.fn>
 const mockUseConfig = useConfig as ReturnType<typeof vi.fn>

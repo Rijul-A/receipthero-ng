@@ -1,21 +1,21 @@
 import { createFileRoute, useNavigate, useParams } from '@tanstack/react-router';
-import { useState, useEffect, useRef } from 'react';
-import { useWorkflow, useCreateWorkflow, useUpdateWorkflow, useValidateSchema } from '../../hooks/useWorkflows';
+import { useEffect, useRef, useState } from 'react';
 import { 
   ArrowLeft, 
-  Save, 
-  Code, 
-  Settings2,
+  Brain, 
+  CheckCircle2, 
+  Code,
+  Loader2,
   Play,
-  CheckCircle2,
-  XCircle,
-  Brain,
   Plus,
+  Save,
+  Settings2,
   Trash2,
-  Loader2
+  XCircle
 } from 'lucide-react';
-import Editor, { Monaco } from '@monaco-editor/react';
+import Editor from '@monaco-editor/react';
 import { toast } from 'sonner';
+import { useCreateWorkflow, useUpdateWorkflow, useValidateSchema, useWorkflow } from '../../hooks/useWorkflows';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -23,6 +23,7 @@ import { Textarea } from '../../components/ui/textarea';
 import { Badge } from '../../components/ui/badge';
 import { Switch } from '../../components/ui/switch';
 import zodDts from '../../lib/zod-safe.d.ts?raw';
+import type { Monaco } from '@monaco-editor/react';
 
 export const Route = createFileRoute('/workflows/$id')({
   component: WorkflowEditorPage,
@@ -38,8 +39,8 @@ const DEFAULT_ZOD_SOURCE = `z.object({
 interface WorkflowOutputMapping {
   correspondentField?: string;
   dateField?: string;
-  tagsToApply: string[];
-  tagFields: string[];
+  tagsToApply: Array<string>;
+  tagFields: Array<string>;
   customFields: Record<string, string>;
 }
 
@@ -97,9 +98,9 @@ function WorkflowEditorPage() {
     if (workflow) {
       setFormData({
         ...workflow,
-        outputMapping: typeof workflow.outputMapping === 'string' 
-          ? JSON.parse(workflow.outputMapping) 
-          : (workflow.outputMapping || DEFAULT_OUTPUT_MAPPING)
+        outputMapping: typeof workflow.outputMapping === 'string'
+          ? JSON.parse(workflow.outputMapping)
+          : workflow.outputMapping
       });
     }
   }, [workflow]);

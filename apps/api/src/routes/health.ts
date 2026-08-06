@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { loadConfig, workerState } from '@sm-rn/core';
-import { PaperlessClient, RetryQueue, workerStateSchema, skippedDocuments } from '@sm-rn/core';
+import { PaperlessClient, RetryQueue, skippedDocuments } from '@sm-rn/core';
 
 const health = new Hono();
 
@@ -59,7 +59,7 @@ health.get('/', async (c) => {
   // Get worker state
   try {
     status.worker = await workerState.getState();
-  } catch (error) {
+  } catch {
     // Worker state not critical, continue
   }
 

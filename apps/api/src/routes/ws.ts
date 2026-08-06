@@ -6,7 +6,7 @@ import { createLogger } from '@sm-rn/core';
 const logger = createLogger('ws');
 const ws = new Hono();
 
-ws.get('/', upgradeWebSocket((c) => {
+ws.get('/', upgradeWebSocket((_c) => {
   return {
     onOpen(event, ws) {
       logger.debug('Client connected');

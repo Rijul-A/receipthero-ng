@@ -1,13 +1,13 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Workflow, CreateWorkflow, UpdateWorkflow } from '@sm-rn/shared/workflow-schemas';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { CreateWorkflow, UpdateWorkflow, Workflow } from '@sm-rn/shared/workflow-schemas';
 import { fetchApi } from '@/lib/api';
 
 const API_PATH = '/api/workflows';
 
 export function useWorkflows() {
-  return useQuery<Workflow[]>({
+  return useQuery<Array<Workflow>>({
     queryKey: ['workflows'],
-    queryFn: () => fetchApi<Workflow[]>(API_PATH),
+    queryFn: () => fetchApi<Array<Workflow>>(API_PATH),
   });
 }
 
@@ -62,7 +62,7 @@ export function useDeleteWorkflow() {
 export function useValidateSchema() {
   return useMutation({
     mutationFn: (zodSource: string) =>
-      fetchApi<{ valid: boolean; jsonSchema?: object; errors?: string[] }>(
+      fetchApi<{ valid: boolean; jsonSchema?: object; errors?: Array<string> }>(
         `${API_PATH}/validate-schema`,
         {
           method: 'POST',
@@ -73,7 +73,7 @@ export function useValidateSchema() {
 }
 
 export interface TestWorkflowResult {
-  items: unknown[];
+  items: Array<unknown>;
   workflowId: number;
   workflowName: string;
 }

@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  useHealth,
+  useClearQueue,
   useConfig,
+  useCurrencyTotals,
+  useHealth,
   usePauseWorker,
   useResumeWorker,
   useRetryAllQueue,
-  useClearQueue,
   useTriggerScan,
-  useCurrencyTotals,
 } from '@/lib/queries';
 import { useAppEvents } from '@/hooks/use-app-events';
 

@@ -1,10 +1,10 @@
 import { Activity } from 'lucide-react';
+import type { LogEntry } from '@/lib/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CliOutput } from '@/components/ui/cli-output';
-import type { LogEntry } from '@/lib/api';
 
 interface SystemLogsSectionProps {
-  appLogs: LogEntry[];
+  appLogs: Array<LogEntry>;
 }
 
 export function SystemLogsSection({ appLogs }: SystemLogsSectionProps) {

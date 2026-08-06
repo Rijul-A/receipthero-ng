@@ -1,0 +1,12 @@
+node_modules
+dist
+build
+.output
+.turbo
+.next
+coverage
+_legacy
+pnpm-lock.yaml
+packages/core/drizzle
+data
+*.db

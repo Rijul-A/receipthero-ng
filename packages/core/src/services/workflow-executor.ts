@@ -90,7 +90,7 @@ export async function executeWorkflow(
         extractedData = JSON.parse(existing.extractedData);
         docLogger.info(`✓ Reusing existing data for ${workflow.name}`);
         await reporter.report('workflow:processing', { documentId, progress: 50, message: 'Reusing existing data' });
-      } catch (e) {
+      } catch {
         docLogger.warn(`Failed to parse existing data, re-extracting`);
       }
     }
@@ -103,7 +103,7 @@ export async function executeWorkflow(
       let fileBuffer: Buffer;
       try {
         fileBuffer = await client.getDocumentImage(documentId);
-      } catch (e) {
+      } catch {
         fileBuffer = await client.getDocumentFile(documentId);
       }
 
@@ -199,7 +199,7 @@ export async function executeWorkflow(
           const fieldId = await client.ensureCustomField(paperlessField, 'longtext');
           const val = extractedField === '*' ? JSON.stringify(extractedData) : String(extractedData[extractedField as string] || '');
           if (val) customFields.push({ field: fieldId, value: val });
-        } catch (e) {
+        } catch {
           docLogger.warn(`Failed to set custom field ${paperlessField}`);
         }
       }
@@ -242,7 +242,9 @@ export async function executeWorkflow(
             const tagId = await client.getOrCreateTag(workflow.failedTag);
             const doc = await client.getDocument(documentId);
             await client.updateDocument(documentId, { tags: [...(doc.tags || []), tagId] });
-          } catch (e) { }
+          } catch {
+            // Best-effort tagging; give-up flow proceeds regardless
+          }
         }
         await retryQueue.remove(documentId);
       } else {
