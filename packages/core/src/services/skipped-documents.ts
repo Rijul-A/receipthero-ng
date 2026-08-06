@@ -1,5 +1,5 @@
-import { eq } from 'drizzle-orm';
-import { db, schema } from '../db';
+import { eq } from 'drizzle-orm'
+import { db, schema } from '../db'
 
 /**
  * Service to track documents that were skipped during processing.
@@ -13,7 +13,7 @@ export class SkippedDocumentsService {
       .select()
       .from(schema.skippedDocumentsSchema)
       .where(eq(schema.skippedDocumentsSchema.documentId, documentId))
-      .get();
+      .get()
 
     if (existing) {
       // Update existing record
@@ -25,7 +25,7 @@ export class SkippedDocumentsService {
           skippedAt: new Date().toISOString(),
         })
         .where(eq(schema.skippedDocumentsSchema.documentId, documentId))
-        .run();
+        .run()
     } else {
       await db
         .insert(schema.skippedDocumentsSchema)
@@ -35,7 +35,7 @@ export class SkippedDocumentsService {
           fileName,
           skippedAt: new Date().toISOString(),
         })
-        .run();
+        .run()
     }
   }
 
@@ -46,7 +46,7 @@ export class SkippedDocumentsService {
     await db
       .delete(schema.skippedDocumentsSchema)
       .where(eq(schema.skippedDocumentsSchema.documentId, documentId))
-      .run();
+      .run()
   }
 
   /**
@@ -57,42 +57,36 @@ export class SkippedDocumentsService {
       .select()
       .from(schema.skippedDocumentsSchema)
       .where(eq(schema.skippedDocumentsSchema.documentId, documentId))
-      .get();
+      .get()
 
-    return !!item;
+    return !!item
   }
 
   /**
    * Get total count of skipped documents.
    */
   async count(): Promise<number> {
-    const result = await db
-      .select()
-      .from(schema.skippedDocumentsSchema)
-      .all();
+    const result = await db.select().from(schema.skippedDocumentsSchema).all()
 
-    return result.length;
+    return result.length
   }
 
   /**
    * Get all skipped documents.
    */
   async getAll(): Promise<schema.SkippedDocumentEntry[]> {
-    return await db
-      .select()
-      .from(schema.skippedDocumentsSchema)
-      .all();
+    return await db.select().from(schema.skippedDocumentsSchema).all()
   }
 
   /**
    * Clear all skipped documents.
    */
   async clear(): Promise<number> {
-    const count = await this.count();
-    await db.delete(schema.skippedDocumentsSchema).run();
-    return count;
+    const count = await this.count()
+    await db.delete(schema.skippedDocumentsSchema).run()
+    return count
   }
 }
 
 // Singleton instance
-export const skippedDocuments = new SkippedDocumentsService();
+export const skippedDocuments = new SkippedDocumentsService()

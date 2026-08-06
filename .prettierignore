@@ -10,3 +10,7 @@ pnpm-lock.yaml
 packages/core/drizzle
 data
 *.db
+.sisyphus
+AGENTS.md
+next-env.d.ts
+apps/webapp/.cta.json

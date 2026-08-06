@@ -4,7 +4,21 @@ import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 
 // Import after mocking
-import { useAppLogs, useClearQueue, useConfig, useCurrencyTotals, useDocumentLogs, useDocumentThumbnail, useHealth, usePauseWorker, useProcessingLogs, useResumeWorker, useRetryAllQueue, useRetryProcessing, useTriggerScan } from '../lib/queries'
+import {
+  useAppLogs,
+  useClearQueue,
+  useConfig,
+  useCurrencyTotals,
+  useDocumentLogs,
+  useDocumentThumbnail,
+  useHealth,
+  usePauseWorker,
+  useProcessingLogs,
+  useResumeWorker,
+  useRetryAllQueue,
+  useRetryProcessing,
+  useTriggerScan,
+} from '../lib/queries'
 import { useAppEvents } from '../hooks/use-app-events'
 // Import the Route to get the component
 import { Route } from '../routes/index'
@@ -51,7 +65,9 @@ const mockUseClearQueue = useClearQueue as ReturnType<typeof vi.fn>
 const mockUseTriggerScan = useTriggerScan as ReturnType<typeof vi.fn>
 const mockUseRetryProcessing = useRetryProcessing as ReturnType<typeof vi.fn>
 const mockUseDocumentLogs = useDocumentLogs as ReturnType<typeof vi.fn>
-const mockUseDocumentThumbnail = useDocumentThumbnail as ReturnType<typeof vi.fn>
+const mockUseDocumentThumbnail = useDocumentThumbnail as ReturnType<
+  typeof vi.fn
+>
 
 // Get the component from the Route
 const DashboardPage = Route.options.component!
@@ -87,7 +103,18 @@ function setupDefaultMocks() {
     isLoading: false,
   })
   const mockMutate = vi.fn()
-  const mutationDefaults = { mutate: mockMutate, mutateAsync: vi.fn(), isPending: false, isError: false, isSuccess: false, error: null, data: undefined, reset: vi.fn(), status: 'idle' as const, variables: undefined }
+  const mutationDefaults = {
+    mutate: mockMutate,
+    mutateAsync: vi.fn(),
+    isPending: false,
+    isError: false,
+    isSuccess: false,
+    error: null,
+    data: undefined,
+    reset: vi.fn(),
+    status: 'idle' as const,
+    variables: undefined,
+  }
   mockUsePauseWorker.mockReturnValue(mutationDefaults)
   mockUseResumeWorker.mockReturnValue(mutationDefaults)
   mockUseRetryAllQueue.mockReturnValue(mutationDefaults)
@@ -104,7 +131,7 @@ function renderDashboard() {
   return render(
     <QueryClientProvider client={queryClient}>
       <DashboardPage />
-    </QueryClientProvider>
+    </QueryClientProvider>,
   )
 }
 
@@ -164,7 +191,9 @@ describe('Dashboard Page', () => {
     expect(screen.getByText('Unhealthy')).toBeInTheDocument()
 
     // Should show error messages
-    expect(screen.getByText(/Paperless connection\/stats failed/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Paperless connection\/stats failed/i),
+    ).toBeInTheDocument()
   })
 
   it('refresh button triggers refetch', async () => {

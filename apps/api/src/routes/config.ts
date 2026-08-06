@@ -1,12 +1,12 @@
-import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
-import { ConfigSchema, PartialConfigSchema } from '@sm-rn/shared/schemas';
-import { currencies } from '@sm-rn/shared/currencies';
-import { loadConfig, CONFIG_PATH } from '@sm-rn/core';
-import * as fs from 'fs';
-import * as path from 'path';
+import { Hono } from 'hono'
+import { zValidator } from '@hono/zod-validator'
+import { ConfigSchema, PartialConfigSchema } from '@sm-rn/shared/schemas'
+import { currencies } from '@sm-rn/shared/currencies'
+import { loadConfig, CONFIG_PATH } from '@sm-rn/core'
+import * as fs from 'fs'
+import * as path from 'path'
 
-const config = new Hono();
+const config = new Hono()
 
 // GET /api/config/currencies - Get available currencies
 config.get('/currencies', (c) => {
@@ -18,25 +18,25 @@ config.get('/currencies', (c) => {
       name: info.name,
       symbol: info.symbol,
     }))
-    .sort((a, b) => a.code.localeCompare(b.code));
+    .sort((a, b) => a.code.localeCompare(b.code))
 
-  return c.json({ success: true, currencies: currencyList });
-});
+  return c.json({ success: true, currencies: currencyList })
+})
 
 // Helper to mask API keys
 function maskApiKey(key: string | undefined): string {
-  if (!key || key.length < 8) return key || '';
-  return `${key.slice(0, 3)}...${key.slice(-4)}`;
+  if (!key || key.length < 8) return key || ''
+  return `${key.slice(0, 3)}...${key.slice(-4)}`
 }
 
 // Helper for deep merge (handles nested objects)
 function deepMerge(target: any, source: any): any {
-  const result = { ...target };
+  const result = { ...target }
   for (const key in source) {
     if (source[key] !== undefined) {
       // Skip masked API keys (placeholders containing '...')
       if (typeof source[key] === 'string' && source[key].includes('...')) {
-        continue;
+        continue
       }
 
       if (
@@ -46,19 +46,19 @@ function deepMerge(target: any, source: any): any {
         typeof target[key] === 'object' &&
         target[key] !== null
       ) {
-        result[key] = deepMerge(target[key], source[key]);
+        result[key] = deepMerge(target[key], source[key])
       } else {
-        result[key] = source[key];
+        result[key] = source[key]
       }
     }
   }
-  return result;
+  return result
 }
 
 // GET /api/config - Return current config with masked keys
 config.get('/', (c) => {
   try {
-    const cfg = loadConfig();
+    const cfg = loadConfig()
 
     // Mask sensitive data
     const masked = {
@@ -71,46 +71,52 @@ config.get('/', (c) => {
         ...cfg.ai,
         apiKey: maskApiKey(cfg.ai.apiKey),
       },
-      togetherAi: cfg.togetherAi ? {
-        apiKey: maskApiKey(cfg.togetherAi.apiKey),
-      } : undefined,
-      rateLimit: cfg.rateLimit ? {
-        ...cfg.rateLimit,
-        upstashToken: maskApiKey(cfg.rateLimit.upstashToken),
-      } : undefined,
-      observability: cfg.observability ? {
-        ...cfg.observability,
-        heliconeApiKey: maskApiKey(cfg.observability.heliconeApiKey),
-      } : undefined,
-    };
+      togetherAi: cfg.togetherAi
+        ? {
+            apiKey: maskApiKey(cfg.togetherAi.apiKey),
+          }
+        : undefined,
+      rateLimit: cfg.rateLimit
+        ? {
+            ...cfg.rateLimit,
+            upstashToken: maskApiKey(cfg.rateLimit.upstashToken),
+          }
+        : undefined,
+      observability: cfg.observability
+        ? {
+            ...cfg.observability,
+            heliconeApiKey: maskApiKey(cfg.observability.heliconeApiKey),
+          }
+        : undefined,
+    }
 
-    return c.json(masked);
+    return c.json(masked)
   } catch (error) {
     return c.json(
       {
         success: false,
         error: {
           name: 'ServerError',
-          message: error instanceof Error ? error.message : String(error)
-        }
+          message: error instanceof Error ? error.message : String(error),
+        },
       },
-      500
-    );
+      500,
+    )
   }
-});
+})
 
 // PATCH /api/config - Save configuration (PATCH semantics)
 config.patch('/', zValidator('json', PartialConfigSchema), async (c) => {
   try {
-    const partialConfig = c.req.valid('json');
+    const partialConfig = c.req.valid('json')
 
     // Load existing config
-    let existingConfig;
+    let existingConfig
     try {
-      existingConfig = loadConfig();
+      existingConfig = loadConfig()
     } catch {
       // No existing config - need full config for first-time setup
-      const parseResult = ConfigSchema.safeParse(partialConfig);
+      const parseResult = ConfigSchema.safeParse(partialConfig)
       if (!parseResult.success) {
         return c.json(
           {
@@ -118,20 +124,20 @@ config.patch('/', zValidator('json', PartialConfigSchema), async (c) => {
             error: {
               name: 'ValidationError',
               message: 'First-time setup requires all required fields',
-              issues: parseResult.error.issues
-            }
+              issues: parseResult.error.issues,
+            },
           },
-          400
-        );
+          400,
+        )
       }
-      existingConfig = parseResult.data;
+      existingConfig = parseResult.data
     }
 
     // Deep merge partial config with existing
-    const mergedConfig = deepMerge(existingConfig, partialConfig);
+    const mergedConfig = deepMerge(existingConfig, partialConfig)
 
     // Validate the merged result
-    const parseResult = ConfigSchema.safeParse(mergedConfig);
+    const parseResult = ConfigSchema.safeParse(mergedConfig)
     if (!parseResult.success) {
       return c.json(
         {
@@ -139,35 +145,35 @@ config.patch('/', zValidator('json', PartialConfigSchema), async (c) => {
           error: {
             name: 'ValidationError',
             message: 'Invalid configuration after merge',
-            issues: parseResult.error.issues
-          }
+            issues: parseResult.error.issues,
+          },
         },
-        400
-      );
+        400,
+      )
     }
 
     // Ensure directory exists
-    const dir = path.dirname(CONFIG_PATH);
+    const dir = path.dirname(CONFIG_PATH)
     if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+      fs.mkdirSync(dir, { recursive: true })
     }
 
     // Write config file
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(parseResult.data, null, 2), 'utf-8');
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(parseResult.data, null, 2), 'utf-8')
 
-    return c.json({ success: true, message: 'Configuration saved' });
+    return c.json({ success: true, message: 'Configuration saved' })
   } catch (error) {
     return c.json(
       {
         success: false,
         error: {
           name: 'ServerError',
-          message: error instanceof Error ? error.message : String(error)
-        }
+          message: error instanceof Error ? error.message : String(error),
+        },
       },
-      500
-    );
+      500,
+    )
   }
-});
+})
 
-export default config;
+export default config

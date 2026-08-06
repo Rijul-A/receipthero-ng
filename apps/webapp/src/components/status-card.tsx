@@ -1,16 +1,16 @@
-import * as React from "react"
+import * as React from 'react'
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { cn } from "@/lib/utils"
+} from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 
 export interface StatusCardProps extends React.ComponentProps<typeof Card> {
   title: string
-  status: "ok" | "error" | "loading"
+  status: 'ok' | 'error' | 'loading'
   subtitle?: string
   icon?: React.ReactNode
   children?: React.ReactNode
@@ -26,17 +26,17 @@ export function StatusCard({
   ...props
 }: StatusCardProps) {
   const statusStyles = {
-    ok: "border-green-500 ring-green-500/20",
-    error: "border-red-500 ring-red-500/20",
-    loading: "border-gray-300 ring-gray-300/20",
+    ok: 'border-green-500 ring-green-500/20',
+    error: 'border-red-500 ring-red-500/20',
+    loading: 'border-gray-300 ring-gray-300/20',
   }
 
   return (
     <Card
       className={cn(
-        "border transition-colors", 
-        statusStyles[status], 
-        className
+        'border transition-colors',
+        statusStyles[status],
+        className,
       )}
       {...props}
     >

@@ -1,10 +1,17 @@
-import { Activity, AlertTriangle, CheckCircle, FileText, Server, XCircle } from 'lucide-react';
-import type { Config, HealthStatus } from '@/lib/queries';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle,
+  FileText,
+  Server,
+  XCircle,
+} from 'lucide-react'
+import type { Config, HealthStatus } from '@/lib/queries'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 interface StatusCardsProps {
-  health: HealthStatus | undefined;
-  config: Config | undefined;
+  health: HealthStatus | undefined
+  config: Config | undefined
 }
 
 export function StatusCards({ health, config }: StatusCardsProps) {
@@ -13,9 +20,7 @@ export function StatusCards({ health, config }: StatusCardsProps) {
       {/* System Health Card */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            System Health
-          </CardTitle>
+          <CardTitle className="text-sm font-medium">System Health</CardTitle>
           <Activity className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -63,18 +68,20 @@ export function StatusCards({ health, config }: StatusCardsProps) {
       {/* AI Provider Card */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            AI Provider
-          </CardTitle>
+          <CardTitle className="text-sm font-medium">AI Provider</CardTitle>
           <FileText className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-             {health?.checks.aiConnection === 'ok' ? (
-                <span className="text-green-600 flex items-center gap-2"><CheckCircle className="h-5 w-5"/> Active</span>
-             ) : (
-                <span className="text-yellow-600 flex items-center gap-2"><AlertTriangle className="h-5 w-5"/> Not Configured</span>
-             )}
+            {health?.checks.aiConnection === 'ok' ? (
+              <span className="text-green-600 flex items-center gap-2">
+                <CheckCircle className="h-5 w-5" /> Active
+              </span>
+            ) : (
+              <span className="text-yellow-600 flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" /> Not Configured
+              </span>
+            )}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             {config?.ai.provider
@@ -84,5 +91,5 @@ export function StatusCards({ health, config }: StatusCardsProps) {
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

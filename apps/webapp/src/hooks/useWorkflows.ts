@@ -1,14 +1,18 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { CreateWorkflow, UpdateWorkflow, Workflow } from '@sm-rn/shared/workflow-schemas';
-import { fetchApi } from '@/lib/api';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type {
+  CreateWorkflow,
+  UpdateWorkflow,
+  Workflow,
+} from '@sm-rn/shared/workflow-schemas'
+import { fetchApi } from '@/lib/api'
 
-const API_PATH = '/api/workflows';
+const API_PATH = '/api/workflows'
 
 export function useWorkflows() {
   return useQuery<Array<Workflow>>({
     queryKey: ['workflows'],
     queryFn: () => fetchApi<Array<Workflow>>(API_PATH),
-  });
+  })
 }
 
 export function useWorkflow(id?: number) {
@@ -16,11 +20,11 @@ export function useWorkflow(id?: number) {
     queryKey: ['workflows', id],
     queryFn: () => fetchApi<Workflow>(`${API_PATH}/${id}`),
     enabled: !!id,
-  });
+  })
 }
 
 export function useCreateWorkflow() {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (data: CreateWorkflow) =>
       fetchApi<Workflow>(API_PATH, {
@@ -28,13 +32,13 @@ export function useCreateWorkflow() {
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workflows'] });
+      queryClient.invalidateQueries({ queryKey: ['workflows'] })
     },
-  });
+  })
 }
 
 export function useUpdateWorkflow() {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: UpdateWorkflow }) =>
       fetchApi<Workflow>(`${API_PATH}/${id}`, {
@@ -42,21 +46,21 @@ export function useUpdateWorkflow() {
         body: JSON.stringify(data),
       }),
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['workflows'] });
-      queryClient.invalidateQueries({ queryKey: ['workflows', id] });
+      queryClient.invalidateQueries({ queryKey: ['workflows'] })
+      queryClient.invalidateQueries({ queryKey: ['workflows', id] })
     },
-  });
+  })
 }
 
 export function useDeleteWorkflow() {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: number) =>
       fetchApi<{ success: boolean }>(`${API_PATH}/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workflows'] });
+      queryClient.invalidateQueries({ queryKey: ['workflows'] })
     },
-  });
+  })
 }
 
 export function useValidateSchema() {
@@ -67,15 +71,15 @@ export function useValidateSchema() {
         {
           method: 'POST',
           body: JSON.stringify({ zodSource }),
-        }
+        },
       ),
-  });
+  })
 }
 
 export interface TestWorkflowResult {
-  items: Array<unknown>;
-  workflowId: number;
-  workflowName: string;
+  items: Array<unknown>
+  workflowId: number
+  workflowName: string
 }
 
 export function useTestWorkflow() {
@@ -85,5 +89,5 @@ export function useTestWorkflow() {
         method: 'POST',
         body: JSON.stringify({ image }),
       }),
-  });
+  })
 }

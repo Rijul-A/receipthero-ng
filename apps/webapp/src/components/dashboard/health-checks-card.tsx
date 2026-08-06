@@ -1,16 +1,22 @@
-import { AlertTriangle } from 'lucide-react';
-import type { HealthStatus } from '@/lib/queries';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { AlertTriangle } from 'lucide-react'
+import type { HealthStatus } from '@/lib/queries'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 
 interface HealthChecksCardProps {
-  health: HealthStatus | undefined;
+  health: HealthStatus | undefined
 }
 
 export function HealthChecksCard({ health }: HealthChecksCardProps) {
   const getStatusVariant = (status: 'ok' | 'error' | undefined) => {
-    return status === 'ok' ? 'default' : 'destructive';
-  };
+    return status === 'ok' ? 'default' : 'destructive'
+  }
 
   return (
     <Card className="col-span-1 lg:col-span-4">
@@ -33,7 +39,11 @@ export function HealthChecksCard({ health }: HealthChecksCardProps) {
             </div>
             <Badge
               variant={getStatusVariant(health?.checks.paperlessConnection)}
-              className={health?.checks.paperlessConnection === 'ok' ? "bg-green-100 text-green-800 hover:bg-green-200" : "bg-red-100 text-red-800 hover:bg-red-200"}
+              className={
+                health?.checks.paperlessConnection === 'ok'
+                  ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                  : 'bg-red-100 text-red-800 hover:bg-red-200'
+              }
             >
               {health?.checks.paperlessConnection === 'ok'
                 ? 'Operational'
@@ -43,35 +53,37 @@ export function HealthChecksCard({ health }: HealthChecksCardProps) {
 
           <div className="flex items-center justify-between border-b pb-4">
             <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">
-                AI Provider
-              </p>
+              <p className="text-sm font-medium leading-none">AI Provider</p>
               <p className="text-sm text-muted-foreground">
                 LLM service for OCR processing
               </p>
             </div>
             <Badge
               variant={getStatusVariant(health?.checks.aiConnection)}
-               className={health?.checks.aiConnection === 'ok' ? "bg-green-100 text-green-800 hover:bg-green-200" : "bg-red-100 text-red-800 hover:bg-red-200"}
+              className={
+                health?.checks.aiConnection === 'ok'
+                  ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                  : 'bg-red-100 text-red-800 hover:bg-red-200'
+              }
             >
-              {health?.checks.aiConnection === 'ok'
-                ? 'Operational'
-                : 'Error'}
+              {health?.checks.aiConnection === 'ok' ? 'Operational' : 'Error'}
             </Badge>
           </div>
 
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">
-                Configuration
-              </p>
+              <p className="text-sm font-medium leading-none">Configuration</p>
               <p className="text-sm text-muted-foreground">
                 Settings validation
               </p>
             </div>
-             <Badge
+            <Badge
               variant={getStatusVariant(health?.checks.config)}
-               className={health?.checks.config === 'ok' ? "bg-green-100 text-green-800 hover:bg-green-200" : "bg-red-100 text-red-800 hover:bg-red-200"}
+              className={
+                health?.checks.config === 'ok'
+                  ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                  : 'bg-red-100 text-red-800 hover:bg-red-200'
+              }
             >
               {health?.checks.config === 'ok' ? 'Valid' : 'Invalid'}
             </Badge>
@@ -92,5 +104,5 @@ export function HealthChecksCard({ health }: HealthChecksCardProps) {
         )}
       </CardContent>
     </Card>
-  );
+  )
 }

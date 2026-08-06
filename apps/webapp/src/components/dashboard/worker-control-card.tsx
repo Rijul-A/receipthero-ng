@@ -1,20 +1,20 @@
-import { Loader2, Pause, Play, RotateCcw, Trash2 } from 'lucide-react';
-import type { HealthStatus } from '@/lib/queries';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Loader2, Pause, Play, RotateCcw, Trash2 } from 'lucide-react'
+import type { HealthStatus } from '@/lib/queries'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 interface WorkerControlCardProps {
-  worker: HealthStatus['worker'] | undefined;
-  stats: HealthStatus['stats'] | undefined;
-  onPause: () => void;
-  onResume: () => void;
-  onRetryAll: () => void;
-  onClearQueue: () => void;
-  isPausingWorker: boolean;
-  isResumingWorker: boolean;
-  isRetryingAll: boolean;
-  isClearingQueue: boolean;
+  worker: HealthStatus['worker'] | undefined
+  stats: HealthStatus['stats'] | undefined
+  onPause: () => void
+  onResume: () => void
+  onRetryAll: () => void
+  onClearQueue: () => void
+  isPausingWorker: boolean
+  isResumingWorker: boolean
+  isRetryingAll: boolean
+  isClearingQueue: boolean
 }
 
 export function WorkerControlCard({
@@ -37,7 +37,10 @@ export function WorkerControlCard({
             Worker Control
           </CardTitle>
           {worker?.isPaused ? (
-            <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+            <Badge
+              variant="secondary"
+              className="bg-yellow-100 text-yellow-800"
+            >
               <Pause className="h-3 w-3 mr-1" /> Paused
             </Badge>
           ) : (
@@ -55,11 +58,7 @@ export function WorkerControlCard({
       <CardContent>
         <div className="flex flex-wrap gap-2">
           {worker?.isPaused ? (
-            <Button
-              size="sm"
-              onClick={onResume}
-              disabled={isResumingWorker}
-            >
+            <Button size="sm" onClick={onResume} disabled={isResumingWorker}>
               {isResumingWorker ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
@@ -82,7 +81,7 @@ export function WorkerControlCard({
               Pause Worker
             </Button>
           )}
-          
+
           <Button
             size="sm"
             variant="outline"
@@ -96,7 +95,7 @@ export function WorkerControlCard({
             )}
             Retry All ({stats?.inQueue || 0})
           </Button>
-          
+
           <Button
             size="sm"
             variant="outline"
@@ -113,5 +112,5 @@ export function WorkerControlCard({
         </div>
       </CardContent>
     </Card>
-  );
+  )
 }

@@ -1,48 +1,44 @@
-import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
-import { z } from 'zod';
-import { broadcastHub } from '../lib/broadcast';
-import { db, schema, createLogger } from '@sm-rn/core';
-import { eq, desc } from 'drizzle-orm';
+import { Hono } from 'hono'
+import { zValidator } from '@hono/zod-validator'
+import { z } from 'zod'
+import { broadcastHub } from '../lib/broadcast'
+import { db, schema, createLogger } from '@sm-rn/core'
+import { eq, desc } from 'drizzle-orm'
 
-const logger = createLogger('api');
-const events = new Hono();
+const logger = createLogger('api')
+const events = new Hono()
 
 const ProcessingEventSchema = z.object({
   type: z.string(),
-  payload: z.any()
-});
+  payload: z.any(),
+})
 
 // GET /api/events/logs - Get recent logs
 events.get('/logs', async (c) => {
-  const source = c.req.query('source') as any;
-  const limit = parseInt(c.req.query('limit') || '100', 10);
+  const source = c.req.query('source') as any
+  const limit = parseInt(c.req.query('limit') || '100', 10)
 
   try {
-    let query: any = db
-      .select()
-      .from(schema.logs)
-      .orderBy(desc(schema.logs.timestamp))
-      .limit(limit);
+    let query: any = db.select().from(schema.logs).orderBy(desc(schema.logs.timestamp)).limit(limit)
 
     if (source) {
-      query = query.where(eq(schema.logs.source, source));
+      query = query.where(eq(schema.logs.source, source))
     }
 
-    const logs = await query.all();
-    return c.json(logs);
+    const logs = await query.all()
+    return c.json(logs)
   } catch (error) {
-    return c.json({ error: String(error) }, 500);
+    return c.json({ error: String(error) }, 500)
   }
-});
+})
 
 // GET /api/events/logs/document/:documentId - Get logs for a specific document
 events.get('/logs/document/:documentId', async (c) => {
-  const documentId = parseInt(c.req.param('documentId'), 10);
-  const limit = parseInt(c.req.query('limit') || '100', 10);
+  const documentId = parseInt(c.req.param('documentId'), 10)
+  const limit = parseInt(c.req.query('limit') || '100', 10)
 
   if (isNaN(documentId)) {
-    return c.json({ error: 'Invalid documentId' }, 400);
+    return c.json({ error: 'Invalid documentId' }, 400)
   }
 
   try {
@@ -52,12 +48,12 @@ events.get('/logs/document/:documentId', async (c) => {
       .where(eq(schema.logs.documentId, documentId))
       .orderBy(desc(schema.logs.timestamp))
       .limit(limit)
-      .all();
-    return c.json(logs);
+      .all()
+    return c.json(logs)
   } catch (error) {
-    return c.json({ error: String(error) }, 500);
+    return c.json({ error: String(error) }, 500)
   }
-});
+})
 
 // GET /api/events - Get recent processing logs
 events.get('/', async (c) => {
@@ -67,53 +63,56 @@ events.get('/', async (c) => {
       .from(schema.processingLogs)
       .orderBy(desc(schema.processingLogs.updatedAt))
       .limit(50)
-      .all();
-    return c.json(logs);
+      .all()
+    return c.json(logs)
   } catch (error) {
-    return c.json({ error: String(error) }, 500);
+    return c.json({ error: String(error) }, 500)
   }
-});
+})
 
 // POST /api/events - Receive event from worker
 events.post('/', zValidator('json', ProcessingEventSchema), async (c) => {
-  const event = c.req.valid('json');
-  const { type, payload } = event;
+  const event = c.req.valid('json')
+  const { type, payload } = event
 
   try {
     if (type === 'log:entry') {
       // 1. Persist to Logs table
-      await db.insert(schema.logs).values({
-        timestamp: payload.timestamp,
-        level: payload.level,
-        source: payload.source,
-        message: payload.message,
-        context: payload.context,
-        documentId: payload.documentId, // Include documentId if present
-      }).run();
+      await db
+        .insert(schema.logs)
+        .values({
+          timestamp: payload.timestamp,
+          level: payload.level,
+          source: payload.source,
+          message: payload.message,
+          context: payload.context,
+          documentId: payload.documentId, // Include documentId if present
+        })
+        .run()
 
       // 2. Broadcast to WS
-      broadcastHub.emit('app:event', event);
-      return c.json({ success: true });
+      broadcastHub.emit('app:event', event)
+      return c.json({ success: true })
     }
 
-    const { documentId } = payload;
+    const { documentId } = payload
     // 1. Persist to DB
     const existing = await db
       .select()
       .from(schema.processingLogs)
       .where(eq(schema.processingLogs.documentId, documentId))
       .orderBy(desc(schema.processingLogs.id))
-      .get();
+      .get()
 
-    const now = new Date().toISOString();
+    const now = new Date().toISOString()
 
     // Status mapping from event type
-    let status = payload.status || 'processing';
-    if (type === 'receipt:detected') status = 'detected';
-    if (type === 'receipt:success') status = 'completed';
-    if (type === 'receipt:failed') status = 'failed';
-    if (type === 'receipt:retry') status = 'retrying';
-    if (type === 'receipt:skipped') status = 'skipped';
+    let status = payload.status || 'processing'
+    if (type === 'receipt:detected') status = 'detected'
+    if (type === 'receipt:success') status = 'completed'
+    if (type === 'receipt:failed') status = 'failed'
+    if (type === 'receipt:retry') status = 'retrying'
+    if (type === 'receipt:skipped') status = 'skipped'
 
     // Always update existing entry for same documentId (treat as file, not event log)
     if (existing) {
@@ -132,7 +131,7 @@ events.post('/', zValidator('json', ProcessingEventSchema), async (c) => {
           updatedAt: now,
         })
         .where(eq(schema.processingLogs.id, existing.id))
-        .run();
+        .run()
     } else {
       await db
         .insert(schema.processingLogs)
@@ -150,17 +149,17 @@ events.post('/', zValidator('json', ProcessingEventSchema), async (c) => {
           createdAt: now,
           updatedAt: now,
         })
-        .run();
+        .run()
     }
 
     // 2. Broadcast to WS
-    broadcastHub.emit('app:event', event);
+    broadcastHub.emit('app:event', event)
 
-    return c.json({ success: true });
+    return c.json({ success: true })
   } catch (error) {
-    logger.error('Failed to process event', error);
-    return c.json({ success: false, error: String(error) }, 500);
+    logger.error('Failed to process event', error)
+    return c.json({ success: false, error: String(error) }, 500)
   }
-});
+})
 
-export default events;
+export default events

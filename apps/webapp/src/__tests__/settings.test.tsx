@@ -5,7 +5,12 @@ import { QueryClientProvider } from '@tanstack/react-query'
 
 // Import after mocking
 import { toast } from 'sonner'
-import { useConfig, useSaveConfig, useTestAi, useTestPaperless } from '../lib/queries'
+import {
+  useConfig,
+  useSaveConfig,
+  useTestAi,
+  useTestPaperless,
+} from '../lib/queries'
 // Import the Route to get the component
 import { Route } from '../routes/settings'
 import { createTestQueryClient, mockConfigData } from './setup'
@@ -38,11 +43,15 @@ function setupDefaultMocks() {
     isPending: false,
   })
   mockUseTestPaperless.mockReturnValue({
-    mutateAsync: vi.fn().mockResolvedValue({ success: true, message: 'Connected!' }),
+    mutateAsync: vi
+      .fn()
+      .mockResolvedValue({ success: true, message: 'Connected!' }),
     isPending: false,
   })
   mockUseTestAi.mockReturnValue({
-    mutateAsync: vi.fn().mockResolvedValue({ success: true, message: 'AI connection works!' }),
+    mutateAsync: vi
+      .fn()
+      .mockResolvedValue({ success: true, message: 'AI connection works!' }),
     isPending: false,
   })
 }
@@ -53,7 +62,7 @@ function renderSettings() {
   return render(
     <QueryClientProvider client={queryClient}>
       <SettingsPage />
-    </QueryClientProvider>
+    </QueryClientProvider>,
   )
 }
 
@@ -67,13 +76,17 @@ describe('Settings Page', () => {
     renderSettings()
 
     // Check main heading
-    expect(screen.getByRole('heading', { name: /configuration/i })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: /configuration/i }),
+    ).toBeInTheDocument()
 
     // Paperless fields
     expect(screen.getByLabelText(/host url/i)).toBeInTheDocument()
 
     // AI Provider section
-    expect(screen.getByRole('heading', { name: /ai provider/i })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: /ai provider/i }),
+    ).toBeInTheDocument()
 
     // Processing fields
     expect(screen.getByLabelText(/scan interval/i)).toBeInTheDocument()
@@ -107,15 +120,21 @@ describe('Settings Page', () => {
     renderSettings()
 
     // Click save button
-    const saveButton = screen.getByRole('button', { name: /save configuration/i })
+    const saveButton = screen.getByRole('button', {
+      name: /save configuration/i,
+    })
     await userEvent.click(saveButton)
 
     // Should show validation error via toast (human-readable with field label)
-    expect(toast.error).toHaveBeenCalledWith('Paperless Host: PAPERLESS_HOST must be a valid URL')
+    expect(toast.error).toHaveBeenCalledWith(
+      'Paperless Host: PAPERLESS_HOST must be a valid URL',
+    )
   })
 
   it('connection test button triggers mutation', async () => {
-    const mockMutate = vi.fn().mockResolvedValue({ success: true, message: 'Connected!' })
+    const mockMutate = vi
+      .fn()
+      .mockResolvedValue({ success: true, message: 'Connected!' })
     mockUseConfig.mockReturnValue({
       data: mockConfigData.default,
       isLoading: false,
@@ -136,12 +155,14 @@ describe('Settings Page', () => {
     renderSettings()
 
     // Click Test Connection button (first one is Paperless)
-    const testButtons = screen.getAllByRole('button', { name: /test connection/i })
+    const testButtons = screen.getAllByRole('button', {
+      name: /test connection/i,
+    })
     await userEvent.click(testButtons[0])
 
     // Mutation should be called
     expect(mockMutate).toHaveBeenCalledTimes(1)
-    
+
     // Should show success toast
     await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith('Connected!')
@@ -154,7 +175,11 @@ describe('Settings Page', () => {
       data: {
         ...mockConfigData.default,
         paperless: { host: 'http://localhost:8000', apiKey: 'real-key' },
-        ai: { provider: 'openai-compat', apiKey: 'real-ai-key', model: 'test-model' },
+        ai: {
+          provider: 'openai-compat',
+          apiKey: 'real-ai-key',
+          model: 'test-model',
+        },
       },
       isLoading: false,
     })
@@ -174,15 +199,19 @@ describe('Settings Page', () => {
     renderSettings()
 
     // Click save button
-    const saveButton = screen.getByRole('button', { name: /save configuration/i })
+    const saveButton = screen.getByRole('button', {
+      name: /save configuration/i,
+    })
     await userEvent.click(saveButton)
 
     // Save mutation should be called
     expect(mockSave).toHaveBeenCalledTimes(1)
-    
+
     // Should show success toast
     await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith('Configuration saved successfully!')
+      expect(toast.success).toHaveBeenCalledWith(
+        'Configuration saved successfully!',
+      )
     })
   })
 
@@ -192,7 +221,11 @@ describe('Settings Page', () => {
       data: {
         ...mockConfigData.default,
         paperless: { host: 'http://localhost:8000', apiKey: '***masked***' },
-        ai: { provider: 'openai-compat', apiKey: '...hidden...', model: 'test-model' },
+        ai: {
+          provider: 'openai-compat',
+          apiKey: '...hidden...',
+          model: 'test-model',
+        },
       },
       isLoading: false,
     })
@@ -212,7 +245,9 @@ describe('Settings Page', () => {
     renderSettings()
 
     // Click save button
-    const saveButton = screen.getByRole('button', { name: /save configuration/i })
+    const saveButton = screen.getByRole('button', {
+      name: /save configuration/i,
+    })
     await userEvent.click(saveButton)
 
     // Save mutation should be called

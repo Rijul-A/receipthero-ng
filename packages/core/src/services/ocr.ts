@@ -1,15 +1,15 @@
-import { z } from 'zod';
-import { chat } from '@tanstack/ai';
-import { ProcessedReceiptSchema } from '@sm-rn/shared/types';
-import type { AIAdapter } from './ai-client';
-import { normalizeImageForVision } from './image-format';
+import { z } from 'zod'
+import { chat } from '@tanstack/ai'
+import { ProcessedReceiptSchema } from '@sm-rn/shared/types'
+import type { AIAdapter } from './ai-client'
+import { normalizeImageForVision } from './image-format'
 
 export const ReceiptExtractionSchema = z.object({
   receipts: z.array(ProcessedReceiptSchema),
-});
+})
 
 export interface ExtractionContext {
-  existingTags?: string[];
+  existingTags?: string[]
 }
 
 const BASE_SYSTEM_PROMPT = `You are an expert at extracting receipt data. Extract all receipts from the image as a JSON object matching the schema.
@@ -75,22 +75,22 @@ CATEGORIZATION RULES:
 - Travel (hotels, airlines, etc.): "travel"
 - Other: Use your best judgment to categorize appropriately
 
-PAYMENT METHODS: Common values include "cash", "credit", "debit", "check", "gift card", "digital wallet"`;
+PAYMENT METHODS: Common values include "cash", "credit", "debit", "check", "gift card", "digital wallet"`
 
 export async function extractReceiptData(
   imageBuffer: Buffer,
   adapter: AIAdapter,
-  context?: ExtractionContext
+  context?: ExtractionContext,
 ) {
-  const { base64: base64Image, mimeType } = await normalizeImageForVision(imageBuffer);
+  const { base64: base64Image, mimeType } = await normalizeImageForVision(imageBuffer)
 
   // Build context section for existing tags
   const existingTagsSection = context?.existingTags?.length
     ? `\n\nEXISTING DOCUMENT TAGS:\nThe document already has these tags: [${context.existingTags.join(', ')}]\nConsider these when suggesting additional tags - don't repeat them, but suggest complementary ones.`
-    : '';
+    : ''
 
   const systemPrompt = `${BASE_SYSTEM_PROMPT}${existingTagsSection}
-Extract all visible receipt data accurately. If information is not visible, use reasonable defaults or omit if not applicable. Respond only with valid JSON.`;
+Extract all visible receipt data accurately. If information is not visible, use reasonable defaults or omit if not applicable. Respond only with valid JSON.`
 
   const result = await chat({
     adapter,
@@ -101,7 +101,8 @@ Extract all visible receipt data accurately. If information is not visible, use 
         content: [
           {
             type: 'text' as const,
-            content: 'Extract receipt data from this image following the formatting and categorization rules.',
+            content:
+              'Extract receipt data from this image following the formatting and categorization rules.',
           },
           {
             type: 'image' as const,
@@ -111,15 +112,15 @@ Extract all visible receipt data accurately. If information is not visible, use 
       },
     ],
     outputSchema: ReceiptExtractionSchema,
-  });
+  })
 
   // TanStack AI returns typed, validated data — no manual JSON.parse needed
   // Strip 'conversions' field from each receipt - it's populated by currency service, not AI
   // AI sometimes hallucinates this field with incorrect structure
-  const receipts = result.receipts;
+  const receipts = result.receipts
   for (const receipt of receipts) {
-    delete (receipt as any).conversions;
+    delete (receipt as any).conversions
   }
 
-  return receipts;
+  return receipts
 }

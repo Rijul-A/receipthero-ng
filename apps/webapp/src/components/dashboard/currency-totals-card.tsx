@@ -1,6 +1,6 @@
-import type { CurrencyTotalsResponse } from '@/lib/queries';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { SlidingNumber } from '@/components/ui/sliding-number';
+import type { CurrencyTotalsResponse } from '@/lib/queries'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { SlidingNumber } from '@/components/ui/sliding-number'
 
 // Get currency symbol for display
 function getCurrencySymbol(currency: string): string {
@@ -17,29 +17,34 @@ function getCurrencySymbol(currency: string): string {
     INR: '₹',
     CAD: 'C$',
     AUD: 'A$',
-  };
-  return symbols[currency.toUpperCase()] || currency;
+  }
+  return symbols[currency.toUpperCase()] || currency
 }
 
 interface CurrencyTotalsCardProps {
-  currencyTotals: CurrencyTotalsResponse | undefined;
-  targetCurrencies?: Array<string>;
+  currencyTotals: CurrencyTotalsResponse | undefined
+  targetCurrencies?: Array<string>
 }
 
-export function CurrencyTotalsCard({ currencyTotals, targetCurrencies }: CurrencyTotalsCardProps) {
+export function CurrencyTotalsCard({
+  currencyTotals,
+  targetCurrencies,
+}: CurrencyTotalsCardProps) {
   if (!currencyTotals?.success || !currencyTotals.totals.length) {
-    return null;
+    return null
   }
 
   // Filter to only show configured target currencies (if provided)
-  const filteredTotals = targetCurrencies?.length 
-    ? currencyTotals.totals.filter(item => 
-        targetCurrencies.map(c => c.toUpperCase()).includes(item.currency.toUpperCase())
+  const filteredTotals = targetCurrencies?.length
+    ? currencyTotals.totals.filter((item) =>
+        targetCurrencies
+          .map((c) => c.toUpperCase())
+          .includes(item.currency.toUpperCase()),
       )
-    : currencyTotals.totals;
+    : currencyTotals.totals
 
   if (!filteredTotals.length) {
-    return null;
+    return null
   }
 
   return (
@@ -50,18 +55,23 @@ export function CurrencyTotalsCard({ currencyTotals, targetCurrencies }: Currenc
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div 
+        <div
           className="grid gap-4"
-          style={{ 
-            gridTemplateColumns: `repeat(${Math.min(filteredTotals.length, 5)}, minmax(0, 1fr))` 
+          style={{
+            gridTemplateColumns: `repeat(${Math.min(filteredTotals.length, 5)}, minmax(0, 1fr))`,
           }}
         >
           {filteredTotals.map((item, index) => (
-            <div key={item.currency} className={`space-y-1 ${index > 0 ? 'border-l pl-4' : ''}`}>
+            <div
+              key={item.currency}
+              className={`space-y-1 ${index > 0 ? 'border-l pl-4' : ''}`}
+            >
               <span className="text-3xl font-bold tracking-tight flex items-baseline gap-0.5">
-                <span className="text-xl">{getCurrencySymbol(item.currency)}</span>
-                <SlidingNumber 
-                  number={Math.round(item.total)} 
+                <span className="text-xl">
+                  {getCurrencySymbol(item.currency)}
+                </span>
+                <SlidingNumber
+                  number={Math.round(item.total)}
                   thousandSeparator=","
                 />
               </span>
@@ -73,5 +83,5 @@ export function CurrencyTotalsCard({ currencyTotals, targetCurrencies }: Currenc
         </div>
       </CardContent>
     </Card>
-  );
+  )
 }

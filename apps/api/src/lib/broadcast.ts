@@ -1,2 +1,2 @@
-import { EventEmitter } from 'events';
-export const broadcastHub = new EventEmitter();
+import { EventEmitter } from 'events'
+export const broadcastHub = new EventEmitter()

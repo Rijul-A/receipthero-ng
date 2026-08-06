@@ -1,12 +1,12 @@
-import { eq } from 'drizzle-orm';
-import { db, schema } from '../db';
+import { eq } from 'drizzle-orm'
+import { db, schema } from '../db'
 
 /**
  * Service to manage worker state (pause/resume).
  * Uses a single-row table for cross-process communication.
  */
 export class WorkerStateService {
-  private static readonly STATE_ID = 1;
+  private static readonly STATE_ID = 1
 
   /**
    * Ensure the state row exists (called on startup).
@@ -16,7 +16,7 @@ export class WorkerStateService {
       .select()
       .from(schema.workerStateSchema)
       .where(eq(schema.workerStateSchema.id, WorkerStateService.STATE_ID))
-      .get();
+      .get()
 
     if (!existing) {
       await db
@@ -26,7 +26,7 @@ export class WorkerStateService {
           isPaused: false,
           updatedAt: new Date().toISOString(),
         })
-        .run();
+        .run()
     }
   }
 
@@ -38,39 +38,39 @@ export class WorkerStateService {
       .select()
       .from(schema.workerStateSchema)
       .where(eq(schema.workerStateSchema.id, WorkerStateService.STATE_ID))
-      .get();
+      .get()
 
-    return state?.isPaused ?? false;
+    return state?.isPaused ?? false
   }
 
   /**
    * Get full worker state.
    */
   async getState(): Promise<{
-    isPaused: boolean;
-    pausedAt: string | null;
-    pauseReason: string | null;
+    isPaused: boolean
+    pausedAt: string | null
+    pauseReason: string | null
   }> {
-    await this.initialize();
+    await this.initialize()
 
     const state = await db
       .select()
       .from(schema.workerStateSchema)
       .where(eq(schema.workerStateSchema.id, WorkerStateService.STATE_ID))
-      .get();
+      .get()
 
     return {
       isPaused: state?.isPaused ?? false,
       pausedAt: state?.pausedAt ?? null,
       pauseReason: state?.pauseReason ?? null,
-    };
+    }
   }
 
   /**
    * Pause the worker.
    */
   async pause(reason?: string): Promise<void> {
-    await this.initialize();
+    await this.initialize()
 
     await db
       .update(schema.workerStateSchema)
@@ -81,14 +81,14 @@ export class WorkerStateService {
         updatedAt: new Date().toISOString(),
       })
       .where(eq(schema.workerStateSchema.id, WorkerStateService.STATE_ID))
-      .run();
+      .run()
   }
 
   /**
    * Resume the worker.
    */
   async resume(): Promise<void> {
-    await this.initialize();
+    await this.initialize()
 
     await db
       .update(schema.workerStateSchema)
@@ -99,14 +99,14 @@ export class WorkerStateService {
         updatedAt: new Date().toISOString(),
       })
       .where(eq(schema.workerStateSchema.id, WorkerStateService.STATE_ID))
-      .run();
+      .run()
   }
 
   /**
    * Request an immediate scan. The worker will pick this up and run a scan.
    */
   async triggerScan(): Promise<void> {
-    await this.initialize();
+    await this.initialize()
 
     await db
       .update(schema.workerStateSchema)
@@ -115,7 +115,7 @@ export class WorkerStateService {
         updatedAt: new Date().toISOString(),
       })
       .where(eq(schema.workerStateSchema.id, WorkerStateService.STATE_ID))
-      .run();
+      .run()
   }
 
   /**
@@ -127,7 +127,7 @@ export class WorkerStateService {
       .select()
       .from(schema.workerStateSchema)
       .where(eq(schema.workerStateSchema.id, WorkerStateService.STATE_ID))
-      .get();
+      .get()
 
     if (state?.scanRequested) {
       await db
@@ -137,10 +137,10 @@ export class WorkerStateService {
           updatedAt: new Date().toISOString(),
         })
         .where(eq(schema.workerStateSchema.id, WorkerStateService.STATE_ID))
-        .run();
-      return true;
+        .run()
+      return true
     }
-    return false;
+    return false
   }
 
   /**
@@ -149,66 +149,68 @@ export class WorkerStateService {
    * Ensures a minimum wait time for better UX.
    */
   async triggerScanAndWait(options?: {
-    timeoutMs?: number;
-    minWaitMs?: number;
-    pollIntervalMs?: number;
+    timeoutMs?: number
+    minWaitMs?: number
+    pollIntervalMs?: number
   }): Promise<{
-    consumed: boolean; durationMs: number; scanResult: {
-      documentsFound: number;
-      documentsQueued: number;
-      documentsSkipped: number;
-      timestamp: string;
+    consumed: boolean
+    durationMs: number
+    scanResult: {
+      documentsFound: number
+      documentsQueued: number
+      documentsSkipped: number
+      timestamp: string
     } | null
   }> {
-    const timeoutMs = options?.timeoutMs ?? 30000; // 30 second timeout
-    const minWaitMs = options?.minWaitMs ?? 1000;  // Minimum 1 second
-    const pollIntervalMs = options?.pollIntervalMs ?? 200; // Poll every 200ms
+    const timeoutMs = options?.timeoutMs ?? 30000 // 30 second timeout
+    const minWaitMs = options?.minWaitMs ?? 1000 // Minimum 1 second
+    const pollIntervalMs = options?.pollIntervalMs ?? 200 // Poll every 200ms
 
-    const startTime = Date.now();
+    const startTime = Date.now()
 
     // Trigger the scan
-    await this.triggerScan();
+    await this.triggerScan()
 
     // Poll until scan is consumed or timeout
-    let consumed = false;
+    let consumed = false
     while (Date.now() - startTime < timeoutMs) {
       const state = await db
         .select()
         .from(schema.workerStateSchema)
         .where(eq(schema.workerStateSchema.id, WorkerStateService.STATE_ID))
-        .get();
+        .get()
 
       // If scanRequested is false, the worker has picked it up
       if (!state?.scanRequested) {
-        consumed = true;
-        break;
+        consumed = true
+        break
       }
 
       // Wait before next poll
-      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs))
     }
 
     // Ensure minimum wait time for better UX
-    const elapsed = Date.now() - startTime;
+    const elapsed = Date.now() - startTime
     if (elapsed < minWaitMs) {
-      await new Promise(resolve => setTimeout(resolve, minWaitMs - elapsed));
+      await new Promise((resolve) => setTimeout(resolve, minWaitMs - elapsed))
     }
 
     return {
       consumed,
       durationMs: Date.now() - startTime,
       scanResult: consumed ? await this.getLastScanResult() : null,
-    };
+    }
   }
 
   /**
    * Set the result of the last scan (called by the worker after each scan).
    */
   async setScanResult(result: {
-    documentsFound: number;
-    documentsQueued: number;
-    documentsSkipped: number;
-    timestamp: string;
+    documentsFound: number
+    documentsQueued: number
+    documentsSkipped: number
+    timestamp: string
   }): Promise<void> {
     await db
       .update(schema.workerStateSchema)
@@ -217,30 +219,30 @@ export class WorkerStateService {
         updatedAt: new Date().toISOString(),
       })
       .where(eq(schema.workerStateSchema.id, WorkerStateService.STATE_ID))
-      .run();
+      .run()
   }
 
   /**
    * Get the result of the last scan.
    */
   async getLastScanResult(): Promise<{
-    documentsFound: number;
-    documentsQueued: number;
-    documentsSkipped: number;
-    timestamp: string;
+    documentsFound: number
+    documentsQueued: number
+    documentsSkipped: number
+    timestamp: string
   } | null> {
     const state = await db
       .select()
       .from(schema.workerStateSchema)
       .where(eq(schema.workerStateSchema.id, WorkerStateService.STATE_ID))
-      .get();
+      .get()
 
-    if (!state?.lastScanResult) return null;
+    if (!state?.lastScanResult) return null
 
     try {
-      return JSON.parse(state.lastScanResult);
+      return JSON.parse(state.lastScanResult)
     } catch {
-      return null;
+      return null
     }
   }
 
@@ -258,11 +260,11 @@ export class WorkerStateService {
       .select()
       .from(schema.workerStateSchema)
       .where(eq(schema.workerStateSchema.id, WorkerStateService.STATE_ID))
-      .get();
+      .get()
 
     // If already running, don't acquire
     if (state?.isRunning) {
-      return false;
+      return false
     }
 
     // Atomically set isRunning to true
@@ -273,9 +275,9 @@ export class WorkerStateService {
         updatedAt: new Date().toISOString(),
       })
       .where(eq(schema.workerStateSchema.id, WorkerStateService.STATE_ID))
-      .run();
+      .run()
 
-    return true;
+    return true
   }
 
   /**
@@ -291,7 +293,7 @@ export class WorkerStateService {
         updatedAt: new Date().toISOString(),
       })
       .where(eq(schema.workerStateSchema.id, WorkerStateService.STATE_ID))
-      .run();
+      .run()
   }
 
   /**
@@ -303,14 +305,14 @@ export class WorkerStateService {
       .select()
       .from(schema.workerStateSchema)
       .where(eq(schema.workerStateSchema.id, WorkerStateService.STATE_ID))
-      .get();
+      .get()
 
     if (!state?.lastScanCompletedAt) {
-      return Infinity; // No previous scan, should run immediately
+      return Infinity // No previous scan, should run immediately
     }
 
-    const lastScan = new Date(state.lastScanCompletedAt).getTime();
-    return Date.now() - lastScan;
+    const lastScan = new Date(state.lastScanCompletedAt).getTime()
+    return Date.now() - lastScan
   }
 
   /**
@@ -321,11 +323,11 @@ export class WorkerStateService {
       .select()
       .from(schema.workerStateSchema)
       .where(eq(schema.workerStateSchema.id, WorkerStateService.STATE_ID))
-      .get();
+      .get()
 
-    return state?.isRunning ?? false;
+    return state?.isRunning ?? false
   }
 }
 
 // Singleton instance
-export const workerState = new WorkerStateService();
+export const workerState = new WorkerStateService()

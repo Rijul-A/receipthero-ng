@@ -1,54 +1,54 @@
-import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
-import { z } from 'zod';
-import { PaperlessClient, loadConfig, createLogger } from '@sm-rn/core';
+import { Hono } from 'hono'
+import { zValidator } from '@hono/zod-validator'
+import { z } from 'zod'
+import { PaperlessClient, loadConfig, createLogger } from '@sm-rn/core'
 
-const logger = createLogger('paperless');
-const testPaperless = new Hono();
+const logger = createLogger('paperless')
+const testPaperless = new Hono()
 
 const TestPaperlessSchema = z.object({
   host: z.string().url(),
   apiKey: z.string().min(1),
-});
+})
 
 testPaperless.post('/', zValidator('json', TestPaperlessSchema), async (c) => {
-  const { host, apiKey: submittedApiKey } = c.req.valid('json');
-  let apiKey = submittedApiKey;
+  const { host, apiKey: submittedApiKey } = c.req.valid('json')
+  let apiKey = submittedApiKey
   // Handle masked API key
   if (apiKey.includes('...')) {
     try {
-      const config = loadConfig();
+      const config = loadConfig()
       if (config.paperless?.apiKey) {
-        apiKey = config.paperless.apiKey;
+        apiKey = config.paperless.apiKey
       }
     } catch (error) {
-      logger.warn('Failed to load existing config for masked key', error);
+      logger.warn('Failed to load existing config for masked key', error)
     }
   }
 
-  logger.debug(`Testing connection to ${host} with key ${apiKey}`);
+  logger.debug(`Testing connection to ${host} with key ${apiKey}`)
   try {
     const client = new PaperlessClient({
       host,
       apiKey,
       processedTagName: 'ai-processed',
-    });
+    })
 
-    await client.getTags();
+    await client.getTags()
 
     return c.json({
       success: true,
       message: 'Successfully connected to Paperless-NGX',
-    });
+    })
   } catch (error) {
     return c.json(
       {
         success: false,
         error: error instanceof Error ? error.message : String(error),
       },
-      400
-    );
+      400,
+    )
   }
-});
+})
 
-export default testPaperless;
+export default testPaperless

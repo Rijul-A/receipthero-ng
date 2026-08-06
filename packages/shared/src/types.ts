@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod'
 
 // Schema for line items on a receipt
 export const LineItemSchema = z.object({
@@ -6,7 +6,7 @@ export const LineItemSchema = z.object({
   quantity: z.number().optional(),
   unitPrice: z.number().optional(),
   totalPrice: z.number(),
-});
+})
 
 // Schema for a processed receipt
 export const ProcessedReceiptSchema = z.object({
@@ -32,76 +32,82 @@ export const ProcessedReceiptSchema = z.object({
   suggested_tags: z.array(z.string()).optional(), // AI-suggested tags based on content
   // Currency conversions (populated by ECB service if enabled)
   conversions: z.record(z.string(), z.number()).optional(), // e.g., { "GBP": 2.5, "USD": 4.0 }
-});
+})
 
 // Type exports
-export type ProcessedReceipt = z.infer<typeof ProcessedReceiptSchema>;
+export type ProcessedReceipt = z.infer<typeof ProcessedReceiptSchema>
 
 // Storage-optimized version without large base64 data
 export interface StoredReceipt {
-  id: string;
-  fileName: string;
-  date: string;
-  vendor: string;
-  category: string;
-  paymentMethod: string;
-  taxAmount: number;
-  amount: number;
-  currency?: string;
-  originalAmount?: number;
-  originalTaxAmount?: number;
-  exchangeRate?: number;
-  mimeType: string;
+  id: string
+  fileName: string
+  date: string
+  vendor: string
+  category: string
+  paymentMethod: string
+  taxAmount: number
+  amount: number
+  currency?: string
+  originalAmount?: number
+  originalTaxAmount?: number
+  exchangeRate?: number
+  mimeType: string
 }
 
 // Status for uploaded files
-export type FileStatus = 'processing' | 'receipt' | 'not-receipt' | 'error';
+export type FileStatus = 'processing' | 'receipt' | 'not-receipt' | 'error'
 
 export interface UploadedFile {
-  id: string;
-  name: string;
-  file: File;
-  status: FileStatus;
-  receipt?: ProcessedReceipt;
+  id: string
+  name: string
+  file: File
+  status: FileStatus
+  receipt?: ProcessedReceipt
   /** Error message - only present when status === 'error' */
-  error?: string;
-  base64?: string;
-  mimeType?: string;
+  error?: string
+  base64?: string
+  mimeType?: string
 }
 
 export interface SpendingCategory {
-  name: string;
-  amount: number;
-  percentage: number;
+  name: string
+  amount: number
+  percentage: number
 }
 
 export interface SpendingBreakdown {
-  categories: SpendingCategory[];
+  categories: SpendingCategory[]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Processing Events & Logs
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type ProcessingStatus = 'detected' | 'processing' | 'completed' | 'failed' | 'retrying' | 'skipped';
+export type ProcessingStatus =
+  | 'detected'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'retrying'
+  | 'skipped'
 
 export interface ProcessingLog {
-  id: number;
-  documentId: number;
-  workflowId?: number;
-  workflowName?: string;
-  status: ProcessingStatus;
-  message?: string;
-  progress: number;
-  attempts: number;
-  fileName?: string;
-  vendor?: string;
-  amount?: number;
-  currency?: string;
-  receiptData?: string; // Full extracted JSON string (Legacy)
-  extractedData?: string; // Generic extracted JSON string
-  createdAt: string;
-  updatedAt: string;
+  id: number
+  documentId: number
+  workflowId?: number
+  workflowName?: string
+  status: ProcessingStatus
+  message?: string
+  progress: number
+  attempts: number
+  fileName?: string
+  vendor?: string
+  amount?: number
+  currency?: string
+  receiptData?: string // Full extracted JSON string (Legacy)
+  extractedData?: string // Generic extracted JSON string
+  createdAt: string
+  updatedAt: string
 }
 
 export type ProcessingEventType =
@@ -116,38 +122,51 @@ export type ProcessingEventType =
   | 'workflow:success'
   | 'workflow:failed'
   | 'workflow:retry'
-  | 'workflow:skipped';
+  | 'workflow:skipped'
 
 export interface ProcessingEvent {
-  type: ProcessingEventType;
-  payload: Partial<ProcessingLog> & { documentId: number; workflowId?: number; workflowName?: string };
+  type: ProcessingEventType
+  payload: Partial<ProcessingLog> & {
+    documentId: number
+    workflowId?: number
+    workflowName?: string
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Logging Types
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-export type LogSource = 'worker' | 'api' | 'core' | 'db' | 'config' | 'queue' | 'ws' | 'ocr' | 'paperless';
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
+export type LogSource =
+  | 'worker'
+  | 'api'
+  | 'core'
+  | 'db'
+  | 'config'
+  | 'queue'
+  | 'ws'
+  | 'ocr'
+  | 'paperless'
 
 export interface LogEntry {
-  id?: number;
-  timestamp: string;
-  level: LogLevel;
-  source: LogSource;
-  message: string;
-  context?: string; // JSON string
-  documentId?: number; // Optional: links log to a specific document
+  id?: number
+  timestamp: string
+  level: LogLevel
+  source: LogSource
+  message: string
+  context?: string // JSON string
+  documentId?: number // Optional: links log to a specific document
 }
 
 export interface LogEvent {
-  type: 'log:entry';
-  payload: LogEntry;
+  type: 'log:entry'
+  payload: LogEntry
 }
 
-export type AppEventType = ProcessingEventType | 'log:entry';
+export type AppEventType = ProcessingEventType | 'log:entry'
 
 export interface AppEvent {
-  type: AppEventType;
-  payload: any;
+  type: AppEventType
+  payload: any
 }

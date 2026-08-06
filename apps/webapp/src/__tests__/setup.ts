@@ -78,7 +78,7 @@ export function createQueryWrapper() {
     return React.createElement(
       QueryClientProvider,
       { client: queryClient },
-      children
+      children,
     )
   }
 }
@@ -118,7 +118,10 @@ export const mockHealthData = {
       failed: 5,
       inQueue: 5,
     },
-    errors: ['Paperless connection/stats failed', 'AI API key is missing or too short'],
+    errors: [
+      'Paperless connection/stats failed',
+      'AI API key is missing or too short',
+    ],
   },
 }
 

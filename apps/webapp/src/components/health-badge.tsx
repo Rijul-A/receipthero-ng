@@ -1,9 +1,8 @@
-
-import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 
 export interface HealthBadgeProps {
-  status: "healthy" | "unhealthy" | "loading"
+  status: 'healthy' | 'unhealthy' | 'loading'
   className?: string
 }
 
@@ -13,13 +12,13 @@ export function HealthBadge({ status, className }: HealthBadgeProps) {
   // unhealthy -> destructive (red)
   // loading -> secondary (gray/blueish)
 
-  if (status === "healthy") {
+  if (status === 'healthy') {
     return (
-      <Badge 
-        variant="outline" 
+      <Badge
+        variant="outline"
         className={cn(
-          "bg-green-500/15 text-green-700 hover:bg-green-500/25 border-green-200", 
-          className
+          'bg-green-500/15 text-green-700 hover:bg-green-500/25 border-green-200',
+          className,
         )}
       >
         Healthy
@@ -27,7 +26,7 @@ export function HealthBadge({ status, className }: HealthBadgeProps) {
     )
   }
 
-  if (status === "unhealthy") {
+  if (status === 'unhealthy') {
     return (
       <Badge variant="destructive" className={className}>
         Unhealthy

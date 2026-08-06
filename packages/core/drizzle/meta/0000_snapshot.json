@@ -208,9 +208,7 @@
       "indexes": {
         "retry_queue_documentId_unique": {
           "name": "retry_queue_documentId_unique",
-          "columns": [
-            "documentId"
-          ],
+          "columns": ["documentId"],
           "isUnique": true
         }
       },
@@ -261,9 +259,7 @@
       "indexes": {
         "skipped_documents_documentId_unique": {
           "name": "skipped_documents_documentId_unique",
-          "columns": [
-            "documentId"
-          ],
+          "columns": ["documentId"],
           "isUnique": true
         }
       },

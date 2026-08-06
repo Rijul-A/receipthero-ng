@@ -1,96 +1,109 @@
- 
-import { createServerFn } from '@tanstack/react-start';
-import type { LogEntry, ProcessingLog } from '@sm-rn/shared/types';
+import { createServerFn } from '@tanstack/react-start'
+import type { LogEntry, ProcessingLog } from '@sm-rn/shared/types'
 
 // API base URL - in production this would be internal, in dev it's localhost
-const API_BASE_URL = process.env.API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.API_URL || 'http://localhost:3001'
 
 /**
  * Internal fetch wrapper for calling the API from server functions.
  */
 async function apiCall<T>(path: string, options: RequestInit = {}): Promise<T> {
-    const url = `${API_BASE_URL}${path}`;
+  const url = `${API_BASE_URL}${path}`
 
-    const response = await fetch(url, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers,
-        },
-    });
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
 
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: response.statusText }));
-        throw new Error(error.error || error.message || `API error: ${response.status}`);
-    }
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ error: response.statusText }))
+    throw new Error(
+      error.error || error.message || `API error: ${response.status}`,
+    )
+  }
 
-    return response.json();
+  return response.json()
 }
 
 export interface RetryDocumentResponse {
-    success: boolean;
-    message: string;
-    error?: string;
+  success: boolean
+  message: string
+  error?: string
 }
 
 // Re-export the type for convenience
-export type { ProcessingLog };
+export type { ProcessingLog }
 
 /**
  * Get recent processing logs - proxies to GET /api/events
  */
-export const getProcessingLogs = createServerFn({ method: 'GET' }).handler(async () => {
-    return apiCall<Array<ProcessingLog>>('/api/events');
-});
+export const getProcessingLogs = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    return apiCall<Array<ProcessingLog>>('/api/events')
+  },
+)
 
 /**
  * Get logs for a specific document - proxies to GET /api/events/logs/document/:id
  */
 export const getDocumentLogs = createServerFn({ method: 'POST' })
-    .inputValidator((input: { documentId: number }) => input)
-    .handler(async (ctx: { data: { documentId: number } }) => {
-        const documentId = ctx.data.documentId;
-        console.log('[getDocumentLogs] Received documentId:', documentId);
+  .inputValidator((input: { documentId: number }) => input)
+  .handler(async (ctx: { data: { documentId: number } }) => {
+    const documentId = ctx.data.documentId
+    console.log('[getDocumentLogs] Received documentId:', documentId)
 
-        if (!documentId) {
-            console.log('[getDocumentLogs] No documentId provided, returning empty array');
-            return [];
-        }
+    if (!documentId) {
+      console.log(
+        '[getDocumentLogs] No documentId provided, returning empty array',
+      )
+      return []
+    }
 
-        try {
-            const result = await apiCall<Array<LogEntry>>(`/api/events/logs/document/${documentId}`);
-            console.log('[getDocumentLogs] Got', result.length, 'logs');
-            return result;
-        } catch (error) {
-            console.error('[getDocumentLogs] Error:', error);
-            return [];
-        }
-    });
+    try {
+      const result = await apiCall<Array<LogEntry>>(
+        `/api/events/logs/document/${documentId}`,
+      )
+      console.log('[getDocumentLogs] Got', result.length, 'logs')
+      return result
+    } catch (error) {
+      console.error('[getDocumentLogs] Error:', error)
+      return []
+    }
+  })
 
 /**
  * Get app logs - proxies to GET /api/events/logs
  */
 export const getAppLogs = createServerFn({ method: 'POST' })
-    .inputValidator((input: { source?: string }) => input)
-    .handler(async (ctx: { data: { source?: string } }) => {
-        const source = ctx.data.source;
-        const queryParam = source ? `?source=${source}` : '';
-        try {
-            return await apiCall<Array<LogEntry>>(`/api/events/logs${queryParam}`);
-        } catch (error) {
-            console.error('[getAppLogs] Error:', error);
-            return [];
-        }
-    });
+  .inputValidator((input: { source?: string }) => input)
+  .handler(async (ctx: { data: { source?: string } }) => {
+    const source = ctx.data.source
+    const queryParam = source ? `?source=${source}` : ''
+    try {
+      return await apiCall<Array<LogEntry>>(`/api/events/logs${queryParam}`)
+    } catch (error) {
+      console.error('[getAppLogs] Error:', error)
+      return []
+    }
+  })
 
 /**
  * Retry document processing - proxies to POST /api/processing/:id/retry
  */
 export const retryDocument = createServerFn({ method: 'POST' })
-    .inputValidator((input: { id: number; strategy: 'full' | 'partial' }) => input)
-    .handler((async ({ data }: any) => {
-        return apiCall<RetryDocumentResponse>(`/api/processing/${data.id}/retry`, {
-            method: 'POST',
-            body: JSON.stringify({ strategy: data.strategy }),
-        });
-    }) as any) as (opts: { data: { id: number; strategy: 'full' | 'partial' } }) => Promise<RetryDocumentResponse>;
+  .inputValidator(
+    (input: { id: number; strategy: 'full' | 'partial' }) => input,
+  )
+  .handler((async ({ data }: any) => {
+    return apiCall<RetryDocumentResponse>(`/api/processing/${data.id}/retry`, {
+      method: 'POST',
+      body: JSON.stringify({ strategy: data.strategy }),
+    })
+  }) as any) as (opts: {
+  data: { id: number; strategy: 'full' | 'partial' }
+}) => Promise<RetryDocumentResponse>

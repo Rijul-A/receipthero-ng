@@ -222,9 +222,7 @@
       "indexes": {
         "retry_queue_documentId_unique": {
           "name": "retry_queue_documentId_unique",
-          "columns": [
-            "documentId"
-          ],
+          "columns": ["documentId"],
           "isUnique": true
         }
       },
@@ -275,9 +273,7 @@
       "indexes": {
         "skipped_documents_documentId_unique": {
           "name": "skipped_documents_documentId_unique",
-          "columns": [
-            "documentId"
-          ],
+          "columns": ["documentId"],
           "isUnique": true
         }
       },
@@ -560,16 +556,12 @@
       "indexes": {
         "workflows_name_unique": {
           "name": "workflows_name_unique",
-          "columns": [
-            "name"
-          ],
+          "columns": ["name"],
           "isUnique": true
         },
         "workflows_slug_unique": {
           "name": "workflows_slug_unique",
-          "columns": [
-            "slug"
-          ],
+          "columns": ["slug"],
           "isUnique": true
         }
       },

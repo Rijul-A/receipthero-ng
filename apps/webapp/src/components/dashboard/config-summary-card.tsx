@@ -1,11 +1,18 @@
-import { Settings } from 'lucide-react';
-import { Link } from '@tanstack/react-router';
-import type { Config } from '@/lib/queries';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Settings } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import type { Config } from '@/lib/queries'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 
 interface ConfigSummaryCardProps {
-  config: Config | undefined;
+  config: Config | undefined
 }
 
 export function ConfigSummaryCard({ config }: ConfigSummaryCardProps) {
@@ -62,9 +69,7 @@ export function ConfigSummaryCard({ config }: ConfigSummaryCardProps) {
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm mt-2">
-                <span className="text-muted-foreground">
-                  Scan Interval
-                </span>
+                <span className="text-muted-foreground">Scan Interval</span>
                 <span className="font-medium">
                   {config.processing.scanInterval / 1000}s
                 </span>
@@ -84,5 +89,5 @@ export function ConfigSummaryCard({ config }: ConfigSummaryCardProps) {
         </CardFooter>
       )}
     </Card>
-  );
+  )
 }

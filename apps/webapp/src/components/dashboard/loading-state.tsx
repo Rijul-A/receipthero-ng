@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react'
 
 export function LoadingState() {
   return (
@@ -8,5 +8,5 @@ export function LoadingState() {
         <p className="text-muted-foreground">Loading system status...</p>
       </div>
     </div>
-  );
+  )
 }

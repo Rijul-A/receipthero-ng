@@ -1,5 +1,5 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { useCallback, useRef, useState } from 'react';
+import { createFileRoute } from '@tanstack/react-router'
+import { useCallback, useRef, useState } from 'react'
 import {
   AlertCircle,
   Brain,
@@ -10,89 +10,94 @@ import {
   Loader2,
   Upload,
   X,
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { useTestWorkflow, useWorkflows } from '../../hooks/useWorkflows';
-import { Button } from '../../components/ui/button';
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { useTestWorkflow, useWorkflows } from '../../hooks/useWorkflows'
+import { Button } from '../../components/ui/button'
 
 export const Route = createFileRoute('/workflows/playground')({
   component: PlaygroundPage,
-});
+})
 
 // ── Image drop zone ────────────────────────────────────────────────────────────
 
 interface DropZoneProps {
-  image: string | null;
-  onImage: (base64: string) => void;
-  onClear: () => void;
+  image: string | null
+  onImage: (base64: string) => void
+  onClear: () => void
 }
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
+    const reader = new FileReader()
     reader.onload = () => {
-      const result = reader.result as string;
+      const result = reader.result as string
       // Strip the data-URL prefix — API expects raw base64
-      resolve(result.split(',')[1]);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+      resolve(result.split(',')[1])
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 }
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 }
 
 function DropZone({ image, onImage, onClear }: DropZoneProps) {
-  const [isDragging, setIsDragging] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null)
 
   const handleFile = useCallback(
     async (file: File) => {
       if (!file.type.startsWith('image/')) {
-        toast.error('Please drop an image file.');
-        return;
+        toast.error('Please drop an image file.')
+        return
       }
-      const [base64, dataUrl] = await Promise.all([fileToBase64(file), fileToDataUrl(file)]);
-      setPreviewSrc(dataUrl);
-      onImage(base64);
+      const [base64, dataUrl] = await Promise.all([
+        fileToBase64(file),
+        fileToDataUrl(file),
+      ])
+      setPreviewSrc(dataUrl)
+      onImage(base64)
     },
     [onImage],
-  );
+  )
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragging(false);
-      const file = e.dataTransfer.files.item(0);
-      if (file) handleFile(file);
+      e.preventDefault()
+      setIsDragging(false)
+      const file = e.dataTransfer.files.item(0)
+      if (file) handleFile(file)
     },
     [handleFile],
-  );
+  )
 
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
-      const item = Array.from(e.clipboardData.items).find((i) => i.type.startsWith('image/'));
+      const item = Array.from(e.clipboardData.items).find((i) =>
+        i.type.startsWith('image/'),
+      )
       if (item) {
-        const file = item.getAsFile();
-        if (file) handleFile(file);
+        const file = item.getAsFile()
+        if (file) handleFile(file)
       }
     },
     [handleFile],
-  );
+  )
 
   const handleClear = () => {
-    setPreviewSrc(null);
-    onClear();
-    if (inputRef.current) inputRef.current.value = '';
-  };
+    setPreviewSrc(null)
+    onClear()
+    if (inputRef.current) inputRef.current.value = ''
+  }
 
   if (image && previewSrc) {
     return (
@@ -113,13 +118,16 @@ function DropZone({ image, onImage, onClear }: DropZoneProps) {
           Image loaded — ready to test
         </div>
       </div>
-    );
+    )
   }
 
   return (
     <div
       onDrop={handleDrop}
-      onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+      onDragOver={(e) => {
+        e.preventDefault()
+        setIsDragging(true)
+      }}
       onDragLeave={() => setIsDragging(false)}
       onPaste={handlePaste}
       tabIndex={0}
@@ -127,9 +135,10 @@ function DropZone({ image, onImage, onClear }: DropZoneProps) {
         relative flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed p-12
         cursor-pointer outline-none transition-colors
         focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-        ${isDragging
-          ? 'border-primary bg-primary/5 scale-[1.01]'
-          : 'border-border bg-card hover:border-primary/50 hover:bg-muted/30'
+        ${
+          isDragging
+            ? 'border-primary bg-primary/5 scale-[1.01]'
+            : 'border-border bg-card hover:border-primary/50 hover:bg-muted/30'
         }
       `}
       onClick={() => inputRef.current?.click()}
@@ -140,8 +149,8 @@ function DropZone({ image, onImage, onClear }: DropZoneProps) {
         accept="image/*"
         className="sr-only"
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleFile(file);
+          const file = e.target.files?.[0]
+          if (file) handleFile(file)
         }}
       />
       <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
@@ -150,7 +159,10 @@ function DropZone({ image, onImage, onClear }: DropZoneProps) {
       <div className="text-center space-y-1">
         <p className="font-semibold text-sm">Drop a receipt screenshot here</p>
         <p className="text-xs text-muted-foreground">
-          or <span className="text-primary underline-offset-2 underline">click to browse</span>
+          or{' '}
+          <span className="text-primary underline-offset-2 underline">
+            click to browse
+          </span>
         </p>
       </div>
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
@@ -158,20 +170,20 @@ function DropZone({ image, onImage, onClear }: DropZoneProps) {
         Paste with Ctrl+V / ⌘+V
       </div>
     </div>
-  );
+  )
 }
 
 // ── Result panel ───────────────────────────────────────────────────────────────
 
 interface ResultPanelProps {
   result: {
-    items: Array<unknown>;
-    workflowId: number;
-    workflowName: string;
-    ai?: { provider: string; model: string; baseURL?: string };
-  } | null;
-  error: Error | null;
-  isPending: boolean;
+    items: Array<unknown>
+    workflowId: number
+    workflowName: string
+    ai?: { provider: string; model: string; baseURL?: string }
+  } | null
+  error: Error | null
+  isPending: boolean
 }
 
 function ResultPanel({ result, error, isPending }: ResultPanelProps) {
@@ -179,9 +191,11 @@ function ResultPanel({ result, error, isPending }: ResultPanelProps) {
     return (
       <div className="flex items-center justify-center gap-3 py-16 rounded-2xl border border-border bg-card">
         <Loader2 className="h-5 w-5 animate-spin text-primary" />
-        <span className="text-sm text-muted-foreground">Running extraction…</span>
+        <span className="text-sm text-muted-foreground">
+          Running extraction…
+        </span>
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -195,7 +209,7 @@ function ResultPanel({ result, error, isPending }: ResultPanelProps) {
           {error.message}
         </p>
       </div>
-    );
+    )
   }
 
   if (result) {
@@ -204,9 +218,12 @@ function ResultPanel({ result, error, isPending }: ResultPanelProps) {
         <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted/30">
           <div className="flex items-center gap-2 text-green-500 text-sm font-semibold">
             <CheckCircle2 className="h-4 w-4" />
-            Extraction successful — {result.items.length} item{result.items.length !== 1 ? 's' : ''}
+            Extraction successful — {result.items.length} item
+            {result.items.length !== 1 ? 's' : ''}
           </div>
-          <span className="text-xs text-muted-foreground font-mono">{result.workflowName}</span>
+          <span className="text-xs text-muted-foreground font-mono">
+            {result.workflowName}
+          </span>
         </div>
         {result.ai && (
           <div className="flex items-center gap-2 flex-wrap px-5 py-2.5 border-b border-border bg-muted/10">
@@ -215,10 +232,16 @@ function ResultPanel({ result, error, isPending }: ResultPanelProps) {
               {result.ai.model}
             </span>
             <span className="text-xs text-muted-foreground">
-              via <span className="font-medium text-foreground">{result.ai.provider}</span>
+              via{' '}
+              <span className="font-medium text-foreground">
+                {result.ai.provider}
+              </span>
             </span>
             {result.ai.baseURL && (
-              <span className="text-xs text-muted-foreground font-mono truncate max-w-[220px]" title={result.ai.baseURL}>
+              <span
+                className="text-xs text-muted-foreground font-mono truncate max-w-[220px]"
+                title={result.ai.baseURL}
+              >
                 {result.ai.baseURL}
               </span>
             )}
@@ -228,7 +251,7 @@ function ResultPanel({ result, error, isPending }: ResultPanelProps) {
           {JSON.stringify(result.items, null, 2)}
         </pre>
       </div>
-    );
+    )
   }
 
   return (
@@ -236,34 +259,37 @@ function ResultPanel({ result, error, isPending }: ResultPanelProps) {
       <FlaskConical className="h-8 w-8 opacity-40" />
       <p className="text-sm">Results will appear here after you run a test</p>
     </div>
-  );
+  )
 }
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 function PlaygroundPage() {
-  const { data: workflows, isLoading: isLoadingWorkflows } = useWorkflows();
-  const testWorkflow = useTestWorkflow();
+  const { data: workflows, isLoading: isLoadingWorkflows } = useWorkflows()
+  const testWorkflow = useTestWorkflow()
 
-  const [image, setImage] = useState<string | null>(null);
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(null);
+  const [image, setImage] = useState<string | null>(null)
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(
+    null,
+  )
 
   // Auto-select first workflow
   const effectiveWorkflowId =
-    selectedWorkflowId ?? (workflows && workflows.length > 0 ? workflows[0].id : null);
+    selectedWorkflowId ??
+    (workflows && workflows.length > 0 ? workflows[0].id : null)
 
   const handleRun = async () => {
     if (!image) {
-      toast.error('Please add an image first.');
-      return;
+      toast.error('Please add an image first.')
+      return
     }
     if (!effectiveWorkflowId) {
-      toast.error('Please select a workflow.');
-      return;
+      toast.error('Please select a workflow.')
+      return
     }
-    testWorkflow.reset();
-    testWorkflow.mutate({ id: effectiveWorkflowId, image });
-  };
+    testWorkflow.reset()
+    testWorkflow.mutate({ id: effectiveWorkflowId, image })
+  }
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-8">
@@ -274,7 +300,8 @@ function PlaygroundPage() {
           Playground
         </h1>
         <p className="text-muted-foreground">
-          Drop or paste a receipt screenshot, pick a workflow, and test extraction in real time.
+          Drop or paste a receipt screenshot, pick a workflow, and test
+          extraction in real time.
         </p>
       </div>
 
@@ -290,8 +317,8 @@ function PlaygroundPage() {
               image={image}
               onImage={setImage}
               onClear={() => {
-                setImage(null);
-                testWorkflow.reset();
+                setImage(null)
+                testWorkflow.reset()
               }}
             />
           </div>
@@ -357,5 +384,5 @@ function PlaygroundPage() {
         </div>
       </div>
     </div>
-  );
+  )
 }

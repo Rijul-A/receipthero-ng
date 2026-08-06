@@ -1,8 +1,8 @@
-import type { Config } from '@sm-rn/shared/schemas';
-import { normalizeImageForVision } from './image-format';
+import type { Config } from '@sm-rn/shared/schemas'
+import { normalizeImageForVision } from './image-format'
 
 export interface ExtractionContext {
-  existingTags?: string[];
+  existingTags?: string[]
 }
 
 /**
@@ -12,43 +12,43 @@ export interface ExtractionContext {
  * `http://host:11434`), so this normalizes either form.
  */
 function withV1(url: string): string {
-  const trimmed = url.replace(/\/+$/, '');
-  return trimmed.endsWith('/v1') ? trimmed : `${trimmed}/v1`;
+  const trimmed = url.replace(/\/+$/, '')
+  return trimmed.endsWith('/v1') ? trimmed : `${trimmed}/v1`
 }
 
 /** Derive the chat completions base URL and API key from config. */
 function resolveEndpoint(config: Config): { baseURL: string; apiKey: string; model: string } {
-  const { ai } = config;
+  const { ai } = config
   switch (ai.provider) {
     case 'openai-compat':
-      if (!ai.apiKey) throw new Error('AI API key is required for openai-compat provider.');
+      if (!ai.apiKey) throw new Error('AI API key is required for openai-compat provider.')
       return {
         baseURL: withV1(ai.baseURL || 'https://api.openai.com/v1'),
         apiKey: ai.apiKey,
         model: ai.model,
-      };
+      }
     case 'together-ai':
-      if (!ai.apiKey) throw new Error('AI API key is required for Together AI provider.');
+      if (!ai.apiKey) throw new Error('AI API key is required for Together AI provider.')
       return {
         baseURL: withV1(ai.baseURL || 'https://api.together.xyz/v1'),
         apiKey: ai.apiKey,
         model: ai.model,
-      };
+      }
     case 'openrouter':
-      if (!ai.apiKey) throw new Error('AI API key is required for openrouter provider.');
+      if (!ai.apiKey) throw new Error('AI API key is required for openrouter provider.')
       return {
         baseURL: withV1(ai.baseURL || 'https://openrouter.ai/api/v1'),
         apiKey: ai.apiKey,
         model: ai.model,
-      };
+      }
     case 'ollama':
       return {
         baseURL: withV1(ai.baseURL || 'http://localhost:11434'),
         apiKey: 'ollama',
         model: ai.model,
-      };
+      }
     default:
-      throw new Error(`Unknown AI provider: ${(ai as any).provider}`);
+      throw new Error(`Unknown AI provider: ${(ai as any).provider}`)
   }
 }
 
@@ -58,7 +58,7 @@ function resolveEndpoint(config: Config): { baseURL: string; apiKey: string; mod
  */
 function buildResponseSchema(itemSchema: any): any {
   // Strip $schema (Zod v4 emits 2020-12) — providers may reject unknown meta-schema keys
-  const { $schema: _ignored, ...cleanItemSchema } = itemSchema;
+  const { $schema: _ignored, ...cleanItemSchema } = itemSchema
   return {
     type: 'object',
     properties: {
@@ -70,7 +70,7 @@ function buildResponseSchema(itemSchema: any): any {
     },
     required: ['items'],
     additionalProperties: false,
-  };
+  }
 }
 
 /**
@@ -90,12 +90,12 @@ export async function extractWithSchema(
   jsonSchema: any,
   promptInstructions: string | undefined,
   config: Config,
-  context?: ExtractionContext
+  context?: ExtractionContext,
 ): Promise<Record<string, unknown>[]> {
-  const { base64: base64Image, mimeType } = await normalizeImageForVision(imageBuffer);
+  const { base64: base64Image, mimeType } = await normalizeImageForVision(imageBuffer)
   const existingTagsSection = context?.existingTags?.length
     ? `\n\nEXISTING DOCUMENT TAGS:\nThe document already has these tags: [${context.existingTags.join(', ')}]\nDo not repeat them; suggest complementary ones only.`
-    : '';
+    : ''
 
   const systemPrompt = [
     'You are a structured data extraction engine.',
@@ -107,18 +107,19 @@ export async function extractWithSchema(
     existingTagsSection,
   ]
     .filter(Boolean)
-    .join('\n');
+    .join('\n')
 
-  const { baseURL, apiKey, model } = resolveEndpoint(config);
-  console.log(`[extract] Running extraction with "${model}" from ${config.ai.provider} at ${baseURL}`);
-  const responseSchema = buildResponseSchema(jsonSchema);
-
+  const { baseURL, apiKey, model } = resolveEndpoint(config)
+  console.log(
+    `[extract] Running extraction with "${model}" from ${config.ai.provider} at ${baseURL}`,
+  )
+  const responseSchema = buildResponseSchema(jsonSchema)
 
   const res = await fetch(`${baseURL}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model,
@@ -141,21 +142,21 @@ export async function extractWithSchema(
         },
       ],
     }),
-  });
+  })
 
   if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`AI provider returned ${res.status}: ${errText.slice(0, 300)}`);
+    const errText = await res.text()
+    throw new Error(`AI provider returned ${res.status}: ${errText.slice(0, 300)}`)
   }
 
-  const json = await res.json() as { choices?: { message?: { content?: string } }[] };
-  const rawContent = json.choices?.[0]?.message?.content;
+  const json = (await res.json()) as { choices?: { message?: { content?: string } }[] }
+  const rawContent = json.choices?.[0]?.message?.content
 
   if (!rawContent) {
-    throw new Error('AI provider returned an empty response.');
+    throw new Error('AI provider returned an empty response.')
   }
 
   // The provider guarantees this is valid JSON matching the schema — no cleaning needed.
-  const parsed = JSON.parse(rawContent) as { items: Record<string, unknown>[] };
-  return Array.isArray(parsed.items) ? parsed.items : [];
+  const parsed = JSON.parse(rawContent) as { items: Record<string, unknown>[] }
+  return Array.isArray(parsed.items) ? parsed.items : []
 }

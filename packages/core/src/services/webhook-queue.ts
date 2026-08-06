@@ -1,8 +1,8 @@
-import { eq, and, lte } from 'drizzle-orm';
-import { db, schema } from '../db';
-import { createLogger } from './logger';
+import { eq, and, lte } from 'drizzle-orm'
+import { db, schema } from '../db'
+import { createLogger } from './logger'
 
-const logger = createLogger('core');
+const logger = createLogger('core')
 
 /**
  * Webhook queue service for managing document IDs received from Paperless-ngx webhooks.
@@ -21,14 +21,14 @@ export class WebhookQueueService {
       .where(
         and(
           eq(schema.webhookQueue.documentId, documentId),
-          eq(schema.webhookQueue.status, 'pending')
-        )
+          eq(schema.webhookQueue.status, 'pending'),
+        ),
       )
-      .get();
+      .get()
 
     if (existing) {
-      logger.debug(`Document ${documentId} already in webhook queue (pending), skipping duplicate`);
-      return;
+      logger.debug(`Document ${documentId} already in webhook queue (pending), skipping duplicate`)
+      return
     }
 
     await db
@@ -39,9 +39,9 @@ export class WebhookQueueService {
         status: 'pending',
         receivedAt: new Date().toISOString(),
       })
-      .run();
+      .run()
 
-    logger.info(`Document ${documentId} added to webhook queue`);
+    logger.info(`Document ${documentId} added to webhook queue`)
   }
 
   /**
@@ -53,10 +53,10 @@ export class WebhookQueueService {
       .select()
       .from(schema.webhookQueue)
       .where(eq(schema.webhookQueue.status, 'pending'))
-      .all();
+      .all()
 
     if (pending.length === 0) {
-      return [];
+      return []
     }
 
     // Mark all as processing
@@ -65,12 +65,12 @@ export class WebhookQueueService {
         .update(schema.webhookQueue)
         .set({ status: 'processing' })
         .where(eq(schema.webhookQueue.id, item.id))
-        .run();
+        .run()
     }
 
-    const ids = pending.map(item => item.documentId);
-    logger.info(`Consumed ${ids.length} document(s) from webhook queue: [${ids.join(', ')}]`);
-    return ids;
+    const ids = pending.map((item) => item.documentId)
+    logger.info(`Consumed ${ids.length} document(s) from webhook queue: [${ids.join(', ')}]`)
+    return ids
   }
 
   /**
@@ -86,10 +86,10 @@ export class WebhookQueueService {
       .where(
         and(
           eq(schema.webhookQueue.documentId, documentId),
-          eq(schema.webhookQueue.status, 'processing')
-        )
+          eq(schema.webhookQueue.status, 'processing'),
+        ),
       )
-      .run();
+      .run()
   }
 
   /**
@@ -105,10 +105,10 @@ export class WebhookQueueService {
       .where(
         and(
           eq(schema.webhookQueue.documentId, documentId),
-          eq(schema.webhookQueue.status, 'processing')
-        )
+          eq(schema.webhookQueue.status, 'processing'),
+        ),
       )
-      .run();
+      .run()
   }
 
   /**
@@ -119,34 +119,31 @@ export class WebhookQueueService {
       .select()
       .from(schema.webhookQueue)
       .where(eq(schema.webhookQueue.status, 'pending'))
-      .get();
+      .get()
 
-    return !!item;
+    return !!item
   }
 
   /**
    * Get queue statistics for the status endpoint.
    */
   async getStats(): Promise<{
-    pending: number;
-    processing: number;
-    completed: number;
-    failed: number;
-    total: number;
+    pending: number
+    processing: number
+    completed: number
+    failed: number
+    total: number
   }> {
-    const all = await db
-      .select()
-      .from(schema.webhookQueue)
-      .all();
+    const all = await db.select().from(schema.webhookQueue).all()
 
-    const stats = { pending: 0, processing: 0, completed: 0, failed: 0, total: all.length };
+    const stats = { pending: 0, processing: 0, completed: 0, failed: 0, total: all.length }
     for (const item of all) {
-      if (item.status === 'pending') stats.pending++;
-      else if (item.status === 'processing') stats.processing++;
-      else if (item.status === 'completed') stats.completed++;
-      else if (item.status === 'failed') stats.failed++;
+      if (item.status === 'pending') stats.pending++
+      else if (item.status === 'processing') stats.processing++
+      else if (item.status === 'completed') stats.completed++
+      else if (item.status === 'failed') stats.failed++
     }
-    return stats;
+    return stats
   }
 
   /**
@@ -158,7 +155,7 @@ export class WebhookQueueService {
       .from(schema.webhookQueue)
       .orderBy(schema.webhookQueue.id)
       .limit(limit)
-      .all();
+      .all()
   }
 
   /**
@@ -166,7 +163,7 @@ export class WebhookQueueService {
    * Returns the number of entries removed.
    */
   async cleanup(olderThanDays: number = 7): Promise<number> {
-    const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();
+    const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString()
 
     const old = await db
       .select()
@@ -174,24 +171,23 @@ export class WebhookQueueService {
       .where(
         and(
           eq(schema.webhookQueue.status, 'completed'),
-          lte(schema.webhookQueue.processedAt, cutoff)
-        )
+          lte(schema.webhookQueue.processedAt, cutoff),
+        ),
       )
-      .all();
+      .all()
 
-    if (old.length === 0) return 0;
+    if (old.length === 0) return 0
 
     for (const item of old) {
-      await db
-        .delete(schema.webhookQueue)
-        .where(eq(schema.webhookQueue.id, item.id))
-        .run();
+      await db.delete(schema.webhookQueue).where(eq(schema.webhookQueue.id, item.id)).run()
     }
 
-    logger.info(`Cleaned up ${old.length} completed webhook entries older than ${olderThanDays} days`);
-    return old.length;
+    logger.info(
+      `Cleaned up ${old.length} completed webhook entries older than ${olderThanDays} days`,
+    )
+    return old.length
   }
 }
 
 // Singleton instance
-export const webhookQueueService = new WebhookQueueService();
+export const webhookQueueService = new WebhookQueueService()

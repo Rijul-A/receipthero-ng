@@ -1,4 +1,4 @@
-import { sqliteTable, integer, text } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, integer, text } from 'drizzle-orm/sqlite-core'
 
 export const retryQueue = sqliteTable('retry_queue', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -6,10 +6,10 @@ export const retryQueue = sqliteTable('retry_queue', {
   attempts: integer('attempts').notNull(),
   lastError: text('lastError').notNull(),
   nextRetryAt: text('nextRetryAt').notNull(), // ISO date string
-});
+})
 
-export type RetryQueueEntry = typeof retryQueue.$inferSelect;
-export type NewRetryQueueEntry = typeof retryQueue.$inferInsert;
+export type RetryQueueEntry = typeof retryQueue.$inferSelect
+export type NewRetryQueueEntry = typeof retryQueue.$inferInsert
 
 export const processingLogs = sqliteTable('processing_logs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -27,10 +27,10 @@ export const processingLogs = sqliteTable('processing_logs', {
   extractedData: text('extractedData'), // Generic extracted JSON string
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
-});
+})
 
-export type ProcessingLogEntry = typeof processingLogs.$inferSelect;
-export type NewProcessingLogEntry = typeof processingLogs.$inferInsert;
+export type ProcessingLogEntry = typeof processingLogs.$inferSelect
+export type NewProcessingLogEntry = typeof processingLogs.$inferInsert
 
 export const workflows = sqliteTable('workflows', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -51,10 +51,10 @@ export const workflows = sqliteTable('workflows', {
   isBuiltIn: integer('isBuiltIn', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
-});
+})
 
-export type Workflow = typeof workflows.$inferSelect;
-export type NewWorkflow = typeof workflows.$inferInsert;
+export type Workflow = typeof workflows.$inferSelect
+export type NewWorkflow = typeof workflows.$inferInsert
 
 export const logs = sqliteTable('logs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -64,10 +64,10 @@ export const logs = sqliteTable('logs', {
   message: text('message').notNull(),
   context: text('context'), // JSON string
   documentId: integer('documentId'), // Optional: links log to a specific document
-});
+})
 
-export type LogEntryRow = typeof logs.$inferSelect;
-export type NewLogEntryRow = typeof logs.$inferInsert;
+export type LogEntryRow = typeof logs.$inferSelect
+export type NewLogEntryRow = typeof logs.$inferInsert
 
 // Worker state for pause/resume control (single row table)
 export const workerStateSchema = sqliteTable('worker_state', {
@@ -80,10 +80,10 @@ export const workerStateSchema = sqliteTable('worker_state', {
   lastScanCompletedAt: text('lastScanCompletedAt'), // ISO timestamp when last scan completed (for timer reset)
   isRunning: integer('isRunning', { mode: 'boolean' }).notNull().default(false), // Cross-process lock
   updatedAt: text('updatedAt').notNull(),
-});
+})
 
-export type WorkerStateRow = typeof workerStateSchema.$inferSelect;
-export type NewWorkerStateRow = typeof workerStateSchema.$inferInsert;
+export type WorkerStateRow = typeof workerStateSchema.$inferSelect
+export type NewWorkerStateRow = typeof workerStateSchema.$inferInsert
 
 // Skipped documents tracking
 export const skippedDocumentsSchema = sqliteTable('skipped_documents', {
@@ -92,10 +92,10 @@ export const skippedDocumentsSchema = sqliteTable('skipped_documents', {
   reason: text('reason').notNull(), // e.g., 'no_receipt_data', 'unsupported_format'
   fileName: text('fileName'),
   skippedAt: text('skippedAt').notNull(), // ISO date string
-});
+})
 
-export type SkippedDocumentEntry = typeof skippedDocumentsSchema.$inferSelect;
-export type NewSkippedDocumentEntry = typeof skippedDocumentsSchema.$inferInsert;
+export type SkippedDocumentEntry = typeof skippedDocumentsSchema.$inferSelect
+export type NewSkippedDocumentEntry = typeof skippedDocumentsSchema.$inferInsert
 
 // Webhook queue for storing document IDs received from Paperless-ngx webhooks
 export const webhookQueue = sqliteTable('webhook_queue', {
@@ -106,7 +106,7 @@ export const webhookQueue = sqliteTable('webhook_queue', {
   status: text('status').notNull().default('pending'), // 'pending' | 'processing' | 'completed' | 'failed'
   receivedAt: text('receivedAt').notNull(), // ISO date string
   processedAt: text('processedAt'), // ISO date string, null until processed
-});
+})
 
-export type WebhookQueueEntry = typeof webhookQueue.$inferSelect;
-export type NewWebhookQueueEntry = typeof webhookQueue.$inferInsert;
+export type WebhookQueueEntry = typeof webhookQueue.$inferSelect
+export type NewWebhookQueueEntry = typeof webhookQueue.$inferInsert

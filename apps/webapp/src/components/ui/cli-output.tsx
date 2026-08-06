@@ -1,13 +1,13 @@
-import * as React from "react"
-import { Copy, Maximize2, Minimize2, Trash2 } from "lucide-react"
-import { Button } from "./button"
-import { Card } from "./card"
-import { cn } from "@/lib/utils"
+import * as React from 'react'
+import { Copy, Maximize2, Minimize2, Trash2 } from 'lucide-react'
+import { Button } from './button'
+import { Card } from './card'
+import { cn } from '@/lib/utils'
 
 export interface CliOutputLine {
   text: string
   timestamp?: string
-  level?: "debug" | "info" | "warn" | "error"
+  level?: 'debug' | 'info' | 'warn' | 'error'
 }
 
 interface CliOutputProps {
@@ -23,7 +23,7 @@ interface CliOutputProps {
 
 export function CliOutput({
   output,
-  prompt = "$",
+  prompt = '$',
   autoScroll = true,
   maxLines,
   showTimestamps = false,
@@ -42,8 +42,8 @@ export function CliOutput({
 
   const copyToClipboard = () => {
     const text = output
-      .map((line) => (typeof line === "string" ? line : line.text))
-      .join("\n")
+      .map((line) => (typeof line === 'string' ? line : line.text))
+      .join('\n')
     navigator.clipboard.writeText(text)
   }
 
@@ -52,13 +52,17 @@ export function CliOutput({
     // In a real scenario, we'd use a library like ansi-to-react
     // eslint-disable-next-line no-control-regex -- \x1b is the actual ANSI escape byte we're matching
     return text.split(/(\x1b\[[0-9;]*m)/g).map((part, i) => {
-      if (part.startsWith("\x1b[")) {
-        if (part.includes("32m")) return <span key={i} className="text-green-400" /> // Green
-        if (part.includes("31m")) return <span key={i} className="text-red-400" /> // Red
-        if (part.includes("33m")) return <span key={i} className="text-yellow-400" /> // Yellow
-        if (part.includes("34m")) return <span key={i} className="text-blue-400" /> // Blue
-        if (part.includes("0m")) return "" // Reset
-        return ""
+      if (part.startsWith('\x1b[')) {
+        if (part.includes('32m'))
+          return <span key={i} className="text-green-400" /> // Green
+        if (part.includes('31m'))
+          return <span key={i} className="text-red-400" /> // Red
+        if (part.includes('33m'))
+          return <span key={i} className="text-yellow-400" /> // Yellow
+        if (part.includes('34m'))
+          return <span key={i} className="text-blue-400" /> // Blue
+        if (part.includes('0m')) return '' // Reset
+        return ''
       }
       return part
     })
@@ -69,9 +73,9 @@ export function CliOutput({
   return (
     <Card
       className={cn(
-        "bg-zinc-950 text-zinc-300 font-mono text-xs overflow-hidden border-zinc-800 flex flex-col transition-all duration-300",
-        isMaximized ? "fixed inset-4 z-50 h-[calc(100vh-2rem)]" : "h-[400px]",
-        className
+        'bg-zinc-950 text-zinc-300 font-mono text-xs overflow-hidden border-zinc-800 flex flex-col transition-all duration-300',
+        isMaximized ? 'fixed inset-4 z-50 h-[calc(100vh-2rem)]' : 'h-[400px]',
+        className,
       )}
     >
       {/* macOS Style Header */}
@@ -81,7 +85,7 @@ export function CliOutput({
           <div className="w-3.5 h-3.5 rounded-full bg-amber-500/80" />
           <div className="w-3.5 h-3.5 rounded-full bg-green-500/80" />
         </div>
-        
+
         {showControls && (
           <div className="flex items-center gap-1">
             <Button
@@ -109,7 +113,7 @@ export function CliOutput({
               size="icon"
               className="h-7 w-7 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800"
               onClick={() => setIsMaximized(!isMaximized)}
-              title={isMaximized ? "Minimize" : "Maximize"}
+              title={isMaximized ? 'Minimize' : 'Maximize'}
             >
               {isMaximized ? (
                 <Minimize2 className="h-3.5 w-3.5" />
@@ -130,9 +134,9 @@ export function CliOutput({
           <div className="text-zinc-600 italic">Waiting for logs...</div>
         )}
         {displayedOutput.map((line, i) => {
-          const text = typeof line === "string" ? line : line.text
-          const timestamp = typeof line === "string" ? null : line.timestamp
-          const level = typeof line === "string" ? null : line.level
+          const text = typeof line === 'string' ? line : line.text
+          const timestamp = typeof line === 'string' ? null : line.timestamp
+          const level = typeof line === 'string' ? null : line.level
 
           return (
             <div key={i} className="flex gap-2 group">
@@ -144,10 +148,10 @@ export function CliOutput({
               <span className="text-zinc-500 flex-shrink-0">{prompt}</span>
               <span
                 className={cn(
-                  "flex-1 break-words",
-                  level === "error" && "text-red-400",
-                  level === "warn" && "text-amber-400",
-                  level === "debug" && "text-zinc-500"
+                  'flex-1 break-words',
+                  level === 'error' && 'text-red-400',
+                  level === 'warn' && 'text-amber-400',
+                  level === 'debug' && 'text-zinc-500',
                 )}
               >
                 {parseAnsi(text)}
