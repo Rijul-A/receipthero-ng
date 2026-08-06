@@ -405,4 +405,33 @@ describe('buildPriceTrends', () => {
     const trends = buildPriceTrends(history)
     expect(trends.map((t) => t.currency).sort()).toEqual(['AED', 'USD'])
   })
+
+  it('does not plot a sized comparison and a per-pack fallback on the same chart', () => {
+    // Same product, same currency, but one row has size info (per 100ml)
+    // and one doesn't (per pack). Their values are on completely different
+    // scales - sharing a y-axis would read as a huge price swing.
+    const sized = row({
+      id: 1,
+      canonicalName: 'Diet Coke',
+      totalPrice: 1200,
+      totalSize: 1980,
+      sizeUnit: 'ml',
+      purchaseDate: '2026-01-01',
+    })
+    const unsized = row({
+      id: 2,
+      canonicalName: 'Diet Coke',
+      totalPrice: 1200,
+      quantity: 1,
+      purchaseDate: '2026-02-01',
+    })
+
+    const trends = buildPriceTrends([sized, unsized])
+    expect(trends).toHaveLength(2)
+    expect(trends.map((t) => t.label).sort()).toEqual(['per 100ml', 'per pack'])
+    // Each chart holds only its own basis's points.
+    for (const trend of trends) {
+      expect(trend.series.flatMap((s) => s.points)).toHaveLength(1)
+    }
+  })
 })

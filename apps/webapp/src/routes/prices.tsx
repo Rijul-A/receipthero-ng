@@ -195,14 +195,21 @@ export function sortHistoryRows<
 export interface PriceTrend {
   product: string
   currency: string
+  /** The comparison basis these points share, e.g. "per 100ml" or "per pack". */
+  label: string
   series: Array<LineChartSeries>
 }
 
 /**
- * One chart per (product, currency) - each with one line series per store,
- * so trends across differently-priced locations stay visually distinct
- * rather than being averaged together. Rows with no date or no comparable
- * price are dropped (can't be plotted).
+ * One chart per (product, currency, comparison basis) - each with one line
+ * series per store, so trends across differently-priced locations stay
+ * visually distinct rather than being averaged together. Rows with no date
+ * or no comparable price are dropped (can't be plotted).
+ *
+ * The comparison basis is part of the key for the same reason
+ * computeCheapestRowIds groups by it: a per-100ml figure and a per-pack
+ * fallback aren't on the same scale, so plotting them on one shared y-axis
+ * would read as a huge price swing when it's really just a change of unit.
  */
 export function buildPriceTrends(
   history: Array<{
@@ -220,11 +227,12 @@ export function buildPriceTrends(
     purchaseDate: string | null
   }>,
 ): Array<PriceTrend> {
-  const byProductCurrency = new Map<
+  const groups = new Map<
     string,
     {
       product: string
       currency: string
+      label: string
       byStore: Map<string, Array<{ x: number; y: number }>>
     }
   >()
@@ -236,10 +244,11 @@ export function buildPriceTrends(
 
     const product = row.canonicalName ?? row.itemName
     const currency = row.currency ?? ''
-    const key = `${product}|${currency}`
-    const entry = byProductCurrency.get(key) ?? {
+    const key = `${product}|${currency}|${comparable.label}`
+    const entry = groups.get(key) ?? {
       product,
       currency,
+      label: comparable.label,
       byStore: new Map<string, Array<{ x: number; y: number }>>(),
     }
 
@@ -251,15 +260,16 @@ export function buildPriceTrends(
     })
     entry.byStore.set(store, points)
 
-    byProductCurrency.set(key, entry)
+    groups.set(key, entry)
   }
 
-  return Array.from(byProductCurrency.values()).map(
-    ({ product, currency, byStore }) => ({
+  return Array.from(groups.values()).map(
+    ({ product, currency, label, byStore }) => ({
       product,
       currency,
-      series: Array.from(byStore.entries()).map(([label, points]) => ({
-        label,
+      label,
+      series: Array.from(byStore.entries()).map(([storeLabel, points]) => ({
+        label: storeLabel,
         points,
       })),
     }),
@@ -477,12 +487,15 @@ function PricesPage() {
               </p>
             ) : view === 'chart' ? (
               <div className="space-y-6">
-                {priceTrends.map(({ product, currency, series }) => (
-                  <div key={`${product}|${currency}`} className="space-y-2">
+                {priceTrends.map(({ product, currency, label, series }) => (
+                  <div
+                    key={`${product}|${currency}|${label}`}
+                    className="space-y-2"
+                  >
                     <h3 className="text-xs font-medium">
                       {product}{' '}
                       <span className="text-muted-foreground font-normal">
-                        ({currency})
+                        ({label}, {currency})
                       </span>
                     </h3>
                     <LineChart

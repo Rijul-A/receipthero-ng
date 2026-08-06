@@ -46,6 +46,34 @@ describe('buildSpendOverTimeSeries', () => {
     const jan = aed.series.points.find((p) => p.x === Date.UTC(2026, 0, 1))
     expect(jan?.y).toBe(150)
   })
+
+  it('gives weekly periods distinct x-positions rather than collapsing them onto the month', () => {
+    // Week periods are "YYYY-MM-DD" (week start). Parsing them as if they
+    // were "YYYY-MM" would put every week of a month at the same x.
+    const rows = [
+      {
+        period: '2026-03-02',
+        currency: 'AED',
+        category: 'groceries',
+        total: 100,
+        count: 1,
+      },
+      {
+        period: '2026-03-09',
+        currency: 'AED',
+        category: 'groceries',
+        total: 200,
+        count: 1,
+      },
+    ]
+
+    const [{ series }] = buildSpendOverTimeSeries(rows)
+    expect(series.points).toHaveLength(2)
+    expect(series.points.map((p) => p.x).sort()).toEqual([
+      Date.UTC(2026, 2, 2),
+      Date.UTC(2026, 2, 9),
+    ])
+  })
 })
 
 describe('buildCategoryBreakdown', () => {

@@ -26,10 +26,16 @@ function formatMoney(value: number, currency: string): string {
   return `${value.toFixed(2)} ${currency}`
 }
 
-/** "YYYY-MM" -> a real timestamp, so the line chart can position points by actual time rather than array index. */
-function monthToTimestamp(period: string): number {
-  const [year, month] = period.split('-').map(Number)
-  return Date.UTC(year, month - 1, 1)
+/**
+ * A spending-report period -> a real timestamp, so the line chart can
+ * position points by actual time rather than array index. Handles both
+ * shapes the report can produce: "YYYY-MM" (month) and "YYYY-MM-DD" (week
+ * start), so switching groupBy can't silently collapse every week in a
+ * month onto the same x-position.
+ */
+function periodToTimestamp(period: string): number {
+  const [year, month, day] = period.split('-').map(Number)
+  return Date.UTC(year, month - 1, day || 1)
 }
 
 /**
@@ -52,7 +58,7 @@ export function buildSpendOverTimeSeries(
     series: {
       label: currency,
       points: Array.from(periods.entries()).map(([period, total]) => ({
-        x: monthToTimestamp(period),
+        x: periodToTimestamp(period),
         y: total,
       })),
     },
@@ -128,7 +134,7 @@ export function formatPurchaseFrequency(item: ItemFrequency): string {
 }
 
 function AnalyticsPage() {
-  const [groupBy] = useState<'week' | 'month'>('month')
+  const [groupBy, setGroupBy] = useState<'week' | 'month'>('month')
   const { data: spendingRows, isLoading: spendingLoading } =
     useSpendingReport(groupBy)
   const { data: vendorRows, isLoading: vendorLoading } = useVendorSpendReport()
@@ -157,10 +163,26 @@ function AnalyticsPage() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex-row items-center justify-between">
           <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-            Spend Over Time (Monthly)
+            Spend Over Time
           </CardTitle>
+          <div className="flex rounded-none border">
+            <button
+              type="button"
+              className={`px-3 py-1 text-xs ${groupBy === 'week' ? 'bg-accent font-medium' : ''}`}
+              onClick={() => setGroupBy('week')}
+            >
+              Weekly
+            </button>
+            <button
+              type="button"
+              className={`px-3 py-1 text-xs border-l ${groupBy === 'month' ? 'bg-accent font-medium' : ''}`}
+              onClick={() => setGroupBy('month')}
+            >
+              Monthly
+            </button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           {spendingLoading ? (
@@ -178,10 +200,12 @@ function AnalyticsPage() {
                 <LineChart
                   series={[series]}
                   formatX={(x) =>
-                    new Date(x).toLocaleDateString(undefined, {
-                      month: 'short',
-                      year: 'numeric',
-                    })
+                    new Date(x).toLocaleDateString(
+                      undefined,
+                      groupBy === 'week'
+                        ? { day: 'numeric', month: 'short', year: 'numeric' }
+                        : { month: 'short', year: 'numeric' },
+                    )
                   }
                   formatY={(y) => formatMoney(y, currency)}
                 />
