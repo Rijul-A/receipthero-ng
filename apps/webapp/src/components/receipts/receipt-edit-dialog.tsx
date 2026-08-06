@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useClickToConfirm } from '@/hooks/use-click-to-confirm'
+import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import {
   useDeleteReceipt,
   useDeleteReceiptItem,
@@ -350,12 +351,18 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
   )
 
   const parsedTotalPrice = Number(totalPrice)
+
+  // Debounced so clearing "10" down to "" or a transient "0" while retyping
+  // (e.g. correcting to "12") doesn't flash the warning mid-edit - only a
+  // value the user has actually paused on gets flagged.
+  const debouncedTotalPrice = useDebouncedValue(totalPrice, 400)
+  const parsedDebouncedTotalPrice = Number(debouncedTotalPrice)
   // An empty field (Number('') === 0) isn't the same as an actual zero
   // price - don't flag it before the user has entered anything.
   const showReviewWarning =
-    totalPrice.trim() !== '' &&
-    Number.isFinite(parsedTotalPrice) &&
-    parsedTotalPrice <= 0
+    debouncedTotalPrice.trim() !== '' &&
+    Number.isFinite(parsedDebouncedTotalPrice) &&
+    parsedDebouncedTotalPrice <= 0
 
   const handleSave = () => {
     const parsedQuantity = Number(quantity)

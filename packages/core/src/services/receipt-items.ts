@@ -370,12 +370,25 @@ export async function updateReceiptItem(
   const updates: Partial<schema.NewReceiptItemEntry> = {}
   if (edits.itemName !== undefined) updates.itemName = nextItemName
   if (edits.canonicalName !== undefined) updates.canonicalName = edits.canonicalName.trim()
-  if (edits.unitPrice !== undefined) updates.unitPrice = Math.round(edits.unitPrice * 100)
   if (edits.totalPrice !== undefined) updates.totalPrice = Math.round(edits.totalPrice * 100)
   if (edits.quantity !== undefined && edits.quantity > 0) {
     updates.quantity = Math.round(edits.quantity)
   }
   if (edits.storeLocation !== undefined) updates.storeLocation = edits.storeLocation
+
+  // unitPrice is comparablePriceOf's preferred per-pack fallback (ahead of
+  // computing totalPrice/quantity on the fly), so leaving it untouched after
+  // a totalPrice/quantity correction would silently keep price comparison on
+  // the old, now-wrong per-pack price. Recompute it from the corrected
+  // values unless the caller is explicitly setting it to something else.
+  if (edits.unitPrice !== undefined) {
+    updates.unitPrice = Math.round(edits.unitPrice * 100)
+  } else if (edits.totalPrice !== undefined || edits.quantity !== undefined) {
+    const nextTotalPrice = updates.totalPrice ?? existing.totalPrice
+    const nextQuantity = updates.quantity ?? existing.quantity
+    updates.unitPrice =
+      nextTotalPrice !== null && nextQuantity > 0 ? Math.round(nextTotalPrice / nextQuantity) : null
+  }
 
   if (Object.keys(updates).length > 0) {
     await db.update(schema.receiptItems).set(updates).where(eq(schema.receiptItems.id, id)).run()

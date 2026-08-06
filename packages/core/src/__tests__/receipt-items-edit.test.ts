@@ -120,6 +120,47 @@ describe('updateReceiptItem', () => {
     expect(untouched[0].documentId).toBe(TEST_DOC_ID_2)
   })
 
+  it('recomputes unitPrice from a corrected totalPrice/quantity, so it never goes stale', async () => {
+    // 1 x $3.00 -> unitPrice starts at 300 cents.
+    await recordReceiptItems({
+      documentId: TEST_DOC_ID,
+      lineItems: [{ name: 'Widget Item 9200', quantity: 1, unitPrice: 3, totalPrice: 3 }],
+      config: mockConfig,
+    })
+    const [row] = await getItemPriceHistory(['Widget Item 9200'])
+    expect(row.unitPrice).toBe(300)
+
+    // Correct to 2 x $5.00 total ($2.50/unit) without touching unitPrice directly.
+    await updateReceiptItem(row.id, { quantity: 2, totalPrice: 5 })
+
+    const corrected = await db
+      .select()
+      .from(schema.receiptItems)
+      .where(eq(schema.receiptItems.id, row.id))
+      .get()
+    expect(corrected?.totalPrice).toBe(500)
+    expect(corrected?.quantity).toBe(2)
+    expect(corrected?.unitPrice).toBe(250)
+  })
+
+  it('respects an explicit unitPrice override instead of recomputing it', async () => {
+    await recordReceiptItems({
+      documentId: TEST_DOC_ID,
+      lineItems: [{ name: 'Widget Item 9200', quantity: 1, unitPrice: 3, totalPrice: 3 }],
+      config: mockConfig,
+    })
+    const [row] = await getItemPriceHistory(['Widget Item 9200'])
+
+    await updateReceiptItem(row.id, { totalPrice: 5, unitPrice: 4.5 })
+
+    const corrected = await db
+      .select()
+      .from(schema.receiptItems)
+      .where(eq(schema.receiptItems.id, row.id))
+      .get()
+    expect(corrected?.unitPrice).toBe(450)
+  })
+
   it('recording a future receipt with the same raw name now uses the corrected canonical name', async () => {
     await recordReceiptItems({
       documentId: TEST_DOC_ID,
