@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { comparablePriceOf, computeCheapestRowIds } from '../routes/prices'
+import {
+  comparablePriceOf,
+  computeCheapestRowIds,
+  computeVendorWinCounts,
+  sortHistoryRows,
+} from '../routes/prices'
 
 interface Row {
   id: number
   itemName: string
   canonicalName: string | null
+  vendor: string | null
+  purchaseDate: string | null
   currency: string | null
   unitPrice: number | null
   totalPrice: number | null
@@ -17,6 +24,8 @@ function row(overrides: Partial<Row> & { id: number }): Row {
   return {
     itemName: 'Item',
     canonicalName: null,
+    vendor: null,
+    purchaseDate: null,
     currency: 'AED',
     unitPrice: null,
     totalPrice: null,
@@ -158,5 +167,93 @@ describe('computeCheapestRowIds', () => {
       sizeUnit: 'ml',
     })
     expect(computeCheapestRowIds([only])).toEqual(new Set())
+  })
+})
+
+describe('computeVendorWinCounts', () => {
+  it('tallies wins per vendor and sorts most-wins first', () => {
+    const cokeCarrefour = row({
+      id: 1,
+      canonicalName: 'Diet Coke',
+      vendor: 'Carrefour',
+      totalPrice: 100,
+      totalSize: 1000,
+      sizeUnit: 'ml',
+    })
+    const cokeLulu = row({
+      id: 2,
+      canonicalName: 'Diet Coke',
+      vendor: 'Lulu',
+      totalPrice: 200,
+      totalSize: 1000,
+      sizeUnit: 'ml',
+    })
+    const milkCarrefour = row({
+      id: 3,
+      canonicalName: 'Milk',
+      vendor: 'Carrefour',
+      totalPrice: 300,
+      totalSize: 1000,
+      sizeUnit: 'ml',
+    })
+    const milkLulu = row({
+      id: 4,
+      canonicalName: 'Milk',
+      vendor: 'Lulu',
+      totalPrice: 250,
+      totalSize: 1000,
+      sizeUnit: 'ml',
+    })
+
+    const history = [cokeCarrefour, cokeLulu, milkCarrefour, milkLulu]
+    const winners = computeCheapestRowIds(history)
+    const winCounts = computeVendorWinCounts(history, winners)
+
+    expect(winCounts).toEqual([
+      { vendor: 'Carrefour', wins: 1 },
+      { vendor: 'Lulu', wins: 1 },
+    ])
+  })
+
+  it('excludes rows that are not the cheapest in their group', () => {
+    const cheap = row({ id: 1, vendor: 'Carrefour', canonicalName: 'Milk' })
+    const winners = new Set([1])
+    const history = [
+      cheap,
+      row({ id: 2, vendor: 'Lulu', canonicalName: 'Milk' }),
+    ]
+    expect(computeVendorWinCounts(history, winners)).toEqual([
+      { vendor: 'Carrefour', wins: 1 },
+    ])
+  })
+
+  it('falls back to "Unknown" for rows with no vendor', () => {
+    const history = [row({ id: 1, vendor: null })]
+    expect(computeVendorWinCounts(history, new Set([1]))).toEqual([
+      { vendor: 'Unknown', wins: 1 },
+    ])
+  })
+})
+
+describe('sortHistoryRows', () => {
+  it('groups rows by product (canonical name over item name) and orders chronologically within each group', () => {
+    const history = [
+      row({ id: 1, canonicalName: 'Milk', purchaseDate: '2026-02-01' }),
+      row({ id: 2, canonicalName: 'Diet Coke', purchaseDate: '2026-03-01' }),
+      row({ id: 3, canonicalName: 'Milk', purchaseDate: '2026-01-01' }),
+      row({ id: 4, canonicalName: 'Diet Coke', purchaseDate: '2026-01-15' }),
+    ]
+
+    expect(sortHistoryRows(history).map((r) => r.id)).toEqual([4, 2, 3, 1])
+  })
+
+  it('does not mutate the input array', () => {
+    const history = [
+      row({ id: 1, canonicalName: 'B' }),
+      row({ id: 2, canonicalName: 'A' }),
+    ]
+    const original = [...history]
+    sortHistoryRows(history)
+    expect(history).toEqual(original)
   })
 })

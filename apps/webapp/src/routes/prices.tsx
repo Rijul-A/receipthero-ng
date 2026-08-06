@@ -116,6 +116,54 @@ export function computeCheapestRowIds(
   return winners
 }
 
+export interface VendorWinCount {
+  vendor: string
+  wins: number
+}
+
+/**
+ * Tallies, per vendor, how many of the currently-compared products that
+ * vendor came out cheapest on (per `computeCheapestRowIds`'s per-product/
+ * per-currency/per-comparison-scale grouping). This only reflects the items
+ * currently selected for comparison, not a full-history analysis - it
+ * answers "of what I've compared here, who's winning" rather than "who's
+ * cheapest overall".
+ */
+export function computeVendorWinCounts(
+  history: Array<{ id: number; vendor: string | null }>,
+  cheapestRowIds: Set<number>,
+): Array<VendorWinCount> {
+  const counts = new Map<string, number>()
+  for (const row of history) {
+    if (!cheapestRowIds.has(row.id)) continue
+    const vendor = row.vendor ?? 'Unknown'
+    counts.set(vendor, (counts.get(vendor) ?? 0) + 1)
+  }
+  return Array.from(counts.entries())
+    .map(([vendor, wins]) => ({ vendor, wins }))
+    .sort((a, b) => b.wins - a.wins)
+}
+
+/**
+ * Orders history rows for display: grouped by product (so the same item's
+ * purchases sit together regardless of what order the API returned them
+ * in), then chronologically within each product so trends read left-to-right.
+ */
+export function sortHistoryRows<
+  T extends {
+    itemName: string
+    canonicalName: string | null
+    purchaseDate: string | null
+  },
+>(history: Array<T>): Array<T> {
+  return [...history].sort((a, b) => {
+    const productA = a.canonicalName ?? a.itemName
+    const productB = b.canonicalName ?? b.itemName
+    if (productA !== productB) return productA.localeCompare(productB)
+    return (a.purchaseDate ?? '').localeCompare(b.purchaseDate ?? '')
+  })
+}
+
 function PricesPage() {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<Array<string>>([])
@@ -133,6 +181,13 @@ function PricesPage() {
   const cheapestRowIds = useMemo(
     () => computeCheapestRowIds(history ?? []),
     [history],
+  )
+
+  const sortedHistory = useMemo(() => sortHistoryRows(history ?? []), [history])
+
+  const vendorWinCounts = useMemo(
+    () => computeVendorWinCounts(history ?? [], cheapestRowIds),
+    [history, cheapestRowIds],
   )
 
   const addItem = (name: string) => {
@@ -224,6 +279,35 @@ function PricesPage() {
         </CardContent>
       </Card>
 
+      {selected.length > 0 && vendorWinCounts.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Cheapest Store
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Of the items you're comparing above, how often each vendor came
+              out cheapest.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {vendorWinCounts.map(({ vendor, wins }, index) => (
+                <Badge
+                  key={vendor}
+                  variant="outline"
+                  className={
+                    index === 0 ? 'text-green-600 border-green-600' : ''
+                  }
+                >
+                  {vendor}: {wins} {wins === 1 ? 'item' : 'items'}
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {selected.length > 0 && (
         <Card>
           <CardHeader>
@@ -252,7 +336,7 @@ function PricesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {history.map((row) => {
+                    {sortedHistory.map((row) => {
                       const isCheapest = cheapestRowIds.has(row.id)
                       const comparable = comparablePriceOf(row)
                       return (
