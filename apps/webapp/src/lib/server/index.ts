@@ -42,6 +42,7 @@ export {
 } from './test.functions'
 export {
   getCurrencyTotals,
+  exportReceiptsCsv,
   type CurrencyTotal,
   type CurrencyTotalsResponse,
 } from './stats.functions'
@@ -58,5 +59,6 @@ export {
 export {
   searchItemNames,
   getItemPriceHistory,
+  exportItemsCsv,
   type ReceiptItemEntry,
 } from './items.functions'

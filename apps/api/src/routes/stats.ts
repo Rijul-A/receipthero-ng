@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { loadConfig, db, processingLogs } from '@sm-rn/core'
 import { eq } from 'drizzle-orm'
+import { toCsv } from '../lib/csv'
 
 const stats = new Hono()
 
@@ -107,6 +108,58 @@ stats.get('/currency-totals', async (c) => {
       500,
     )
   }
+})
+
+/**
+ * GET /api/stats/export/receipts
+ *
+ * CSV export of all successfully processed receipts.
+ */
+stats.get('/export/receipts', async (c) => {
+  const completedLogs = await db.query.processingLogs.findMany({
+    where: eq(processingLogs.status, 'completed'),
+  })
+
+  const rows = completedLogs.map((log) => {
+    let date = ''
+    let category = ''
+    const raw = log.receiptData || log.extractedData
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw)
+        date = typeof parsed.date === 'string' ? parsed.date : ''
+        category = typeof parsed.category === 'string' ? parsed.category : ''
+      } catch {
+        // Leave date/category blank for malformed JSON
+      }
+    }
+
+    return {
+      documentId: log.documentId,
+      fileName: log.fileName ?? '',
+      vendor: log.vendor ?? '',
+      date,
+      category,
+      amount: log.amount !== null ? (log.amount / 100).toFixed(2) : '',
+      currency: log.currency ?? '',
+      processedAt: log.createdAt,
+    }
+  })
+
+  const csv = toCsv(rows, [
+    'documentId',
+    'fileName',
+    'vendor',
+    'date',
+    'category',
+    'amount',
+    'currency',
+    'processedAt',
+  ])
+
+  c.header('Content-Type', 'text/csv; charset=utf-8')
+  c.header('Content-Disposition', 'attachment; filename="receipts.csv"')
+  return c.body(csv)
 })
 
 export default stats

@@ -40,3 +40,17 @@ export const getCurrencyTotals = createServerFn({ method: 'GET' }).handler(
     return apiCall<CurrencyTotalsResponse>('/api/stats/currency-totals')
   },
 )
+
+/**
+ * CSV export of all processed receipts.
+ * Proxies to GET /api/stats/export/receipts
+ */
+export const exportReceiptsCsv = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const response = await fetch(`${API_URL}/api/stats/export/receipts`)
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`)
+    }
+    return response.text()
+  },
+)

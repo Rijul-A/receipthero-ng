@@ -54,3 +54,17 @@ export const getItemPriceHistory = createServerFn({ method: 'GET' })
     )
     return history
   })
+
+/**
+ * CSV export of every recorded line item.
+ * Proxies to GET /api/items/export.
+ */
+export const exportItemsCsv = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const response = await fetch(`${API_URL}/api/items/export`)
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`)
+    }
+    return response.text()
+  },
+)

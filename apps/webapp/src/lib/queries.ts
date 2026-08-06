@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   clearQueue as clearQueueFn,
   clearSkippedDocuments,
+  exportItemsCsv as exportItemsCsvFn,
+  exportReceiptsCsv as exportReceiptsCsvFn,
   getAppLogs,
   getAvailableCurrencies as getAvailableCurrenciesFn,
   getConfig as getConfigFn,
@@ -24,6 +26,7 @@ import {
   testPaperlessConnection,
   triggerScanAndWait,
 } from './server'
+import { downloadTextFile } from './utils'
 import type {
   CurrencyTotalsResponse,
   DocumentImageResponse,
@@ -236,6 +239,18 @@ export function useCurrencyTotals() {
 }
 
 /**
+ * Downloads a CSV export of all processed receipts.
+ */
+export function useExportReceiptsCsv() {
+  return useMutation({
+    mutationFn: async () => {
+      const csv = await exportReceiptsCsvFn()
+      downloadTextFile('receipts.csv', csv)
+    },
+  })
+}
+
+/**
  * Saves configuration to the server.
  * Invalidates config cache on success.
  */
@@ -429,5 +444,17 @@ export function useItemPriceHistory(itemNames: Array<string>) {
     queryKey: itemKeys.history(itemNames),
     queryFn: () => getItemPriceHistoryFn({ data: { itemNames } }),
     enabled: itemNames.length > 0,
+  })
+}
+
+/**
+ * Downloads a CSV export of every recorded line item.
+ */
+export function useExportItemsCsv() {
+  return useMutation({
+    mutationFn: async () => {
+      const csv = await exportItemsCsvFn()
+      downloadTextFile('receipt-items.csv', csv)
+    },
   })
 }

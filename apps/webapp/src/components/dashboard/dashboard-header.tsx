@@ -1,7 +1,15 @@
-import { RefreshCw, Settings, TrendingDown, Workflow } from 'lucide-react'
+import {
+  Download,
+  RefreshCw,
+  Settings,
+  TrendingDown,
+  Workflow,
+} from 'lucide-react'
 import { Link } from '@tanstack/react-router'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { useExportReceiptsCsv } from '@/lib/queries'
 
 interface DashboardHeaderProps {
   lastRefresh: Date | null
@@ -16,6 +24,14 @@ export function DashboardHeader({
   isRefreshing,
   isTriggeringScan,
 }: DashboardHeaderProps) {
+  const exportReceiptsCsv = useExportReceiptsCsv()
+
+  const handleExport = () => {
+    exportReceiptsCsv.mutate(undefined, {
+      onError: (error) => toast.error(error.message),
+    })
+  }
+
   const formatTime = (date: Date) => {
     return new Intl.DateTimeFormat('en-US', {
       hour: 'numeric',
@@ -69,6 +85,15 @@ export function DashboardHeader({
             )}
           />
           {isTriggeringScan ? 'Scanning...' : 'Refresh'}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExport}
+          disabled={exportReceiptsCsv.isPending}
+        >
+          <Download className="h-4 w-4 mr-2" />
+          Export CSV
         </Button>
         <Link to="/workflows">
           <Button variant="outline" size="sm">

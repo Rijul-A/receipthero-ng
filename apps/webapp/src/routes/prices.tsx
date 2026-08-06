@@ -1,10 +1,16 @@
 import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { Search, X } from 'lucide-react'
+import { Download, Search, X } from 'lucide-react'
+import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { useItemNameSearch, useItemPriceHistory } from '@/lib/queries'
+import { Button } from '@/components/ui/button'
+import {
+  useExportItemsCsv,
+  useItemNameSearch,
+  useItemPriceHistory,
+} from '@/lib/queries'
 
 export const Route = createFileRoute('/prices')({
   component: PricesPage,
@@ -33,6 +39,13 @@ function PricesPage() {
 
   const { data: matches } = useItemNameSearch(query)
   const { data: history, isLoading } = useItemPriceHistory(selected)
+  const exportItemsCsv = useExportItemsCsv()
+
+  const handleExport = () => {
+    exportItemsCsv.mutate(undefined, {
+      onError: (error) => toast.error(error.message),
+    })
+  }
 
   // You've explicitly grouped these names together (e.g. "Almarai Milk 1L" and
   // "Al Marai Fresh Milk 1L" from different stores), so the cheapest option is
@@ -62,12 +75,25 @@ function PricesPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
-      <div className="space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight">Price Comparison</h1>
-        <p className="text-muted-foreground">
-          Compare what you've paid for the same item across different stores
-          over time.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">
+            Price Comparison
+          </h1>
+          <p className="text-muted-foreground">
+            Compare what you've paid for the same item across different stores
+            over time.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExport}
+          disabled={exportItemsCsv.isPending}
+        >
+          <Download className="h-4 w-4 mr-2" />
+          Export All CSV
+        </Button>
       </div>
 
       <Card>
