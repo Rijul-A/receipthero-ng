@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { Pencil } from 'lucide-react'
 import type { ReceiptItemEntry } from '@/lib/server'
 import {
   Dialog,
@@ -28,7 +29,7 @@ export function ReceiptEditDialog({
   return (
     <Dialog open={documentId !== null} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
-        {documentId !== null && <ReceiptEditForm documentId={documentId} />}
+        {documentId !== null && <ReceiptDetail documentId={documentId} />}
       </DialogContent>
     </Dialog>
   )
@@ -47,10 +48,11 @@ function formatMajorUnits(cents: number | null): string {
   return cents !== null ? (cents / 100).toFixed(2) : ''
 }
 
-function ReceiptEditForm({ documentId }: { documentId: number }) {
+function ReceiptDetail({ documentId }: { documentId: number }) {
   const { data: detail, isLoading } = useReceiptDetail(documentId)
   const updateReceipt = useUpdateReceipt()
 
+  const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [vendor, setVendor] = useState('')
   const [storeLocation, setStoreLocation] = useState('')
   const [date, setDate] = useState('')
@@ -60,6 +62,9 @@ function ReceiptEditForm({ documentId }: { documentId: number }) {
   const [initializedFor, setInitializedFor] = useState<number | null>(null)
 
   useEffect(() => {
+    // Re-syncs whenever this dialog is opened for a (possibly different)
+    // document, but not on every background refetch, so in-progress edits
+    // in the form aren't clobbered by a save-triggered refetch.
     if (!detail || initializedFor === documentId) return
     const parsed = parseReceiptData(detail.log.receiptData)
     setVendor(detail.log.vendor ?? '')
@@ -69,6 +74,7 @@ function ReceiptEditForm({ documentId }: { documentId: number }) {
     setCurrency(detail.log.currency ?? '')
     setCategory(typeof parsed.category === 'string' ? parsed.category : '')
     setInitializedFor(documentId)
+    setMode('view')
   }, [detail, documentId, initializedFor])
 
   if (isLoading || !detail) {
@@ -88,67 +94,111 @@ function ReceiptEditForm({ documentId }: { documentId: number }) {
     )
   }
 
+  const fields: Array<[label: string, value: string]> = [
+    ['Store name', vendor || '—'],
+    ['Store location', storeLocation || '—'],
+    ['Date', date || '—'],
+    ['Time', time || '—'],
+    ['Currency', currency || '—'],
+    ['Category', category || '—'],
+  ]
+
   return (
     <div className="space-y-6">
-      <DialogHeader>
+      <DialogHeader className="flex-row items-center justify-between pr-8">
         <DialogTitle>
           {detail.log.fileName ?? `Document ${documentId}`}
         </DialogTitle>
+        {mode === 'view' ? (
+          <Button size="sm" variant="outline" onClick={() => setMode('edit')}>
+            <Pencil className="h-3.5 w-3.5 mr-1.5" />
+            Edit
+          </Button>
+        ) : (
+          <Button size="sm" variant="outline" onClick={() => setMode('view')}>
+            Done
+          </Button>
+        )}
       </DialogHeader>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <Label htmlFor="vendor">Store name</Label>
-          <Input
-            id="vendor"
-            value={vendor}
-            onChange={(e) => setVendor(e.target.value)}
-          />
+      {mode === 'view' ? (
+        <div className="grid grid-cols-2 gap-3 text-xs">
+          {fields.map(([label, value]) => (
+            <div key={label} className="space-y-1">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                {label}
+              </div>
+              <div>{value}</div>
+            </div>
+          ))}
         </div>
-        <div className="space-y-1">
-          <Label htmlFor="storeLocation">Store location</Label>
-          <Input
-            id="storeLocation"
-            placeholder="e.g. Mall of the Emirates"
-            value={storeLocation}
-            onChange={(e) => setStoreLocation(e.target.value)}
-          />
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label htmlFor="vendor">Store name</Label>
+            <Input
+              id="vendor"
+              value={vendor}
+              onChange={(e) => setVendor(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="storeLocation">Store location</Label>
+            <Input
+              id="storeLocation"
+              placeholder="e.g. Mall of the Emirates"
+              value={storeLocation}
+              onChange={(e) => setStoreLocation(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="date">Date</Label>
+            <Input
+              id="date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="time">Time</Label>
+            <Input
+              id="time"
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="currency">Currency</Label>
+            <Input
+              id="currency"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="category">Category</Label>
+            <Input
+              id="category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            />
+          </div>
         </div>
-        <div className="space-y-1">
-          <Label htmlFor="date">Date</Label>
-          <Input
-            id="date"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
+      )}
+
+      {mode === 'edit' && (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            onClick={handleSaveReceipt}
+            disabled={updateReceipt.isPending}
+          >
+            Save
+          </Button>
         </div>
-        <div className="space-y-1">
-          <Label htmlFor="time">Time</Label>
-          <Input
-            id="time"
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="currency">Currency</Label>
-          <Input
-            id="currency"
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="category">Category</Label>
-          <Input
-            id="category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          />
-        </div>
-      </div>
+      )}
 
       <div className="flex items-center justify-between border-t pt-3">
         <div className="text-xs">
@@ -159,13 +209,6 @@ function ReceiptEditForm({ documentId }: { documentId: number }) {
             {formatMajorUnits(detail.log.amount)} {detail.log.currency ?? ''}
           </span>
         </div>
-        <Button
-          size="sm"
-          onClick={handleSaveReceipt}
-          disabled={updateReceipt.isPending}
-        >
-          Save
-        </Button>
       </div>
 
       <div className="space-y-2">
@@ -176,6 +219,29 @@ function ReceiptEditForm({ documentId }: { documentId: number }) {
           <p className="text-xs text-muted-foreground">
             No line items recorded for this receipt.
           </p>
+        ) : mode === 'view' ? (
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b text-left text-muted-foreground">
+                <th className="py-2 pr-4">Name</th>
+                <th className="py-2 pr-4">Qty</th>
+                <th className="py-2 pr-4">Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detail.items.map((item) => (
+                <tr key={item.id} className="border-b last:border-0">
+                  <td className="py-2 pr-4">
+                    {item.canonicalName ?? item.itemName}
+                  </td>
+                  <td className="py-2 pr-4">{item.quantity}</td>
+                  <td className="py-2 pr-4">
+                    {formatMajorUnits(item.totalPrice)} {item.currency ?? ''}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : (
           <div className="space-y-2">
             {detail.items.map((item) => (

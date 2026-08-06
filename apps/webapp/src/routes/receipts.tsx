@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { Pencil, RefreshCw } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -103,13 +103,19 @@ function ReceiptsPage() {
                     <th className="py-2 pr-4">Vendor</th>
                     <th className="py-2 pr-4">Amount</th>
                     <th className="py-2 pr-4">Processed</th>
-                    <th className="py-2 pr-4 w-8" />
                   </tr>
                 </thead>
                 <tbody>
                   {processedReceipts.map((receipt) => (
-                    <tr key={receipt.id} className="border-b last:border-0">
-                      <td className="py-2 pr-4">
+                    <tr
+                      key={receipt.id}
+                      className="border-b last:border-0 cursor-pointer hover:bg-accent/50"
+                      onClick={() => setEditingDocumentId(receipt.documentId)}
+                    >
+                      <td
+                        className="py-2 pr-4"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <input
                           type="checkbox"
                           checked={selected.has(receipt.documentId)}
@@ -128,18 +134,6 @@ function ReceiptsPage() {
                       </td>
                       <td className="py-2 pr-4">
                         <Badge variant="outline">{receipt.updatedAt}</Badge>
-                      </td>
-                      <td className="py-2 pr-4">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() =>
-                            setEditingDocumentId(receipt.documentId)
-                          }
-                          aria-label={`Edit ${receipt.fileName ?? receipt.documentId}`}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
                       </td>
                     </tr>
                   ))}
