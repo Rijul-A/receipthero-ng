@@ -50,3 +50,5 @@ paperless_schema.yml
 .turbo
 data
 **.db
+**.db-wal
+**.db-shm

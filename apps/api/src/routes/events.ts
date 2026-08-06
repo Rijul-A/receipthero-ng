@@ -106,13 +106,18 @@ events.post('/', zValidator('json', ProcessingEventSchema), async (c) => {
 
     const now = new Date().toISOString()
 
-    // Status mapping from event type
+    // Status mapping from event type. Custom workflows report 'workflow:*'
+    // events rather than 'receipt:*' (see executeWorkflow in
+    // workflow-executor.ts), so both prefixes need mapping - otherwise
+    // workflow-processed documents never reach status 'completed' and
+    // silently never appear in the Receipts page, Spending Reports,
+    // currency totals, or CSV export, all of which filter on that status.
     let status = payload.status || 'processing'
-    if (type === 'receipt:detected') status = 'detected'
-    if (type === 'receipt:success') status = 'completed'
-    if (type === 'receipt:failed') status = 'failed'
-    if (type === 'receipt:retry') status = 'retrying'
-    if (type === 'receipt:skipped') status = 'skipped'
+    if (type === 'receipt:detected' || type === 'workflow:detected') status = 'detected'
+    if (type === 'receipt:success' || type === 'workflow:success') status = 'completed'
+    if (type === 'receipt:failed' || type === 'workflow:failed') status = 'failed'
+    if (type === 'receipt:retry' || type === 'workflow:retry') status = 'retrying'
+    if (type === 'receipt:skipped' || type === 'workflow:skipped') status = 'skipped'
 
     // Always update existing entry for same documentId (treat as file, not event log)
     if (existing) {
