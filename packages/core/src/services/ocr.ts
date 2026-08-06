@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { chat } from '@tanstack/ai';
 import { ProcessedReceiptSchema } from '@sm-rn/shared/types';
 import type { AIAdapter } from './ai-client';
-import { detectImageMimeType } from './image-format';
+import { normalizeImageForVision } from './image-format';
 
 export const ReceiptExtractionSchema = z.object({
   receipts: z.array(ProcessedReceiptSchema),
@@ -78,10 +78,12 @@ CATEGORIZATION RULES:
 PAYMENT METHODS: Common values include "cash", "credit", "debit", "check", "gift card", "digital wallet"`;
 
 export async function extractReceiptData(
-  base64Image: string,
+  imageBuffer: Buffer,
   adapter: AIAdapter,
   context?: ExtractionContext
 ) {
+  const { base64: base64Image, mimeType } = await normalizeImageForVision(imageBuffer);
+
   // Build context section for existing tags
   const existingTagsSection = context?.existingTags?.length
     ? `\n\nEXISTING DOCUMENT TAGS:\nThe document already has these tags: [${context.existingTags.join(', ')}]\nConsider these when suggesting additional tags - don't repeat them, but suggest complementary ones.`
@@ -103,7 +105,7 @@ Extract all visible receipt data accurately. If information is not visible, use 
           },
           {
             type: 'image' as const,
-            source: { type: 'data' as const, value: base64Image, mimeType: detectImageMimeType(base64Image) },
+            source: { type: 'data' as const, value: base64Image, mimeType },
           },
         ],
       },

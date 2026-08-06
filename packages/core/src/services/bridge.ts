@@ -202,8 +202,7 @@ export async function processPaperlessDocument(
         message: `Using ${fileSource}`
       });
 
-      const base64 = fileBuffer.toString('base64');
-      docLogger.debug(` Encoded file to base64 (${(base64.length / 1024).toFixed(1)} KB)`);
+      docLogger.debug(` Downloaded file (${(fileBuffer.length / 1024).toFixed(1)} KB)`);
 
       // Get existing tag names to pass to AI for context
       const allTagsList = await client.getTags();
@@ -218,7 +217,7 @@ export async function processPaperlessDocument(
 
       let receipts: any[];
       try {
-        receipts = await extractReceiptData(base64, adapter, { existingTags: existingTagNamesLegacy });
+        receipts = await extractReceiptData(fileBuffer, adapter, { existingTags: existingTagNamesLegacy });
         docLogger.debug(` ✓ AI extraction complete, found ${receipts.length} receipt(s)`);
       } catch (ocrError: any) {
         docLogger.error(` ✗ AI extraction failed`, {
@@ -624,8 +623,7 @@ export async function processPaperlessDocument(
         message: `Using ${fileSource}`
       });
 
-      const base64 = fileBuffer.toString('base64');
-      docLogger.debug(` Encoded file to base64 (${(base64.length / 1024).toFixed(1)} KB)`);
+      docLogger.debug(` Downloaded file (${(fileBuffer.length / 1024).toFixed(1)} KB)`);
 
       // Get existing tag names to pass to AI for context
       const allTags = await client.getTags();
@@ -640,7 +638,7 @@ export async function processPaperlessDocument(
 
       let receipts: any[];
       try {
-        receipts = await extractReceiptData(base64, adapter, { existingTags: existingTagNames });
+        receipts = await extractReceiptData(fileBuffer, adapter, { existingTags: existingTagNames });
         docLogger.debug(` ✓ AI extraction complete, found ${receipts.length} receipt(s)`);
       } catch (ocrError: any) {
         docLogger.error(` ✗ AI extraction failed`, {

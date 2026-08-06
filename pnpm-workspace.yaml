@@ -26,4 +26,5 @@ onlyBuiltDependencies:
   - esbuild
   - lzo
   - msw
+  - sharp
   - unrs-resolver

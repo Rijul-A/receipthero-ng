@@ -107,13 +107,12 @@ export async function executeWorkflow(
         fileBuffer = await client.getDocumentFile(documentId);
       }
 
-      const base64 = fileBuffer.toString('base64');
       const allTags = await client.getTags();
       const existingTagNames = doc.tags?.map((id: number) => allTags.find((t: any) => t.id === id)?.name).filter(Boolean) || [];
 
       docLogger.info(`Sending to AI for extraction...`);
       const jsonSchema = JSON.parse(workflow.jsonSchema);
-      const items = await extractWithSchema(base64, jsonSchema, workflow.promptInstructions || undefined, config, { existingTags: existingTagNames });
+      const items = await extractWithSchema(fileBuffer, jsonSchema, workflow.promptInstructions || undefined, config, { existingTags: existingTagNames });
 
       if (items.length === 0) {
         docLogger.warn(`No data extracted`);

@@ -1,5 +1,5 @@
 import type { Config } from '@sm-rn/shared/schemas';
-import { detectImageMimeType } from './image-format';
+import { normalizeImageForVision } from './image-format';
 
 export interface ExtractionContext {
   existingTags?: string[];
@@ -86,12 +86,13 @@ function buildResponseSchema(itemSchema: any): any {
  * only supported by OpenAI itself and not by OpenAI-compatible providers.
  */
 export async function extractWithSchema(
-  base64Image: string,
+  imageBuffer: Buffer,
   jsonSchema: any,
   promptInstructions: string | undefined,
   config: Config,
   context?: ExtractionContext
 ): Promise<Record<string, unknown>[]> {
+  const { base64: base64Image, mimeType } = await normalizeImageForVision(imageBuffer);
   const existingTagsSection = context?.existingTags?.length
     ? `\n\nEXISTING DOCUMENT TAGS:\nThe document already has these tags: [${context.existingTags.join(', ')}]\nDo not repeat them; suggest complementary ones only.`
     : '';
@@ -135,7 +136,7 @@ export async function extractWithSchema(
           role: 'user',
           content: [
             { type: 'text', text: 'Extract all data from this image.' },
-            { type: 'image_url', image_url: { url: `data:${detectImageMimeType(base64Image)};base64,${base64Image}` } },
+            { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Image}` } },
           ],
         },
       ],
