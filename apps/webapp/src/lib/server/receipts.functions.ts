@@ -70,3 +70,19 @@ export const updateReceipt = createServerFn({ method: 'POST' })
     )
     return log
   })
+
+/**
+ * Deletes a receipt entirely (ReceiptHero's tracking of it, not the
+ * underlying Paperless document).
+ * Proxies to DELETE /api/receipts/:documentId.
+ */
+export const deleteReceipt = createServerFn({ method: 'POST' })
+  .inputValidator((input: { documentId: number }) => input)
+  .handler(async (ctx) => {
+    return apiCall<{ success: boolean }>(
+      `/api/receipts/${ctx.data.documentId}`,
+      {
+        method: 'DELETE',
+      },
+    )
+  })

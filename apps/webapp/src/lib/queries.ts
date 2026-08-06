@@ -3,6 +3,7 @@ import {
   batchReprocessDocuments,
   clearQueue as clearQueueFn,
   clearSkippedDocuments,
+  deleteReceipt as deleteReceiptFn,
   deleteReceiptItem as deleteReceiptItemFn,
   exportItemsCsv as exportItemsCsvFn,
   exportReceiptsCsv as exportReceiptsCsvFn,
@@ -605,6 +606,24 @@ export function useUpdateReceipt() {
       queryClient.invalidateQueries({
         queryKey: receiptKeys.detail(variables.documentId),
       })
+      queryClient.invalidateQueries({ queryKey: ['processing-logs'] })
+      queryClient.invalidateQueries({ queryKey: statsKeys.all })
+    },
+  })
+}
+
+/**
+ * Deletes a receipt entirely (ReceiptHero's own tracking of it - the
+ * underlying Paperless document is untouched).
+ */
+export function useDeleteReceipt() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (params: { documentId: number }) =>
+      deleteReceiptFn({ data: params }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: receiptKeys.all })
+      queryClient.invalidateQueries({ queryKey: itemKeys.all })
       queryClient.invalidateQueries({ queryKey: ['processing-logs'] })
       queryClient.invalidateQueries({ queryKey: statsKeys.all })
     },

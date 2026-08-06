@@ -126,3 +126,26 @@ export async function recalculateReceiptTotal(
   const totalCents = items.reduce((sum, item) => sum + (item.totalPrice ?? 0), 0)
   await updateReceipt(documentId, { amount: totalCents / 100 })
 }
+
+/**
+ * Deletes a receipt entirely - its processing_logs row(s) and every
+ * receipt_items row recorded for it. This only removes ReceiptHero's own
+ * tracking of the document; it never touches the underlying document in
+ * Paperless, which stays the source of truth for the file itself. If the
+ * same Paperless document gets reprocessed later, it's tracked fresh.
+ */
+export async function deleteReceipt(documentId: number): Promise<boolean> {
+  const existing = await db
+    .select()
+    .from(schema.processingLogs)
+    .where(eq(schema.processingLogs.documentId, documentId))
+    .get()
+  if (!existing) return false
+
+  db.transaction((tx) => {
+    tx.delete(schema.receiptItems).where(eq(schema.receiptItems.documentId, documentId)).run()
+    tx.delete(schema.processingLogs).where(eq(schema.processingLogs.documentId, documentId)).run()
+  })
+
+  return true
+}

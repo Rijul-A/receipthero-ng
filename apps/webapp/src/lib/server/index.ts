@@ -75,6 +75,7 @@ export {
 export {
   getReceiptDetail,
   updateReceipt,
+  deleteReceipt,
   type ReceiptDetail,
   type ProcessingLogEntry,
   type ReceiptEdit,

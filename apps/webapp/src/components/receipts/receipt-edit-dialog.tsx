@@ -8,11 +8,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
+  useDeleteReceipt,
   useDeleteReceiptItem,
   useReceiptDetail,
   useUpdateReceipt,
@@ -39,7 +50,12 @@ export function ReceiptEditDialog({
   return (
     <Dialog open={documentId !== null} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
-        {documentId !== null && <ReceiptDetail documentId={documentId} />}
+        {documentId !== null && (
+          <ReceiptDetail
+            documentId={documentId}
+            onDeleted={() => onOpenChange(false)}
+          />
+        )}
       </DialogContent>
     </Dialog>
   )
@@ -58,11 +74,19 @@ function formatMajorUnits(cents: number | null): string {
   return cents !== null ? (cents / 100).toFixed(2) : ''
 }
 
-function ReceiptDetail({ documentId }: { documentId: number }) {
+function ReceiptDetail({
+  documentId,
+  onDeleted,
+}: {
+  documentId: number
+  onDeleted: () => void
+}) {
   const { data: detail, isLoading } = useReceiptDetail(documentId)
   const updateReceipt = useUpdateReceipt()
+  const deleteReceipt = useDeleteReceipt()
 
   const [mode, setMode] = useState<'view' | 'edit'>('view')
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [vendor, setVendor] = useState('')
   const [storeLocation, setStoreLocation] = useState('')
   const [date, setDate] = useState('')
@@ -104,6 +128,19 @@ function ReceiptDetail({ documentId }: { documentId: number }) {
     )
   }
 
+  const handleDeleteReceipt = () => {
+    deleteReceipt.mutate(
+      { documentId },
+      {
+        onSuccess: () => {
+          toast.success('Receipt deleted')
+          onDeleted()
+        },
+        onError: (error) => toast.error(error.message),
+      },
+    )
+  }
+
   const fields: Array<[label: string, value: string]> = [
     ['Store name', vendor || '—'],
     ['Store location', storeLocation || '—'],
@@ -119,17 +156,54 @@ function ReceiptDetail({ documentId }: { documentId: number }) {
         <DialogTitle>
           {detail.log.fileName ?? `Document ${documentId}`}
         </DialogTitle>
-        {mode === 'view' ? (
-          <Button size="sm" variant="outline" onClick={() => setMode('edit')}>
-            <Pencil className="h-3.5 w-3.5 mr-1.5" />
-            Edit
-          </Button>
-        ) : (
-          <Button size="sm" variant="outline" onClick={() => setMode('view')}>
-            Done
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {mode === 'edit' && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive"
+              onClick={() => setConfirmingDelete(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+              Delete receipt
+            </Button>
+          )}
+          {mode === 'view' ? (
+            <Button size="sm" variant="outline" onClick={() => setMode('edit')}>
+              <Pencil className="h-3.5 w-3.5 mr-1.5" />
+              Edit
+            </Button>
+          ) : (
+            <Button size="sm" variant="outline" onClick={() => setMode('view')}>
+              Done
+            </Button>
+          )}
+        </div>
       </DialogHeader>
+
+      <AlertDialog open={confirmingDelete} onOpenChange={setConfirmingDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this receipt?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes ReceiptHero's tracking of this receipt and all of its
+              recorded line items. The original document in Paperless is not
+              affected - if it's reprocessed later, it'll be tracked fresh. This
+              can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground"
+              onClick={handleDeleteReceipt}
+              disabled={deleteReceipt.isPending}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {mode === 'view' ? (
         <div className="grid grid-cols-2 gap-3 text-xs">
@@ -226,9 +300,22 @@ function ReceiptDetail({ documentId }: { documentId: number }) {
           Items ({detail.items.length})
         </Label>
         {detail.items.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            No line items recorded for this receipt.
-          </p>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              No line items recorded for this receipt. If it's no longer
+              relevant (e.g. you removed everything on it), you can delete the
+              receipt entirely.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-destructive"
+              onClick={() => setConfirmingDelete(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+              Delete receipt
+            </Button>
+          </div>
         ) : mode === 'view' ? (
           <table className="w-full text-xs">
             <thead>

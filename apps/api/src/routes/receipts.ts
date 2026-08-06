@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import { getReceiptDetail, updateReceipt } from '@sm-rn/core'
+import { getReceiptDetail, updateReceipt, deleteReceipt } from '@sm-rn/core'
 
 const receipts = new Hono()
 
@@ -46,6 +46,23 @@ receipts.patch('/:documentId', zValidator('json', ReceiptEditSchema), async (c) 
   if (!updated) return c.json({ error: 'Receipt not found' }, 404)
 
   return c.json({ log: updated })
+})
+
+/**
+ * DELETE /api/receipts/:documentId
+ *
+ * Deletes ReceiptHero's tracking of a receipt (its log entry and recorded
+ * line items) entirely. Does not touch the underlying document in
+ * Paperless.
+ */
+receipts.delete('/:documentId', async (c) => {
+  const documentId = parseInt(c.req.param('documentId'), 10)
+  if (Number.isNaN(documentId)) return c.json({ error: 'Invalid documentId' }, 400)
+
+  const deleted = await deleteReceipt(documentId)
+  if (!deleted) return c.json({ error: 'Receipt not found' }, 404)
+
+  return c.json({ success: true })
 })
 
 export default receipts

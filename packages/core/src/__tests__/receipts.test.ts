@@ -9,7 +9,7 @@ mock.module('../services/ai-json', () => ({
 
 const { recordReceiptItems, updateReceiptItem, getItemPriceHistory } =
   await import('../services/receipt-items')
-const { getReceiptDetail, updateReceipt, recalculateReceiptTotal } =
+const { getReceiptDetail, updateReceipt, recalculateReceiptTotal, deleteReceipt } =
   await import('../services/receipts')
 
 const mockConfig = ConfigSchema.parse({
@@ -140,5 +140,28 @@ describe('recalculateReceiptTotal', () => {
 
     const detail = await getReceiptDetail(TEST_DOC_ID)
     expect(detail?.log.amount).toBe(900)
+  })
+})
+
+describe('deleteReceipt', () => {
+  beforeEach(cleanup)
+  afterEach(cleanup)
+
+  it('returns false for an unknown document', async () => {
+    expect(await deleteReceipt(TEST_DOC_ID)).toBe(false)
+  })
+
+  it('removes the log entry and all of its line items', async () => {
+    await seedLog()
+    await recordReceiptItems({
+      documentId: TEST_DOC_ID,
+      lineItems: [{ name: 'Milk', quantity: 1, unitPrice: 5, totalPrice: 5 }],
+      config: mockConfig,
+    })
+
+    expect(await deleteReceipt(TEST_DOC_ID)).toBe(true)
+
+    expect(await getReceiptDetail(TEST_DOC_ID)).toBeNull()
+    expect(await getItemPriceHistory(['Milk'])).toHaveLength(0)
   })
 })
