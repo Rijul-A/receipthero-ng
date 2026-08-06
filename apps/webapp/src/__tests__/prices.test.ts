@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   comparablePriceOf,
   computeCheapestRowIds,
-  computeVendorWinCounts,
+  computeStoreWinCounts,
+  formatStoreLabel,
   sortHistoryRows,
 } from '../routes/prices'
 
@@ -11,6 +12,7 @@ interface Row {
   itemName: string
   canonicalName: string | null
   vendor: string | null
+  storeLocation: string | null
   purchaseDate: string | null
   currency: string | null
   unitPrice: number | null
@@ -25,6 +27,7 @@ function row(overrides: Partial<Row> & { id: number }): Row {
     itemName: 'Item',
     canonicalName: null,
     vendor: null,
+    storeLocation: null,
     purchaseDate: null,
     currency: 'AED',
     unitPrice: null,
@@ -170,8 +173,31 @@ describe('computeCheapestRowIds', () => {
   })
 })
 
-describe('computeVendorWinCounts', () => {
-  it('tallies wins per vendor and sorts most-wins first', () => {
+describe('formatStoreLabel', () => {
+  it('appends the location when present', () => {
+    expect(
+      formatStoreLabel({
+        vendor: 'Carrefour',
+        storeLocation: 'Deira City Centre',
+      }),
+    ).toBe('Carrefour — Deira City Centre')
+  })
+
+  it('falls back to just the vendor when there is no location', () => {
+    expect(formatStoreLabel({ vendor: 'Carrefour', storeLocation: null })).toBe(
+      'Carrefour',
+    )
+  })
+
+  it('falls back to "Unknown" when there is no vendor either', () => {
+    expect(formatStoreLabel({ vendor: null, storeLocation: null })).toBe(
+      'Unknown',
+    )
+  })
+})
+
+describe('computeStoreWinCounts', () => {
+  it('tallies wins per store and sorts most-wins first', () => {
     const cokeCarrefour = row({
       id: 1,
       canonicalName: 'Diet Coke',
@@ -207,11 +233,58 @@ describe('computeVendorWinCounts', () => {
 
     const history = [cokeCarrefour, cokeLulu, milkCarrefour, milkLulu]
     const winners = computeCheapestRowIds(history)
-    const winCounts = computeVendorWinCounts(history, winners)
+    const winCounts = computeStoreWinCounts(history, winners)
 
     expect(winCounts).toEqual([
-      { vendor: 'Carrefour', wins: 1 },
-      { vendor: 'Lulu', wins: 1 },
+      { store: 'Carrefour', wins: 1 },
+      { store: 'Lulu', wins: 1 },
+    ])
+  })
+
+  it('counts two locations of the same vendor separately', () => {
+    const cokeDeira = row({
+      id: 1,
+      canonicalName: 'Diet Coke',
+      vendor: 'Carrefour',
+      storeLocation: 'Deira City Centre',
+      totalPrice: 100,
+      totalSize: 1000,
+      sizeUnit: 'ml',
+    })
+    const cokeMOE = row({
+      id: 2,
+      canonicalName: 'Diet Coke',
+      vendor: 'Carrefour',
+      storeLocation: 'Mall of the Emirates',
+      totalPrice: 200,
+      totalSize: 1000,
+      sizeUnit: 'ml',
+    })
+    const milkDeira = row({
+      id: 3,
+      canonicalName: 'Milk',
+      vendor: 'Carrefour',
+      storeLocation: 'Deira City Centre',
+      totalPrice: 50,
+      totalSize: 1000,
+      sizeUnit: 'ml',
+    })
+    const milkMOE = row({
+      id: 4,
+      canonicalName: 'Milk',
+      vendor: 'Carrefour',
+      storeLocation: 'Mall of the Emirates',
+      totalPrice: 60,
+      totalSize: 1000,
+      sizeUnit: 'ml',
+    })
+
+    const history = [cokeDeira, cokeMOE, milkDeira, milkMOE]
+    const winners = computeCheapestRowIds(history)
+    const winCounts = computeStoreWinCounts(history, winners)
+
+    expect(winCounts).toEqual([
+      { store: 'Carrefour — Deira City Centre', wins: 2 },
     ])
   })
 
@@ -222,15 +295,15 @@ describe('computeVendorWinCounts', () => {
       cheap,
       row({ id: 2, vendor: 'Lulu', canonicalName: 'Milk' }),
     ]
-    expect(computeVendorWinCounts(history, winners)).toEqual([
-      { vendor: 'Carrefour', wins: 1 },
+    expect(computeStoreWinCounts(history, winners)).toEqual([
+      { store: 'Carrefour', wins: 1 },
     ])
   })
 
   it('falls back to "Unknown" for rows with no vendor', () => {
     const history = [row({ id: 1, vendor: null })]
-    expect(computeVendorWinCounts(history, new Set([1]))).toEqual([
-      { vendor: 'Unknown', wins: 1 },
+    expect(computeStoreWinCounts(history, new Set([1]))).toEqual([
+      { store: 'Unknown', wins: 1 },
     ])
   })
 })

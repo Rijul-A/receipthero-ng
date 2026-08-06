@@ -8,20 +8,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { useClickToConfirm } from '@/hooks/use-click-to-confirm'
 import {
   useDeleteReceipt,
   useDeleteReceiptItem,
@@ -86,7 +77,6 @@ function ReceiptDetail({
   const deleteReceipt = useDeleteReceipt()
 
   const [mode, setMode] = useState<'view' | 'edit'>('view')
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [vendor, setVendor] = useState('')
   const [storeLocation, setStoreLocation] = useState('')
   const [date, setDate] = useState('')
@@ -128,7 +118,7 @@ function ReceiptDetail({
     )
   }
 
-  const handleDeleteReceipt = () => {
+  const deleteReceiptConfirm = useClickToConfirm(() => {
     deleteReceipt.mutate(
       { documentId },
       {
@@ -139,7 +129,7 @@ function ReceiptDetail({
         onError: (error) => toast.error(error.message),
       },
     )
-  }
+  })
 
   const fields: Array<[label: string, value: string]> = [
     ['Store name', vendor || '—'],
@@ -160,12 +150,19 @@ function ReceiptDetail({
           {mode === 'edit' && (
             <Button
               size="sm"
-              variant="ghost"
-              className="text-destructive"
-              onClick={() => setConfirmingDelete(true)}
+              variant={
+                deleteReceiptConfirm.confirming ? 'destructive' : 'ghost'
+              }
+              className={
+                deleteReceiptConfirm.confirming ? '' : 'text-destructive'
+              }
+              onClick={deleteReceiptConfirm.handleClick}
+              disabled={deleteReceipt.isPending}
             >
               <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              Delete receipt
+              {deleteReceiptConfirm.confirming
+                ? 'Click again to delete'
+                : 'Delete receipt'}
             </Button>
           )}
           {mode === 'view' ? (
@@ -180,30 +177,6 @@ function ReceiptDetail({
           )}
         </div>
       </DialogHeader>
-
-      <AlertDialog open={confirmingDelete} onOpenChange={setConfirmingDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this receipt?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This removes ReceiptHero's tracking of this receipt and all of its
-              recorded line items. The original document in Paperless is not
-              affected - if it's reprocessed later, it'll be tracked fresh. This
-              can't be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground"
-              onClick={handleDeleteReceipt}
-              disabled={deleteReceipt.isPending}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {mode === 'view' ? (
         <div className="grid grid-cols-2 gap-3 text-xs">
@@ -308,12 +281,19 @@ function ReceiptDetail({
             </p>
             <Button
               size="sm"
-              variant="outline"
-              className="text-destructive"
-              onClick={() => setConfirmingDelete(true)}
+              variant={
+                deleteReceiptConfirm.confirming ? 'destructive' : 'outline'
+              }
+              className={
+                deleteReceiptConfirm.confirming ? '' : 'text-destructive'
+              }
+              onClick={deleteReceiptConfirm.handleClick}
+              disabled={deleteReceipt.isPending}
             >
               <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              Delete receipt
+              {deleteReceiptConfirm.confirming
+                ? 'Click again to delete'
+                : 'Delete receipt'}
             </Button>
           </div>
         ) : mode === 'view' ? (
@@ -400,7 +380,7 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
     )
   }
 
-  const handleDelete = () => {
+  const deleteConfirm = useClickToConfirm(() => {
     deleteItem.mutate(
       { id: item.id },
       {
@@ -408,7 +388,7 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
         onError: (error) => toast.error(error.message),
       },
     )
-  }
+  })
 
   return (
     <div className="space-y-1 border-b pb-2 last:border-0">
@@ -450,13 +430,24 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
           Save
         </Button>
         <Button
-          size="icon-sm"
-          variant="ghost"
-          onClick={handleDelete}
+          size={deleteConfirm.confirming ? 'sm' : 'icon-sm'}
+          variant={deleteConfirm.confirming ? 'destructive' : 'ghost'}
+          onClick={deleteConfirm.handleClick}
           disabled={deleteItem.isPending}
-          aria-label={`Delete ${name}`}
+          aria-label={
+            deleteConfirm.confirming
+              ? `Click again to delete ${name}`
+              : `Delete ${name}`
+          }
         >
-          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+          <Trash2
+            className={
+              deleteConfirm.confirming
+                ? 'h-3.5 w-3.5 mr-1'
+                : 'h-3.5 w-3.5 text-destructive'
+            }
+          />
+          {deleteConfirm.confirming && 'Confirm?'}
         </Button>
       </div>
       {showReviewWarning && (

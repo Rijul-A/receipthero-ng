@@ -117,31 +117,49 @@ export function computeCheapestRowIds(
   return winners
 }
 
-export interface VendorWinCount {
-  vendor: string
+/**
+ * Distinguishes locations of the same vendor (e.g. two Carrefour branches
+ * that price differently) rather than collapsing them into one "Carrefour"
+ * identity - the whole point of recording storeLocation in the first place.
+ */
+export function formatStoreLabel(row: {
+  vendor: string | null
+  storeLocation: string | null
+}): string {
+  const vendor = row.vendor ?? 'Unknown'
+  return row.storeLocation ? `${vendor} — ${row.storeLocation}` : vendor
+}
+
+export interface StoreWinCount {
+  store: string
   wins: number
 }
 
 /**
- * Tallies, per vendor, how many of the currently-compared products that
- * vendor came out cheapest on (per `computeCheapestRowIds`'s per-product/
+ * Tallies, per store (vendor + location, so two branches of the same chain
+ * count separately), how many of the currently-compared products that store
+ * came out cheapest on (per `computeCheapestRowIds`'s per-product/
  * per-currency/per-comparison-scale grouping). This only reflects the items
  * currently selected for comparison, not a full-history analysis - it
  * answers "of what I've compared here, who's winning" rather than "who's
  * cheapest overall".
  */
-export function computeVendorWinCounts(
-  history: Array<{ id: number; vendor: string | null }>,
+export function computeStoreWinCounts(
+  history: Array<{
+    id: number
+    vendor: string | null
+    storeLocation: string | null
+  }>,
   cheapestRowIds: Set<number>,
-): Array<VendorWinCount> {
+): Array<StoreWinCount> {
   const counts = new Map<string, number>()
   for (const row of history) {
     if (!cheapestRowIds.has(row.id)) continue
-    const vendor = row.vendor ?? 'Unknown'
-    counts.set(vendor, (counts.get(vendor) ?? 0) + 1)
+    const store = formatStoreLabel(row)
+    counts.set(store, (counts.get(store) ?? 0) + 1)
   }
   return Array.from(counts.entries())
-    .map(([vendor, wins]) => ({ vendor, wins }))
+    .map(([store, wins]) => ({ store, wins }))
     .sort((a, b) => b.wins - a.wins)
 }
 
@@ -196,8 +214,8 @@ function PricesPage() {
     return sortHistoryRows(comparableRows)
   }, [history])
 
-  const vendorWinCounts = useMemo(
-    () => computeVendorWinCounts(history ?? [], cheapestRowIds),
+  const storeWinCounts = useMemo(
+    () => computeStoreWinCounts(history ?? [], cheapestRowIds),
     [history, cheapestRowIds],
   )
 
@@ -303,7 +321,7 @@ function PricesPage() {
         </CardContent>
       </Card>
 
-      {selected.length > 0 && vendorWinCounts.length > 0 && (
+      {selected.length > 0 && storeWinCounts.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
@@ -312,19 +330,20 @@ function PricesPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              Of the items you're comparing above, how often each vendor came
-              out cheapest.
+              Of the items you're comparing above, how often each store came out
+              cheapest. Different locations of the same vendor are counted
+              separately.
             </p>
             <div className="flex flex-wrap gap-2">
-              {vendorWinCounts.map(({ vendor, wins }, index) => (
+              {storeWinCounts.map(({ store, wins }, index) => (
                 <Badge
-                  key={vendor}
+                  key={store}
                   variant="outline"
                   className={
                     index === 0 ? 'text-green-600 border-green-600' : ''
                   }
                 >
-                  {vendor}: {wins} {wins === 1 ? 'item' : 'items'}
+                  {store}: {wins} {wins === 1 ? 'item' : 'items'}
                 </Badge>
               ))}
             </div>
@@ -358,7 +377,7 @@ function PricesPage() {
                   <thead>
                     <tr className="border-b text-left text-muted-foreground">
                       <th className="py-2 pr-4">Item</th>
-                      <th className="py-2 pr-4">Vendor</th>
+                      <th className="py-2 pr-4">Store</th>
                       <th className="py-2 pr-4">Date</th>
                       <th className="py-2 pr-4">Size</th>
                       <th className="py-2 pr-4">Comparable Price</th>
@@ -372,7 +391,7 @@ function PricesPage() {
                       return (
                         <tr key={row.id} className="border-b last:border-0">
                           <td className="py-2 pr-4">{row.itemName}</td>
-                          <td className="py-2 pr-4">{row.vendor ?? '—'}</td>
+                          <td className="py-2 pr-4">{formatStoreLabel(row)}</td>
                           <td className="py-2 pr-4">
                             {row.purchaseDate ?? '—'}
                           </td>
