@@ -13,6 +13,13 @@ interface LineItemInput {
   totalPrice?: unknown
 }
 
+interface ParsedLineItem {
+  name: string
+  quantity: number
+  unitPrice: number | null
+  totalPrice: number | null
+}
+
 interface ItemAnnotation {
   canonicalName: string
   totalSize: number | null
@@ -25,13 +32,13 @@ interface ItemAnnotation {
 const canonicalOrItemName = sql<string>`coalesce(${schema.receiptItems.canonicalName}, ${schema.receiptItems.itemName})`
 
 /**
- * Asks the AI provider to, for each new raw item name:
+ * Asks the AI provider to, for each new line item:
  * 1. Assign a canonical product name (reusing an existing one where the same
  *    product appears worded differently across receipts/stores/languages),
  *    grouping *by product*, not by pack size/configuration — "Diet Coke
  *    330ml x6" and "Diet Coke 150ml x15" are the same product.
- * 2. Extract the line item's total size (volume/weight, normalized to
- *    ml/g — a "6x330ml" pack is totalSize 1980, sizeUnit "ml"), so
+ * 2. Extract the line's total size (volume/weight, normalized to ml/g,
+ *    covering the full quantity purchased — same scope as totalPrice), so
  *    differently-packaged versions of the same product can still be ranked
  *    correctly by true unit price (price per 100ml/100g) instead of by raw
  *    pack price, which would unfairly favor smaller packs.
@@ -43,12 +50,12 @@ const canonicalOrItemName = sql<string>`coalesce(${schema.receiptItems.canonical
  * Best-effort: on any failure, falls back to raw names with no size info, so
  * a flaky/local AI provider never blocks receipt processing.
  */
-async function annotateItemNames(
-  rawNames: string[],
+async function annotateLineItems(
+  items: ParsedLineItem[],
   config: Config,
 ): Promise<Record<string, ItemAnnotation>> {
   const identity: Record<string, ItemAnnotation> = Object.fromEntries(
-    rawNames.map((n) => [n, { canonicalName: n, totalSize: null, sizeUnit: null }]),
+    items.map((i) => [i.name, { canonicalName: i.name, totalSize: null, sizeUnit: null }]),
   )
 
   try {
@@ -72,7 +79,9 @@ async function annotateItemNames(
       schemaName: 'item_annotation',
       systemPrompt: [
         'You analyze grocery/retail receipt line items for cross-vendor price comparison.',
-        'For each raw item name given, determine two things:',
+        'Each input item has a "name" and the "quantity" of that item purchased on this',
+        'line (e.g. quantity 2 means two of that pack were bought, and its totalPrice',
+        'already covers both). For each item, determine two things:',
         '',
         '1. canonical: the underlying PRODUCT identity, ignoring store-specific phrasing,',
         '   brand word ordering, language differences, and pack size/configuration.',
@@ -83,15 +92,20 @@ async function annotateItemNames(
         '   the same product. Do not merge genuinely different products (e.g. "Diet',
         '   Coke" and "Coke Zero" stay separate) just because they are similar.',
         '',
-        '2. totalSize/sizeUnit: the TOTAL volume or weight this line item represents,',
-        '   normalized to milliliters ("ml") or grams ("g") - e.g. "6x330ml" is',
-        '   totalSize 1980, sizeUnit "ml"; "2kg" is totalSize 2000, sizeUnit "g";',
-        '   "1L" is totalSize 1000, sizeUnit "ml". If the item has no meaningful',
-        '   volume/weight (e.g. a single unsized item, a service, a gift card), use',
-        '   totalSize null and sizeUnit "count" with totalSize as the item count if',
-        '   known, otherwise both null.',
+        '2. totalSize/sizeUnit: the TOTAL volume or weight across the full quantity',
+        '   purchased on this line (same scope as its price), normalized to',
+        '   milliliters ("ml") or grams ("g"). E.g. name "Diet Coke 6x330ml" with',
+        '   quantity 1 is totalSize 1980 ("ml"); quantity 2 of that same pack is',
+        '   totalSize 3960 ("ml") - always multiply the per-pack size by quantity.',
+        '   "2kg" is totalSize 2000 ("g"); "1L" is totalSize 1000 ("ml"). If the item',
+        '   has no meaningful volume/weight (a single unsized item, a service, a gift',
+        '   card), use totalSize as the item count and sizeUnit "count", or both null',
+        '   if not even a count is meaningful.',
       ].join('\n'),
-      userPrompt: JSON.stringify({ existingCanonicalNames: existingNames, rawNames }),
+      userPrompt: JSON.stringify({
+        existingCanonicalNames: existingNames,
+        items: items.map((i) => ({ name: i.name, quantity: i.quantity })),
+      }),
       responseSchema: {
         type: 'object',
         properties: {
@@ -131,7 +145,7 @@ async function annotateItemNames(
     }
     return map
   } catch (error) {
-    logger.warn('Item name annotation failed, using raw names', {
+    logger.warn('Item annotation failed, using raw names', {
       error: error instanceof Error ? error.message : String(error),
     })
     return identity
@@ -156,12 +170,7 @@ export async function recordReceiptItems(params: {
   if (!Array.isArray(lineItems) || lineItems.length === 0) return
 
   const now = new Date().toISOString()
-  const parsed: {
-    name: string
-    quantity: number
-    unitPrice: number | null
-    totalPrice: number | null
-  }[] = []
+  const parsed: ParsedLineItem[] = []
 
   for (const raw of lineItems as LineItemInput[]) {
     const name = typeof raw?.name === 'string' ? raw.name.trim() : ''
@@ -177,10 +186,7 @@ export async function recordReceiptItems(params: {
 
   if (parsed.length === 0) return
 
-  const annotations = await annotateItemNames(
-    parsed.map((p) => p.name),
-    config,
-  )
+  const annotations = await annotateLineItems(parsed, config)
 
   const rows: schema.NewReceiptItemEntry[] = parsed.map((item) => {
     const annotation = annotations[item.name]

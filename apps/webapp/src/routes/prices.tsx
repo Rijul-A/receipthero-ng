@@ -77,21 +77,33 @@ function PricesPage() {
 
   // You've explicitly grouped these names together (e.g. "Almarai Milk 1L" and
   // "Al Marai Fresh Milk 1L" from different stores, or "330ml x6" and "150ml
-  // x15" packs of the same product), so the cheapest option is the single
-  // minimum across the whole selection — compared by true unit price
-  // (per 100ml/100g) where size is known, so differently-packaged versions
-  // are ranked fairly rather than by raw pack price.
-  const cheapestRowId = useMemo(() => {
-    let bestId: number | null = null
-    let bestPrice = Infinity
+  // x15" packs of the same product), but rows can still be mutually
+  // incomparable within that selection: a per-100ml price isn't comparable to
+  // a per-pack fallback price (no size info), and different currencies can't
+  // be compared as raw numbers without conversion. So "cheapest" is computed
+  // per (comparison label, currency) group, not as one global minimum —
+  // avoids silently declaring a winner across numbers that aren't actually
+  // on the same scale.
+  const cheapestRowIds = useMemo(() => {
+    const groups = new Map<string, Array<{ id: number; value: number }>>()
     for (const row of history ?? []) {
       const comparable = comparablePriceOf(row)
-      if (comparable !== null && comparable.value < bestPrice) {
-        bestPrice = comparable.value
-        bestId = row.id
-      }
+      if (comparable === null) continue
+      const key = `${comparable.label}|${row.currency ?? ''}`
+      const group = groups.get(key) ?? []
+      group.push({ id: row.id, value: comparable.value })
+      groups.set(key, group)
     }
-    return bestId
+
+    const winners = new Set<number>()
+    for (const group of groups.values()) {
+      // Only worth highlighting a "winner" when there's more than one row to
+      // compare it against within its group.
+      if (group.length < 2) continue
+      const best = group.reduce((a, b) => (b.value < a.value ? b : a))
+      winners.add(best.id)
+    }
+    return winners
   }, [history])
 
   const addItem = (name: string) => {
@@ -212,7 +224,7 @@ function PricesPage() {
                   </thead>
                   <tbody>
                     {history.map((row) => {
-                      const isCheapest = row.id === cheapestRowId
+                      const isCheapest = cheapestRowIds.has(row.id)
                       const comparable = comparablePriceOf(row)
                       return (
                         <tr key={row.id} className="border-b last:border-0">
