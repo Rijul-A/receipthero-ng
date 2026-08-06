@@ -60,8 +60,20 @@ describe('getVendorSpendReport', () => {
     const carrefourAed = rows.find((r) => r.vendor === 'Carrefour' && r.currency === 'AED')
     const carrefourUsd = rows.find((r) => r.vendor === 'Carrefour' && r.currency === 'USD')
 
-    expect(carrefourAed).toEqual({ vendor: 'Carrefour', currency: 'AED', total: 150, count: 2 })
-    expect(carrefourUsd).toEqual({ vendor: 'Carrefour', currency: 'USD', total: 20, count: 1 })
+    expect(carrefourAed).toEqual({
+      vendor: 'Carrefour',
+      storeLocation: null,
+      currency: 'AED',
+      total: 150,
+      count: 2,
+    })
+    expect(carrefourUsd).toEqual({
+      vendor: 'Carrefour',
+      storeLocation: null,
+      currency: 'USD',
+      total: 20,
+      count: 1,
+    })
   })
 
   it('sorts by total descending', async () => {
@@ -87,6 +99,38 @@ describe('getVendorSpendReport', () => {
     expect(carrefourRows[0].count).toBe(3)
     // Displays whichever casing was encountered first.
     expect(carrefourRows[0].vendor).toBe('Carrefour')
+  })
+
+  it('keeps two locations of the same vendor separate, merging casing within each location', async () => {
+    await seedLog(DOC_IDS[0], {
+      vendor: 'Carrefour',
+      storeLocation: 'Deira City Centre',
+      amount: 40,
+      currency: 'AED',
+    })
+    await seedLog(DOC_IDS[1], {
+      vendor: 'Carrefour',
+      storeLocation: 'DEIRA CITY CENTRE',
+      amount: 10,
+      currency: 'AED',
+    })
+    await seedLog(DOC_IDS[2], {
+      vendor: 'Carrefour',
+      storeLocation: 'Mall of the Emirates',
+      amount: 100,
+      currency: 'AED',
+    })
+
+    const rows = await getVendorSpendReport().then((r) =>
+      r.filter((row) => row.vendor === 'Carrefour'),
+    )
+
+    expect(rows).toHaveLength(2)
+    const deira = rows.find((r) => r.storeLocation === 'Deira City Centre')
+    const moe = rows.find((r) => r.storeLocation === 'Mall of the Emirates')
+    expect(deira?.total).toBe(50)
+    expect(deira?.count).toBe(2)
+    expect(moe?.total).toBe(100)
   })
 })
 

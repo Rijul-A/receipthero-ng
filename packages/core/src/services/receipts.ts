@@ -137,16 +137,92 @@ export async function updateReceipt(
 export async function recalculateReceiptTotal(
   documentId: number,
   options: { force?: boolean } = {},
-): Promise<void> {
+): Promise<number | null> {
   const items = await db
     .select()
     .from(schema.receiptItems)
     .where(eq(schema.receiptItems.documentId, documentId))
     .all()
-  if (items.length === 0 && !options.force) return
+  if (items.length === 0 && !options.force) return null
 
   const totalCents = items.reduce((sum, item) => sum + (item.totalPrice ?? 0), 0)
-  await updateReceipt(documentId, { amount: totalCents / 100 })
+  const total = totalCents / 100
+  await updateReceipt(documentId, { amount: total })
+  return total
+}
+
+export interface VendorRenamePreviewRow {
+  documentId: number
+  fileName: string | null
+  vendor: string | null
+  storeLocation: string | null
+  amount: number | null
+  currency: string | null
+}
+
+/** Latest processing_logs row per documentId - a document can have more than one row (retries), but only the newest is live. */
+async function latestLogPerDocument(): Promise<schema.ProcessingLogEntry[]> {
+  const logs = await db
+    .select()
+    .from(schema.processingLogs)
+    .orderBy(desc(schema.processingLogs.id))
+    .all()
+
+  const seen = new Set<number>()
+  const latest: schema.ProcessingLogEntry[] = []
+  for (const log of logs) {
+    if (seen.has(log.documentId)) continue
+    seen.add(log.documentId)
+    latest.push(log)
+  }
+  return latest
+}
+
+/**
+ * Receipts (one row per document) that would be affected by renaming vendor
+ * `from` to something else - reviewed before committing, same as the item
+ * canonical-name rename tool on the Prices page. Matches case-insensitively,
+ * same reasoning as getVendorSpendReport grouping.
+ */
+export async function previewVendorRename(from: string): Promise<VendorRenamePreviewRow[]> {
+  const fromLower = from.trim().toLowerCase()
+  const logs = await latestLogPerDocument()
+
+  return logs
+    .filter((log) => (log.vendor ?? '').toLowerCase() === fromLower)
+    .map((log) => ({
+      documentId: log.documentId,
+      fileName: log.fileName,
+      vendor: log.vendor,
+      storeLocation: log.storeLocation,
+      amount: log.amount,
+      currency: log.currency,
+    }))
+}
+
+/**
+ * Renames vendor `from` to `to` across every receipt with that vendor
+ * (case-insensitive match) - for correcting a systemically-wrong AI
+ * extraction (e.g. a consistent typo) across every receipt from a store at
+ * once, rather than fixing each receipt individually.
+ *
+ * Reuses updateReceipt per document rather than writing directly to the
+ * columns, so the vendor correction cascades to receipt_items.vendor the
+ * same way a single-receipt edit does - required to keep price comparison
+ * grouping consistent (see updateReceipt's own docs).
+ */
+export async function renameVendor(from: string, to: string): Promise<{ count: number }> {
+  const trimmedTo = to.trim()
+  if (!trimmedTo) return { count: 0 }
+
+  const affected = await previewVendorRename(from)
+  if (affected.length === 0) return { count: 0 }
+
+  for (const row of affected) {
+    await updateReceipt(row.documentId, { vendor: trimmedTo })
+  }
+
+  return { count: affected.length }
 }
 
 /**

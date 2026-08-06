@@ -3,6 +3,7 @@ import {
   buildCategoryBreakdown,
   buildSpendOverTimeSeries,
   buildVendorBarData,
+  distinctVendorNames,
   formatPurchaseFrequency,
 } from '../routes/analytics'
 
@@ -131,10 +132,22 @@ describe('buildCategoryBreakdown', () => {
 })
 
 describe('buildVendorBarData', () => {
-  it('sorts vendors by total descending within a currency', () => {
+  it('sorts stores by total descending within a currency', () => {
     const rows = [
-      { vendor: 'Small Store', currency: 'AED', total: 10, count: 1 },
-      { vendor: 'Big Store', currency: 'AED', total: 500, count: 3 },
+      {
+        vendor: 'Small Store',
+        storeLocation: null,
+        currency: 'AED',
+        total: 10,
+        count: 1,
+      },
+      {
+        vendor: 'Big Store',
+        storeLocation: null,
+        currency: 'AED',
+        total: 500,
+        count: 3,
+      },
     ]
     const result = buildVendorBarData(rows)
     expect(result[0].data.map((d) => d.label)).toEqual([
@@ -145,11 +158,96 @@ describe('buildVendorBarData', () => {
 
   it('keeps currencies separate', () => {
     const rows = [
-      { vendor: 'Store', currency: 'AED', total: 100, count: 1 },
-      { vendor: 'Store', currency: 'USD', total: 50, count: 1 },
+      {
+        vendor: 'Store',
+        storeLocation: null,
+        currency: 'AED',
+        total: 100,
+        count: 1,
+      },
+      {
+        vendor: 'Store',
+        storeLocation: null,
+        currency: 'USD',
+        total: 50,
+        count: 1,
+      },
     ]
     const result = buildVendorBarData(rows)
     expect(result.map((r) => r.currency).sort()).toEqual(['AED', 'USD'])
+  })
+
+  it('labels two locations of the same vendor as distinct bars', () => {
+    const rows = [
+      {
+        vendor: 'Carrefour',
+        storeLocation: 'Deira City Centre',
+        currency: 'AED',
+        total: 100,
+        count: 2,
+      },
+      {
+        vendor: 'Carrefour',
+        storeLocation: 'Mall of the Emirates',
+        currency: 'AED',
+        total: 50,
+        count: 1,
+      },
+    ]
+    const result = buildVendorBarData(rows)
+    expect(result[0].data.map((d) => d.label)).toEqual([
+      'Carrefour — Deira City Centre',
+      'Carrefour — Mall of the Emirates',
+    ])
+  })
+})
+
+describe('distinctVendorNames', () => {
+  it('collapses two locations of the same vendor into a single name', () => {
+    const rows = [
+      {
+        vendor: 'Carrefour',
+        storeLocation: 'Deira City Centre',
+        currency: 'AED',
+        total: 100,
+        count: 1,
+      },
+      {
+        vendor: 'Carrefour',
+        storeLocation: 'Mall of the Emirates',
+        currency: 'AED',
+        total: 50,
+        count: 1,
+      },
+      {
+        vendor: 'Lulu',
+        storeLocation: null,
+        currency: 'AED',
+        total: 20,
+        count: 1,
+      },
+    ]
+    expect(distinctVendorNames(rows)).toEqual(['Carrefour', 'Lulu'])
+  })
+
+  it('sorts alphabetically', () => {
+    const rows = [
+      {
+        vendor: 'Spinneys',
+        storeLocation: null,
+        currency: 'AED',
+        total: 1,
+        count: 1,
+      },
+      {
+        vendor: 'Carrefour',
+        storeLocation: null,
+        currency: 'AED',
+        total: 1,
+        count: 1,
+      },
+    ]
+    expect(distinctVendorNames(rows)).toEqual(['Carrefour', 'Spinneys'])
   })
 })
 

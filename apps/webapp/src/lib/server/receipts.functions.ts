@@ -86,3 +86,39 @@ export const deleteReceipt = createServerFn({ method: 'POST' })
       },
     )
   })
+
+export interface VendorRenamePreviewRow {
+  documentId: number
+  fileName: string | null
+  vendor: string | null
+  storeLocation: string | null
+  amount: number | null
+  currency: string | null
+}
+
+/**
+ * Receipts that would be affected by renaming vendor `from`.
+ * Proxies to GET /api/receipts/vendor-rename-preview?from=...
+ */
+export const previewVendorRename = createServerFn({ method: 'GET' })
+  .inputValidator((input: { from: string }) => input)
+  .handler(async (ctx) => {
+    const { rows } = await apiCall<{ rows: Array<VendorRenamePreviewRow> }>(
+      `/api/receipts/vendor-rename-preview?from=${encodeURIComponent(ctx.data.from)}`,
+    )
+    return rows
+  })
+
+/**
+ * Renames vendor `from` to `to` across every receipt with that vendor.
+ * Proxies to POST /api/receipts/vendor-rename.
+ */
+export const renameVendor = createServerFn({ method: 'POST' })
+  .inputValidator((input: { from: string; to: string }) => input)
+  .handler(async (ctx) => {
+    return apiCall<{ count: number }>('/api/receipts/vendor-rename', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ctx.data),
+    })
+  })

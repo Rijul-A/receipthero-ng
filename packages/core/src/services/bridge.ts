@@ -7,6 +7,7 @@ import { reporter } from './reporter'
 import { createLogger } from './logger'
 import { skippedDocuments } from './skipped-documents'
 import { recordReceiptItems } from './receipt-items'
+import { recalculateReceiptTotal } from './receipts'
 import { executeWorkflow } from './workflow-executor'
 import { getWorkflowForTag } from './workflow'
 
@@ -329,6 +330,26 @@ export async function processPaperlessDocument(
         storeLocation: receipt.storeLocation,
         receiptData: JSON.stringify(receipt),
       })
+
+      // Prefer the sum of recorded line items over the AI's separate
+      // top-level total extraction, so "amount" means the same thing
+      // whether or not this receipt has ever been manually edited (the
+      // two can otherwise disagree - e.g. the AI mis-totals a line but
+      // still gets the printed total right, or vice versa). No-ops (returns
+      // null) if recordReceiptItems above found nothing to sum, leaving the
+      // AI's own total in place. When it does recalculate, sync the result
+      // back into the in-memory `receipt` too - currency conversion, the
+      // Paperless note/title, and the final receipt:success report below
+      // all still read receipt.amount, and receipt:success in particular
+      // would otherwise re-send the AI's stale total and silently clobber
+      // what was just persisted here (events.ts keeps whichever amount
+      // arrives most recently).
+      try {
+        const recalculated = await recalculateReceiptTotal(documentId)
+        if (recalculated !== null) receipt.amount = recalculated
+      } catch {
+        docLogger.warn(` Failed to recalculate receipt total from line items`)
+      }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -786,6 +807,26 @@ export async function processPaperlessDocument(
         storeLocation: receipt.storeLocation,
         receiptData: JSON.stringify(receipt),
       })
+
+      // Prefer the sum of recorded line items over the AI's separate
+      // top-level total extraction, so "amount" means the same thing
+      // whether or not this receipt has ever been manually edited (the
+      // two can otherwise disagree - e.g. the AI mis-totals a line but
+      // still gets the printed total right, or vice versa). No-ops (returns
+      // null) if recordReceiptItems above found nothing to sum, leaving the
+      // AI's own total in place. When it does recalculate, sync the result
+      // back into the in-memory `receipt` too - currency conversion, the
+      // Paperless note/title, and the final receipt:success report below
+      // all still read receipt.amount, and receipt:success in particular
+      // would otherwise re-send the AI's stale total and silently clobber
+      // what was just persisted here (events.ts keeps whichever amount
+      // arrives most recently).
+      try {
+        const recalculated = await recalculateReceiptTotal(documentId)
+        if (recalculated !== null) receipt.amount = recalculated
+      } catch {
+        docLogger.warn(` Failed to recalculate receipt total from line items`)
+      }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

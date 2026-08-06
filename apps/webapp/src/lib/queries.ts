@@ -26,7 +26,9 @@ import {
   getWebhookStatus as getWebhookStatusFn,
   pauseWorker as pauseWorkerFn,
   previewRename as previewRenameFn,
+  previewVendorRename as previewVendorRenameFn,
   renameCanonicalGroup as renameCanonicalGroupFn,
+  renameVendor as renameVendorFn,
   resumeWorker as resumeWorkerFn,
   retryAllQueue as retryAllQueueFn,
   retryDocument,
@@ -54,6 +56,7 @@ import type {
   SpendingReportRow,
   TestConnectionResponse,
   TriggerScanResponse,
+  VendorRenamePreviewRow,
   VendorSpend,
   WebhookStatusResponse,
   WorkerStatus,
@@ -129,6 +132,8 @@ export const receiptKeys = {
   all: ['receipts'] as const,
   detail: (documentId: number) =>
     [...receiptKeys.all, 'detail', documentId] as const,
+  vendorRenamePreview: (from: string) =>
+    [...receiptKeys.all, 'vendor-rename-preview', from] as const,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -651,6 +656,36 @@ export function useDeleteReceipt() {
   return useMutation({
     mutationFn: (params: { documentId: number }) =>
       deleteReceiptFn({ data: params }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: receiptKeys.all })
+      queryClient.invalidateQueries({ queryKey: itemKeys.all })
+      queryClient.invalidateQueries({ queryKey: ['processing-logs'] })
+      queryClient.invalidateQueries({ queryKey: statsKeys.all })
+    },
+  })
+}
+
+/**
+ * Receipts that would be affected by renaming vendor `from`.
+ */
+export function usePreviewVendorRename(from: string | null) {
+  return useQuery<Array<VendorRenamePreviewRow>>({
+    queryKey: receiptKeys.vendorRenamePreview(from ?? ''),
+    queryFn: () => previewVendorRenameFn({ data: { from: from ?? '' } }),
+    enabled: !!from,
+  })
+}
+
+/**
+ * Renames vendor `from` to `to` across every receipt with that vendor -
+ * e.g. correcting a consistent AI misspelling across every visit to a
+ * store at once.
+ */
+export function useRenameVendor() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (params: { from: string; to: string }) =>
+      renameVendorFn({ data: params }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: receiptKeys.all })
       queryClient.invalidateQueries({ queryKey: itemKeys.all })

@@ -80,7 +80,10 @@ export {
   getReceiptDetail,
   updateReceipt,
   deleteReceipt,
+  previewVendorRename,
+  renameVendor,
   type ReceiptDetail,
   type ProcessingLogEntry,
   type ReceiptEdit,
+  type VendorRenamePreviewRow,
 } from './receipts.functions'

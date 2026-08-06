@@ -1,9 +1,49 @@
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import { getReceiptDetail, updateReceipt, deleteReceipt } from '@sm-rn/core'
+import {
+  getReceiptDetail,
+  updateReceipt,
+  deleteReceipt,
+  previewVendorRename,
+  renameVendor,
+} from '@sm-rn/core'
 
 const receipts = new Hono()
+
+/**
+ * GET /api/receipts/vendor-rename-preview?from=Carrfeour
+ *
+ * Receipts that would be affected by renaming vendor `from` to something
+ * else - reviewed before committing to a bulk rename. Registered ahead of
+ * the /:documentId routes below since it's a static path.
+ */
+receipts.get(
+  '/vendor-rename-preview',
+  zValidator('query', z.object({ from: z.string().min(1) })),
+  async (c) => {
+    const { from } = c.req.valid('query')
+    const rows = await previewVendorRename(from)
+    return c.json({ rows })
+  },
+)
+
+const VendorRenameSchema = z.object({
+  from: z.string().min(1),
+  to: z.string().min(1),
+})
+
+/**
+ * POST /api/receipts/vendor-rename
+ *
+ * Renames vendor `from` to `to` across every receipt with that vendor
+ * (e.g. fixing a consistent AI misspelling across every visit to a store).
+ */
+receipts.post('/vendor-rename', zValidator('json', VendorRenameSchema), async (c) => {
+  const { from, to } = c.req.valid('json')
+  const result = await renameVendor(from, to)
+  return c.json(result)
+})
 
 /**
  * GET /api/receipts/:documentId

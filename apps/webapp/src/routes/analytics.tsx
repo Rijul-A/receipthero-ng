@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { Pencil } from 'lucide-react'
 import type {
   ItemFrequency,
   SpendingReportRow,
@@ -9,9 +10,11 @@ import type { BarChartDatum } from '@/components/charts/bar-chart'
 import type { DonutChartDatum } from '@/components/charts/donut-chart'
 import type { LineChartSeries } from '@/components/charts/line-chart'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { BarChart } from '@/components/charts/bar-chart'
 import { DonutChart } from '@/components/charts/donut-chart'
 import { LineChart } from '@/components/charts/line-chart'
+import { RenameVendorDialog } from '@/components/analytics/rename-vendor-dialog'
 import {
   useItemFrequencyReport,
   useSpendingReport,
@@ -91,7 +94,19 @@ export function buildCategoryBreakdown(
   }))
 }
 
-/** One bar chart per currency, vendor totals sorted descending. */
+/**
+ * Distinguishes locations of the same vendor (e.g. two Carrefour branches)
+ * rather than collapsing them into one bar - same reasoning as
+ * formatStoreLabel on the Prices page.
+ */
+function formatStoreLabel(row: {
+  vendor: string
+  storeLocation: string | null
+}): string {
+  return row.storeLocation ? `${row.vendor} — ${row.storeLocation}` : row.vendor
+}
+
+/** One bar chart per currency, per-store totals sorted descending. */
 export function buildVendorBarData(
   rows: Array<VendorSpend>,
 ): Array<{ currency: string; data: Array<BarChartDatum> }> {
@@ -108,11 +123,22 @@ export function buildVendorBarData(
       .slice()
       .sort((a, b) => b.total - a.total)
       .map((row) => ({
-        label: row.vendor,
+        label: formatStoreLabel(row),
         value: row.total,
         formattedValue: formatMoney(row.total, currency),
       })),
   }))
+}
+
+/**
+ * Distinct vendor names (not vendor+location - the rename tool corrects the
+ * vendor name itself, applying across every branch/location it appears
+ * under), sorted alphabetically for a stable list.
+ */
+export function distinctVendorNames(rows: Array<VendorSpend>): Array<string> {
+  return Array.from(new Set(rows.map((row) => row.vendor))).sort((a, b) =>
+    a.localeCompare(b),
+  )
 }
 
 /** "bought 5 times, roughly every 12 days" - derived from first/last purchase and count, not stored. */
@@ -135,6 +161,7 @@ export function formatPurchaseFrequency(item: ItemFrequency): string {
 
 function AnalyticsPage() {
   const [groupBy, setGroupBy] = useState<'week' | 'month'>('month')
+  const [renamingVendor, setRenamingVendor] = useState<string | null>(null)
   const { data: spendingRows, isLoading: spendingLoading } =
     useSpendingReport(groupBy)
   const { data: vendorRows, isLoading: vendorLoading } = useVendorSpendReport()
@@ -150,6 +177,10 @@ function AnalyticsPage() {
   )
   const vendorBars = useMemo(
     () => buildVendorBarData(vendorRows ?? []),
+    [vendorRows],
+  )
+  const vendorNames = useMemo(
+    () => distinctVendorNames(vendorRows ?? []),
     [vendorRows],
   )
 
@@ -265,6 +296,26 @@ function AnalyticsPage() {
                 </div>
               ))
             )}
+            {vendorNames.length > 0 && (
+              <div className="space-y-1.5 border-t pt-3">
+                <p className="text-[10px] text-muted-foreground">
+                  Vendor extracted wrong? Rename it everywhere it appears:
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {vendorNames.map((vendor) => (
+                    <Badge
+                      key={vendor}
+                      variant="outline"
+                      className="gap-1 cursor-pointer"
+                      onClick={() => setRenamingVendor(vendor)}
+                    >
+                      {vendor}
+                      <Pencil className="h-3 w-3" />
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -313,6 +364,14 @@ function AnalyticsPage() {
           )}
         </CardContent>
       </Card>
+
+      <RenameVendorDialog
+        from={renamingVendor}
+        onOpenChange={(open) => {
+          if (!open) setRenamingVendor(null)
+        }}
+        onRenamed={() => setRenamingVendor(null)}
+      />
     </div>
   )
 }

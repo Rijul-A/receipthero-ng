@@ -9,8 +9,14 @@ mock.module('../services/ai-json', () => ({
 
 const { recordReceiptItems, updateReceiptItem, getItemPriceHistory } =
   await import('../services/receipt-items')
-const { getReceiptDetail, updateReceipt, recalculateReceiptTotal, deleteReceipt } =
-  await import('../services/receipts')
+const {
+  getReceiptDetail,
+  updateReceipt,
+  recalculateReceiptTotal,
+  deleteReceipt,
+  previewVendorRename,
+  renameVendor,
+} = await import('../services/receipts')
 
 const mockConfig = ConfigSchema.parse({
   paperless: {},
@@ -142,15 +148,16 @@ describe('recalculateReceiptTotal', () => {
   beforeEach(cleanup)
   afterEach(cleanup)
 
-  it('no-ops when the receipt has no recorded line items', async () => {
+  it('no-ops when the receipt has no recorded line items, returning null', async () => {
     await seedLog({ amount: 1234 })
-    await recalculateReceiptTotal(TEST_DOC_ID)
+    const result = await recalculateReceiptTotal(TEST_DOC_ID)
+    expect(result).toBeNull()
 
     const log = await getReceiptDetail(TEST_DOC_ID)
     expect(log?.log.amount).toBe(1234)
   })
 
-  it('sums recorded line items and persists the total', async () => {
+  it('sums recorded line items, persists the total, and returns it in major units', async () => {
     await seedLog()
     await recordReceiptItems({
       documentId: TEST_DOC_ID,
@@ -161,7 +168,8 @@ describe('recalculateReceiptTotal', () => {
       config: mockConfig,
     })
 
-    await recalculateReceiptTotal(TEST_DOC_ID)
+    const result = await recalculateReceiptTotal(TEST_DOC_ID)
+    expect(result).toBe(8) // major units, not cents
 
     const detail = await getReceiptDetail(TEST_DOC_ID)
     expect(detail?.log.amount).toBe(800) // (5 + 3) * 100 cents
@@ -203,5 +211,68 @@ describe('deleteReceipt', () => {
 
     expect(await getReceiptDetail(TEST_DOC_ID)).toBeNull()
     expect(await getItemPriceHistory(['Milk'])).toHaveLength(0)
+  })
+})
+
+describe('previewVendorRename / renameVendor', () => {
+  const DOC_A = 9_310_001
+  const DOC_B = 9_310_002
+  const DOC_OTHER = 9_310_003
+
+  async function cleanupVendorRenameDocs() {
+    for (const id of [DOC_A, DOC_B, DOC_OTHER]) {
+      await db.delete(schema.receiptItems).where(eq(schema.receiptItems.documentId, id)).run()
+      await db.delete(schema.processingLogs).where(eq(schema.processingLogs.documentId, id)).run()
+    }
+  }
+
+  beforeEach(cleanupVendorRenameDocs)
+  afterEach(cleanupVendorRenameDocs)
+
+  it('previews every receipt with a case-insensitive vendor match, across locations', async () => {
+    await seedLog({ documentId: DOC_A, vendor: 'Carrfeour', storeLocation: 'Deira' })
+    await seedLog({ documentId: DOC_B, vendor: 'CARRFEOUR', storeLocation: 'Mall of the Emirates' })
+    await seedLog({ documentId: DOC_OTHER, vendor: 'Lulu' })
+
+    const preview = await previewVendorRename('carrfeour')
+    expect(preview.map((r) => r.documentId).sort()).toEqual([DOC_A, DOC_B])
+  })
+
+  it('renames the vendor across every matched receipt and cascades to its items', async () => {
+    await seedLog({ documentId: DOC_A, vendor: 'Carrfeour', storeLocation: 'Deira' })
+    await seedLog({ documentId: DOC_B, vendor: 'Carrfeour', storeLocation: 'Mall of the Emirates' })
+    await recordReceiptItems({
+      documentId: DOC_A,
+      vendor: 'Carrfeour',
+      lineItems: [{ name: 'Milk', quantity: 1, unitPrice: 5, totalPrice: 5 }],
+      config: mockConfig,
+    })
+
+    const result = await renameVendor('Carrfeour', 'Carrefour')
+    expect(result.count).toBe(2)
+
+    const detailA = await getReceiptDetail(DOC_A)
+    const detailB = await getReceiptDetail(DOC_B)
+    expect(detailA?.log.vendor).toBe('Carrefour')
+    expect(detailB?.log.vendor).toBe('Carrefour')
+    // Location is preserved - only the vendor name itself is corrected.
+    expect(detailA?.log.storeLocation).toBe('Deira')
+    // Cascades to items, same as a single-receipt vendor edit.
+    expect(detailA?.items[0].vendor).toBe('Carrefour')
+  })
+
+  it('does not touch receipts under a different vendor', async () => {
+    await seedLog({ documentId: DOC_A, vendor: 'Carrfeour' })
+    await seedLog({ documentId: DOC_OTHER, vendor: 'Lulu' })
+
+    await renameVendor('Carrfeour', 'Carrefour')
+
+    const other = await getReceiptDetail(DOC_OTHER)
+    expect(other?.log.vendor).toBe('Lulu')
+  })
+
+  it('no-ops when nothing matches', async () => {
+    const result = await renameVendor('Nonexistent Store', 'Carrefour')
+    expect(result.count).toBe(0)
   })
 })

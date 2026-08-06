@@ -3,16 +3,23 @@ import { db, schema } from '../db'
 
 export interface VendorSpend {
   vendor: string
+  storeLocation: string | null
   currency: string
   total: number // major units
   count: number
 }
 
 /**
- * Total spend per vendor, broken down by currency (never summed across
- * currencies as raw numbers - same reasoning as spending-report.ts and
- * currency-totals). "Which store do I actually spend the most at", as
+ * Total spend per vendor+location, broken down by currency (never summed
+ * across currencies as raw numbers - same reasoning as spending-report.ts
+ * and currency-totals). "Which store do I actually spend the most at", as
  * opposed to the per-item price comparison on the Prices page.
+ *
+ * Grouped by location as well as vendor - same reasoning as
+ * formatStoreLabel/computeStoreWinCounts on the Prices page: two branches
+ * of the same chain can price differently, and treating them as one vendor
+ * here while the Prices page tells them apart would be an inconsistent
+ * (and confusing) story about "the same store".
  */
 export async function getVendorSpendReport(): Promise<VendorSpend[]> {
   const completedLogs = await db.query.processingLogs.findMany({
@@ -21,18 +28,19 @@ export async function getVendorSpendReport(): Promise<VendorSpend[]> {
 
   const buckets = new Map<string, VendorSpend>()
   // Unlike item names (which go through a whole canonicalization system)
-  // and category (already normalized in getSpendingReport), vendor has no
-  // dedup mechanism - the AI can extract "Carrefour"/"CARREFOUR"/"carrefour"
-  // across different receipts from the same store. Group case-insensitively
-  // and display whichever casing was seen first for that vendor, so one
+  // and category (already normalized in getSpendingReport), vendor/location
+  // have no dedup mechanism - the AI can extract "Carrefour"/"CARREFOUR"/
+  // "carrefour" across different receipts from the same store. Group
+  // case-insensitively and display whichever casing was seen first, so one
   // store's spend doesn't silently fragment across multiple bars.
-  const displayNameByLower = new Map<string, string>()
+  const displayVendorByLower = new Map<string, string>()
+  const displayLocationByLower = new Map<string, string>()
 
   for (const log of completedLogs) {
     const raw = log.receiptData || log.extractedData
     if (!raw) continue
 
-    let parsed: { vendor?: unknown; amount?: unknown; currency?: unknown }
+    let parsed: { vendor?: unknown; amount?: unknown; currency?: unknown; storeLocation?: unknown }
     try {
       parsed = JSON.parse(raw)
     } catch {
@@ -47,20 +55,30 @@ export async function getVendorSpendReport(): Promise<VendorSpend[]> {
         ? parsed.vendor.trim()
         : (log.vendor ?? 'Unknown')
     const vendorLower = rawVendor.toLowerCase()
-    const vendor = displayNameByLower.get(vendorLower) ?? rawVendor
-    displayNameByLower.set(vendorLower, vendor)
+    const vendor = displayVendorByLower.get(vendorLower) ?? rawVendor
+    displayVendorByLower.set(vendorLower, vendor)
+
+    const rawLocation =
+      typeof parsed.storeLocation === 'string' && parsed.storeLocation.trim()
+        ? parsed.storeLocation.trim()
+        : (log.storeLocation ?? null)
+    const locationLower = rawLocation?.toLowerCase() ?? null
+    const storeLocation = locationLower
+      ? (displayLocationByLower.get(locationLower) ?? rawLocation)
+      : null
+    if (locationLower && storeLocation) displayLocationByLower.set(locationLower, storeLocation)
 
     const currency = (
       typeof parsed.currency === 'string' ? parsed.currency : (log.currency ?? 'UNKNOWN')
     ).toUpperCase()
 
-    const key = `${vendorLower}|${currency}`
+    const key = `${vendorLower}|${locationLower ?? ''}|${currency}`
     const existing = buckets.get(key)
     if (existing) {
       existing.total += amount
       existing.count += 1
     } else {
-      buckets.set(key, { vendor, currency, total: amount, count: 1 })
+      buckets.set(key, { vendor, storeLocation, currency, total: amount, count: 1 })
     }
   }
 

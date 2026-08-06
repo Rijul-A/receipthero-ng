@@ -98,6 +98,7 @@ export const exportSpendingReportCsv = createServerFn({ method: 'GET' })
 
 export interface VendorSpend {
   vendor: string
+  storeLocation: string | null
   currency: string
   total: number
   count: number
