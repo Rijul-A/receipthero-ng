@@ -127,6 +127,7 @@ events.post('/', zValidator('json', ProcessingEventSchema), async (c) => {
           vendor: payload.vendor || existing.vendor,
           amount: payload.amount || existing.amount,
           currency: payload.currency || existing.currency,
+          storeLocation: payload.storeLocation || existing.storeLocation,
           receiptData: payload.receiptData || existing.receiptData,
           updatedAt: now,
         })
@@ -145,6 +146,7 @@ events.post('/', zValidator('json', ProcessingEventSchema), async (c) => {
           vendor: payload.vendor,
           amount: payload.amount,
           currency: payload.currency,
+          storeLocation: payload.storeLocation,
           receiptData: payload.receiptData,
           createdAt: now,
           updatedAt: now,

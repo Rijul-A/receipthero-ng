@@ -1,6 +1,17 @@
-import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
-import * as path from 'path'
-import { db } from '../db'
+import * as fs from 'fs'
+
+// Delete any test DB file left behind by a prior run (including its WAL/SHM
+// sidecar files) before the db module opens a connection to it, so every
+// test run starts from a completely fresh, empty database regardless of
+// what a prior run - crashed, failed mid-test, or just old - left behind.
+const DB_PATH = process.env.DATABASE_PATH || './receipthero.test.db'
+for (const suffix of ['', '-wal', '-shm']) {
+  fs.rmSync(`${DB_PATH}${suffix}`, { force: true })
+}
+
+const { migrate } = await import('drizzle-orm/bun-sqlite/migrator')
+const path = await import('path')
+const { db } = await import('../db')
 
 // bun test never runs migrations on its own, so without this the test DB
 // has zero tables and any test touching the DB fails with "no such table".

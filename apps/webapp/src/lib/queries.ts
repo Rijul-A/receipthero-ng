@@ -17,9 +17,12 @@ import {
   getItemPriceHistory as getItemPriceHistoryFn,
   getProcessingLogs,
   getQueueStatus as getQueueStatusFn,
+  getReceiptDetail as getReceiptDetailFn,
   getSpendingReport as getSpendingReportFn,
   getWebhookStatus as getWebhookStatusFn,
   pauseWorker as pauseWorkerFn,
+  previewRename as previewRenameFn,
+  renameCanonicalGroup as renameCanonicalGroupFn,
   resumeWorker as resumeWorkerFn,
   retryAllQueue as retryAllQueueFn,
   retryDocument,
@@ -28,14 +31,19 @@ import {
   testAiConnection,
   testPaperlessConnection,
   triggerScanAndWait,
+  updateReceipt as updateReceiptFn,
+  updateReceiptItem as updateReceiptItemFn,
 } from './server'
 import { downloadTextFile } from './utils'
 import type {
   CurrencyTotalsResponse,
   DocumentImageResponse,
   HealthStatus,
+  ItemEdit,
   QueueActionResponse,
   QueueStatus,
+  ReceiptDetail,
+  ReceiptEdit,
   ReceiptItemEntry,
   SaveConfigResponse,
   SpendingReportRow,
@@ -105,6 +113,14 @@ export const itemKeys = {
   search: (query: string) => [...itemKeys.all, 'search', query] as const,
   history: (itemNames: Array<string>) =>
     [...itemKeys.all, 'history', itemNames] as const,
+  renamePreview: (from: string) =>
+    [...itemKeys.all, 'rename-preview', from] as const,
+}
+
+export const receiptKeys = {
+  all: ['receipts'] as const,
+  detail: (documentId: number) =>
+    [...receiptKeys.all, 'detail', documentId] as const,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -500,6 +516,81 @@ export function useExportItemsCsv() {
     mutationFn: async () => {
       const csv = await exportItemsCsvFn()
       downloadTextFile('receipt-items.csv', csv)
+    },
+  })
+}
+
+/**
+ * Corrects a single receipt-item row (per-row, not per-product).
+ */
+export function useUpdateReceiptItem() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (params: { id: number; edits: ItemEdit }) =>
+      updateReceiptItemFn({ data: params }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: itemKeys.all })
+      queryClient.invalidateQueries({ queryKey: receiptKeys.all })
+    },
+  })
+}
+
+/**
+ * Rows that would be affected by renaming canonical product `from`.
+ */
+export function usePreviewRename(from: string | null) {
+  return useQuery<Array<ReceiptItemEntry>>({
+    queryKey: itemKeys.renamePreview(from ?? ''),
+    queryFn: () => previewRenameFn({ data: { from: from ?? '' } }),
+    enabled: !!from,
+  })
+}
+
+/**
+ * Renames every row grouped under one canonical product name to another.
+ */
+export function useRenameCanonicalGroup() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (params: { from: string; to: string }) =>
+      renameCanonicalGroupFn({ data: params }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: itemKeys.all })
+    },
+  })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Receipt Detail/Edit Queries
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A processed receipt's extracted data plus its recorded line items.
+ */
+export function useReceiptDetail(documentId: number | null) {
+  return useQuery<ReceiptDetail>({
+    queryKey: receiptKeys.detail(documentId ?? -1),
+    queryFn: () =>
+      getReceiptDetailFn({ data: { documentId: documentId as number } }),
+    enabled: documentId !== null,
+  })
+}
+
+/**
+ * Corrects receipt-level extracted fields (vendor, total, currency, date,
+ * category, store location).
+ */
+export function useUpdateReceipt() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (params: { documentId: number; edits: ReceiptEdit }) =>
+      updateReceiptFn({ data: params }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: receiptKeys.detail(variables.documentId),
+      })
+      queryClient.invalidateQueries({ queryKey: ['processing-logs'] })
+      queryClient.invalidateQueries({ queryKey: statsKeys.all })
     },
   })
 }

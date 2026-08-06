@@ -13,8 +13,15 @@ export const ProcessedReceiptSchema = z.object({
   id: z.string(),
   fileName: z.string(),
   date: z.string(),
+  // 24-hour HH:MM, if a timestamp is visible on the receipt. Display/edit
+  // only - never used for date-bucketing logic, which stays on `date` alone.
+  time: z.string().optional(),
   vendor: z.string(),
   category: z.string(),
+  // Branch/address distinguishing this specific store location from other
+  // locations of the same vendor, if visible on the receipt (e.g. printed
+  // address/branch name). Best-effort - many receipts don't show one.
+  storeLocation: z.string().optional(),
   paymentMethod: z.string(),
   taxAmount: z.number(),
   amount: z.number(),

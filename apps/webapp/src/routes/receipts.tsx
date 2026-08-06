@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { RefreshCw } from 'lucide-react'
+import { Pencil, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { ReceiptEditDialog } from '@/components/receipts/receipt-edit-dialog'
 import { useBatchReprocess, useProcessingLogs } from '@/lib/queries'
 
 export const Route = createFileRoute('/receipts')({
@@ -15,6 +16,9 @@ function ReceiptsPage() {
   const { data: logs, isLoading } = useProcessingLogs()
   const batchReprocess = useBatchReprocess()
   const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [editingDocumentId, setEditingDocumentId] = useState<number | null>(
+    null,
+  )
 
   const processedReceipts = useMemo(
     () => (logs ?? []).filter((log) => log.status === 'completed'),
@@ -99,6 +103,7 @@ function ReceiptsPage() {
                     <th className="py-2 pr-4">Vendor</th>
                     <th className="py-2 pr-4">Amount</th>
                     <th className="py-2 pr-4">Processed</th>
+                    <th className="py-2 pr-4 w-8" />
                   </tr>
                 </thead>
                 <tbody>
@@ -124,6 +129,18 @@ function ReceiptsPage() {
                       <td className="py-2 pr-4">
                         <Badge variant="outline">{receipt.updatedAt}</Badge>
                       </td>
+                      <td className="py-2 pr-4">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() =>
+                            setEditingDocumentId(receipt.documentId)
+                          }
+                          aria-label={`Edit ${receipt.fileName ?? receipt.documentId}`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -132,6 +149,13 @@ function ReceiptsPage() {
           )}
         </CardContent>
       </Card>
+
+      <ReceiptEditDialog
+        documentId={editingDocumentId}
+        onOpenChange={(open) => {
+          if (!open) setEditingDocumentId(null)
+        }}
+      />
     </div>
   )
 }

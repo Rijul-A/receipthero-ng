@@ -23,6 +23,9 @@ export const processingLogs = sqliteTable('processing_logs', {
   vendor: text('vendor'),
   amount: integer('amount'), // Stored in cents/base units
   currency: text('currency'),
+  // Branch/address, e.g. distinguishing two locations of the same chain.
+  // Best-effort AI extraction; also user-editable.
+  storeLocation: text('storeLocation'),
   receiptData: text('receiptData'), // Full extracted JSON string (Legacy)
   extractedData: text('extractedData'), // Generic extracted JSON string
   createdAt: text('createdAt').notNull(),
@@ -134,8 +137,29 @@ export const receiptItems = sqliteTable('receipt_items', {
   sizeUnit: text('sizeUnit'),
   currency: text('currency'),
   purchaseDate: text('purchaseDate'), // ISO date string, from the receipt itself
+  // Denormalized copy of the receipt's store branch/address, so price
+  // comparison can distinguish two locations of the same vendor without a
+  // join back to processingLogs.
+  storeLocation: text('storeLocation'),
   createdAt: text('createdAt').notNull(),
 })
 
 export type ReceiptItemEntry = typeof receiptItems.$inferSelect
 export type NewReceiptItemEntry = typeof receiptItems.$inferInsert
+
+// User corrections to AI-assigned canonical product names, keyed by the raw
+// (as-OCR'd) item name so future receipts with the exact same raw text skip
+// the AI's (non-deterministic) guess entirely and use the correction
+// directly, instead of merely nudging it via the existing-names candidate
+// list passed to the model.
+export const itemNameOverrides = sqliteTable('item_name_overrides', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  // Stored lowercase+trimmed; lookups normalize the same way.
+  rawItemNameLower: text('rawItemNameLower').unique().notNull(),
+  canonicalName: text('canonicalName').notNull(),
+  createdAt: text('createdAt').notNull(),
+  updatedAt: text('updatedAt').notNull(),
+})
+
+export type ItemNameOverrideEntry = typeof itemNameOverrides.$inferSelect
+export type NewItemNameOverrideEntry = typeof itemNameOverrides.$inferInsert

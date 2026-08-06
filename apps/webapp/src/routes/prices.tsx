@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { Download, Search, X } from 'lucide-react'
+import { Download, Pencil, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { RenameProductDialog } from '@/components/prices/rename-product-dialog'
 import {
   useExportItemsCsv,
   useItemNameSearch,
@@ -167,6 +168,7 @@ export function sortHistoryRows<
 function PricesPage() {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<Array<string>>([])
+  const [renaming, setRenaming] = useState<string | null>(null)
 
   const { data: matches } = useItemNameSearch(query)
   const { data: history, isLoading } = useItemPriceHistory(selected)
@@ -197,6 +199,12 @@ function PricesPage() {
 
   const removeItem = (name: string) => {
     setSelected(selected.filter((n) => n !== name))
+  }
+
+  const handleRenamed = (from: string, to: string) => {
+    // Swap the selection over to the new name so the comparison view keeps
+    // showing what's now under it, instead of an empty/stale "from" group.
+    setSelected(selected.map((n) => (n === from ? to : n)))
   }
 
   return (
@@ -260,6 +268,13 @@ function PricesPage() {
               {selected.map((name) => (
                 <Badge key={name} variant="outline" className="gap-1">
                   {name}
+                  <button
+                    type="button"
+                    onClick={() => setRenaming(name)}
+                    aria-label={`Rename ${name}`}
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
                   <button type="button" onClick={() => removeItem(name)}>
                     <X className="h-3 w-3" />
                   </button>
@@ -379,6 +394,14 @@ function PricesPage() {
           </CardContent>
         </Card>
       )}
+
+      <RenameProductDialog
+        from={renaming}
+        onOpenChange={(open) => {
+          if (!open) setRenaming(null)
+        }}
+        onRenamed={handleRenamed}
+      />
     </div>
   )
 }

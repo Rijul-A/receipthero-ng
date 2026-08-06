@@ -1,7 +1,15 @@
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import { searchItemNames, getItemPriceHistory, db, receiptItems } from '@sm-rn/core'
+import {
+  searchItemNames,
+  getItemPriceHistory,
+  updateReceiptItem,
+  previewCanonicalRename,
+  renameCanonicalGroup,
+  db,
+  receiptItems,
+} from '@sm-rn/core'
 import { desc } from 'drizzle-orm'
 import { toCsv } from '../lib/csv'
 
@@ -76,6 +84,67 @@ items.get('/export', async (c) => {
   c.header('Content-Type', 'text/csv; charset=utf-8')
   c.header('Content-Disposition', 'attachment; filename="receipt-items.csv"')
   return c.body(csv)
+})
+
+const ItemEditSchema = z.object({
+  itemName: z.string().min(1).optional(),
+  canonicalName: z.string().min(1).optional(),
+  unitPrice: z.number().optional(),
+  totalPrice: z.number().optional(),
+  quantity: z.number().int().positive().optional(),
+  storeLocation: z.string().optional(),
+})
+
+/**
+ * PATCH /api/items/:id
+ *
+ * Corrects a single receipt-item row (per-row, not per-product) - e.g. the
+ * AI mis-grouped one specific occurrence, or the price/quantity was
+ * extracted wrong. Correcting canonicalName also records a raw-name
+ * override for future receipts with that exact raw text.
+ */
+items.patch('/:id', zValidator('json', ItemEditSchema), async (c) => {
+  const id = parseInt(c.req.param('id'), 10)
+  if (Number.isNaN(id)) return c.json({ error: 'Invalid item id' }, 400)
+
+  const edits = c.req.valid('json')
+  const updated = await updateReceiptItem(id, edits)
+  if (!updated) return c.json({ error: 'Item not found' }, 404)
+
+  return c.json({ item: updated })
+})
+
+/**
+ * GET /api/items/rename-preview?from=Almond%20Milk
+ *
+ * Rows that would be affected by renaming canonical product `from` to
+ * something else - reviewed before committing to a bulk rename.
+ */
+items.get(
+  '/rename-preview',
+  zValidator('query', z.object({ from: z.string().min(1) })),
+  async (c) => {
+    const { from } = c.req.valid('query')
+    const rows = await previewCanonicalRename(from)
+    return c.json({ rows })
+  },
+)
+
+const RenameSchema = z.object({
+  from: z.string().min(1),
+  to: z.string().min(1),
+})
+
+/**
+ * POST /api/items/rename
+ *
+ * Renames every row currently grouped under canonical name `from` to `to`
+ * (merging two product groups, or fixing a systemically-wrong AI guess).
+ */
+items.post('/rename', zValidator('json', RenameSchema), async (c) => {
+  const { from, to } = c.req.valid('json')
+  const result = await renameCanonicalGroup(from, to)
+  return c.json(result)
 })
 
 export default items

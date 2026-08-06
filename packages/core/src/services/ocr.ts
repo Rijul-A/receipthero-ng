@@ -18,6 +18,9 @@ CRITICAL FORMATTING REQUIREMENTS:
 - Date MUST be in YYYY-MM-DD format (e.g., "2024-01-15", not "01/15/2024" or "Jan 15, 2024")
 - Convert any date format to YYYY-MM-DD
 - If date is ambiguous, use the most recent logical date
+- If a timestamp is visible on the receipt, extract it into the "time" field
+  as 24-hour HH:MM (e.g. "14:30"). Omit "time" entirely if no timestamp is
+  visible - do not guess
 
 CURRENCY EXTRACTION:
 - ALWAYS include a currency field in the response
@@ -25,6 +28,13 @@ CURRENCY EXTRACTION:
 - Common currency symbols: $ = USD, € = EUR, £ = GBP, AED = AED, etc.
 - If no currency symbol is visible on the receipt, use "USD" as the default
 - Currency field should be the 3-letter currency code (ISO 4217 format)
+
+STORE LOCATION:
+- If the receipt shows a branch name, address, or other location detail
+  distinguishing this specific store from other locations of the same
+  vendor, extract it into storeLocation (e.g. "Mall of the Emirates" or
+  "123 Main St")
+- Omit storeLocation entirely if no such detail is visible - do not guess
 
 TITLE GENERATION:
 - Generate a concise, descriptive title for the receipt/document

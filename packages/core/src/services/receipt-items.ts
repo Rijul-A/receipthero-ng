@@ -3,6 +3,7 @@ import type { Config } from '@sm-rn/shared/schemas'
 import { db, schema } from '../db'
 import { chatJson } from './ai-json'
 import { createLogger } from './logger'
+import { recalculateReceiptTotal } from './receipts'
 
 const logger = createLogger('core')
 
@@ -167,6 +168,64 @@ async function annotateLineItems(
   }
 }
 
+function normalizeRawItemName(name: string): string {
+  return name.trim().toLowerCase()
+}
+
+/**
+ * Looks up user-confirmed canonical names for a set of raw (as-OCR'd) item
+ * names, keyed case-insensitively. Rows with no override fall back to
+ * whatever the AI decides, same as before.
+ */
+async function getNameOverrides(rawNames: string[]): Promise<Map<string, string>> {
+  const lowerNames = [...new Set(rawNames.map(normalizeRawItemName))]
+  if (lowerNames.length === 0) return new Map()
+
+  const rows = await db
+    .select()
+    .from(schema.itemNameOverrides)
+    .where(inArray(schema.itemNameOverrides.rawItemNameLower, lowerNames))
+    .all()
+
+  return new Map(rows.map((r) => [r.rawItemNameLower, r.canonicalName]))
+}
+
+/**
+ * Records a user's correction of a raw item name's canonical grouping, so
+ * future receipts with the exact same raw (as-OCR'd) text skip the AI's
+ * guess entirely and use this instead — unlike the existing-names candidate
+ * list passed to the model, which only nudges it and isn't guaranteed to be
+ * reproduced consistently across calls.
+ */
+export async function upsertItemNameOverride(
+  rawItemName: string,
+  canonicalName: string,
+): Promise<void> {
+  const rawItemNameLower = normalizeRawItemName(rawItemName)
+  const trimmedCanonical = canonicalName.trim()
+  if (!rawItemNameLower || !trimmedCanonical) return
+
+  const now = new Date().toISOString()
+  const existing = await db
+    .select()
+    .from(schema.itemNameOverrides)
+    .where(eq(schema.itemNameOverrides.rawItemNameLower, rawItemNameLower))
+    .get()
+
+  if (existing) {
+    await db
+      .update(schema.itemNameOverrides)
+      .set({ canonicalName: trimmedCanonical, updatedAt: now })
+      .where(eq(schema.itemNameOverrides.id, existing.id))
+      .run()
+  } else {
+    await db
+      .insert(schema.itemNameOverrides)
+      .values({ rawItemNameLower, canonicalName: trimmedCanonical, createdAt: now, updatedAt: now })
+      .run()
+  }
+}
+
 /**
  * Records the line items from a processed receipt for cross-vendor price
  * comparison. Tolerant of malformed/missing fields since `line_items` shape
@@ -182,10 +241,11 @@ export async function recordReceiptItems(params: {
   vendor?: string
   currency?: string
   purchaseDate?: string
+  storeLocation?: string
   lineItems: unknown
   config: Config
 }): Promise<void> {
-  const { documentId, vendor, currency, purchaseDate, lineItems, config } = params
+  const { documentId, vendor, currency, purchaseDate, storeLocation, lineItems, config } = params
 
   const now = new Date().toISOString()
   const parsed: ParsedLineItem[] = []
@@ -209,15 +269,21 @@ export async function recordReceiptItems(params: {
   // transactions run their callback synchronously to completion, so an
   // async network call can't live inside one anyway, and there's no
   // atomicity requirement between "ask the AI" and "write the DB".
-  const annotations = parsed.length > 0 ? await annotateLineItems(parsed, config) : {}
+  const [annotations, nameOverrides] = await Promise.all([
+    parsed.length > 0
+      ? annotateLineItems(parsed, config)
+      : Promise.resolve<Record<string, ItemAnnotation>>({}),
+    getNameOverrides(parsed.map((p) => p.name)),
+  ])
 
   const rows: schema.NewReceiptItemEntry[] = parsed.map((item) => {
     const annotation = annotations[item.name]
+    const override = nameOverrides.get(normalizeRawItemName(item.name))
     return {
       documentId,
       vendor,
       itemName: item.name,
-      canonicalName: annotation?.canonicalName ?? item.name,
+      canonicalName: override ?? annotation?.canonicalName ?? item.name,
       totalSize: annotation?.totalSize ?? null,
       sizeUnit: annotation?.sizeUnit ?? null,
       quantity: item.quantity,
@@ -225,6 +291,7 @@ export async function recordReceiptItems(params: {
       totalPrice: item.totalPrice,
       currency,
       purchaseDate,
+      storeLocation,
       createdAt: now,
     }
   })
@@ -263,4 +330,110 @@ export async function getItemPriceHistory(itemNames: string[]): Promise<schema.R
     .where(inArray(canonicalOrItemName, itemNames))
     .orderBy(desc(schema.receiptItems.purchaseDate))
     .all()
+}
+
+export interface ReceiptItemEdit {
+  itemName?: string
+  canonicalName?: string
+  unitPrice?: number // major units (e.g. dollars); converted to cents for storage
+  totalPrice?: number // major units
+  quantity?: number
+  storeLocation?: string
+}
+
+/**
+ * Applies a manual correction to a single receipt-item row (per-row, not
+ * per-product) — for the case where the AI got this one occurrence wrong
+ * but got the same product right elsewhere.
+ *
+ * If `canonicalName` is being corrected, also records a raw-name override
+ * (keyed on the row's raw item name, post-edit if `itemName` is also being
+ * corrected in the same call) so future receipts with that exact raw text
+ * use the correction directly instead of going through the AI again.
+ */
+export async function updateReceiptItem(
+  id: number,
+  edits: ReceiptItemEdit,
+): Promise<schema.ReceiptItemEntry | null> {
+  const existing = await db
+    .select()
+    .from(schema.receiptItems)
+    .where(eq(schema.receiptItems.id, id))
+    .get()
+  if (!existing) return null
+
+  const nextItemName =
+    typeof edits.itemName === 'string' && edits.itemName.trim()
+      ? edits.itemName.trim()
+      : existing.itemName
+
+  const updates: Partial<schema.NewReceiptItemEntry> = {}
+  if (edits.itemName !== undefined) updates.itemName = nextItemName
+  if (edits.canonicalName !== undefined) updates.canonicalName = edits.canonicalName.trim()
+  if (edits.unitPrice !== undefined) updates.unitPrice = Math.round(edits.unitPrice * 100)
+  if (edits.totalPrice !== undefined) updates.totalPrice = Math.round(edits.totalPrice * 100)
+  if (edits.quantity !== undefined && edits.quantity > 0) {
+    updates.quantity = Math.round(edits.quantity)
+  }
+  if (edits.storeLocation !== undefined) updates.storeLocation = edits.storeLocation
+
+  if (Object.keys(updates).length > 0) {
+    await db.update(schema.receiptItems).set(updates).where(eq(schema.receiptItems.id, id)).run()
+  }
+
+  if (edits.canonicalName !== undefined && edits.canonicalName.trim()) {
+    await upsertItemNameOverride(nextItemName, edits.canonicalName)
+  }
+
+  // The receipt's total is derived from its items, never directly editable,
+  // so any change to a line's total price has to flow back up.
+  if (edits.totalPrice !== undefined) {
+    await recalculateReceiptTotal(existing.documentId)
+  }
+
+  return (
+    (await db.select().from(schema.receiptItems).where(eq(schema.receiptItems.id, id)).get()) ??
+    null
+  )
+}
+
+/**
+ * Preview of what a bulk canonical-name rename would affect, before
+ * committing to it — so merging two product groups is a deliberate,
+ * reviewed action rather than a blind rename.
+ */
+export async function previewCanonicalRename(from: string): Promise<schema.ReceiptItemEntry[]> {
+  return await db
+    .select()
+    .from(schema.receiptItems)
+    .where(eq(canonicalOrItemName, from))
+    .orderBy(desc(schema.receiptItems.purchaseDate))
+    .all()
+}
+
+/**
+ * Renames every row currently grouped under canonical name `from` to `to`
+ * (merging two product groups, or fixing a systemically-wrong AI guess),
+ * and records a raw-name override for every distinct raw item name involved
+ * so future receipts with those same raw strings land on `to` directly.
+ */
+export async function renameCanonicalGroup(from: string, to: string): Promise<{ count: number }> {
+  const trimmedTo = to.trim()
+  if (!trimmedTo) return { count: 0 }
+
+  const affected = await previewCanonicalRename(from)
+  if (affected.length === 0) return { count: 0 }
+
+  await db
+    .update(schema.receiptItems)
+    .set({ canonicalName: trimmedTo })
+    .where(eq(canonicalOrItemName, from))
+    .run()
+
+  const distinctRawNames = new Set(affected.map((row) => row.itemName))
+  for (const rawName of distinctRawNames) {
+    await upsertItemNameOverride(rawName, trimmedTo)
+  }
+
+  return { count: affected.length }
 }

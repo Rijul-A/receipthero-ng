@@ -8,8 +8,8 @@ import { createServerFn } from '@tanstack/react-start'
 
 const API_URL = process.env.API_URL || 'http://localhost:3001'
 
-async function apiCall<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`)
+async function apiCall<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`, init)
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`)
   }
@@ -32,6 +32,9 @@ export interface ReceiptItemEntry {
   sizeUnit: 'ml' | 'g' | 'count' | null
   currency: string | null
   purchaseDate: string | null
+  // Branch/address distinguishing this store location from other locations
+  // of the same vendor. Null if not extracted/set.
+  storeLocation: string | null
   createdAt: string
 }
 
@@ -74,3 +77,57 @@ export const exportItemsCsv = createServerFn({ method: 'GET' }).handler(
     return response.text()
   },
 )
+
+export interface ItemEdit {
+  itemName?: string
+  canonicalName?: string
+  unitPrice?: number
+  totalPrice?: number
+  quantity?: number
+  storeLocation?: string
+}
+
+/**
+ * Corrects a single receipt-item row.
+ * Proxies to PATCH /api/items/:id.
+ */
+export const updateReceiptItem = createServerFn({ method: 'POST' })
+  .inputValidator((input: { id: number; edits: ItemEdit }) => input)
+  .handler(async (ctx) => {
+    const { item } = await apiCall<{ item: ReceiptItemEntry }>(
+      `/api/items/${ctx.data.id}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ctx.data.edits),
+      },
+    )
+    return item
+  })
+
+/**
+ * Rows that would be affected by renaming canonical product `from`.
+ * Proxies to GET /api/items/rename-preview?from=...
+ */
+export const previewRename = createServerFn({ method: 'GET' })
+  .inputValidator((input: { from: string }) => input)
+  .handler(async (ctx) => {
+    const { rows } = await apiCall<{ rows: Array<ReceiptItemEntry> }>(
+      `/api/items/rename-preview?from=${encodeURIComponent(ctx.data.from)}`,
+    )
+    return rows
+  })
+
+/**
+ * Renames every row grouped under canonical name `from` to `to`.
+ * Proxies to POST /api/items/rename.
+ */
+export const renameCanonicalGroup = createServerFn({ method: 'POST' })
+  .inputValidator((input: { from: string; to: string }) => input)
+  .handler(async (ctx) => {
+    return apiCall<{ count: number }>('/api/items/rename', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ctx.data),
+    })
+  })

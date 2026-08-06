@@ -310,6 +310,7 @@ export async function processPaperlessDocument(
           vendor: receipt.vendor,
           currency: receipt.currency,
           purchaseDate: receipt.date,
+          storeLocation: receipt.storeLocation,
           lineItems: receipt.line_items,
           config,
         })
@@ -325,6 +326,7 @@ export async function processPaperlessDocument(
         vendor: receipt.vendor,
         amount: Math.round(receipt.amount * 100),
         currency: receipt.currency,
+        storeLocation: receipt.storeLocation,
         receiptData: JSON.stringify(receipt),
       })
     }
@@ -588,6 +590,7 @@ export async function processPaperlessDocument(
       vendor: receipt.vendor,
       amount: Math.round(receipt.amount * 100),
       currency: receipt.currency,
+      storeLocation: receipt.storeLocation,
       receiptData: JSON.stringify(receipt),
     })
 
@@ -764,6 +767,7 @@ export async function processPaperlessDocument(
           vendor: receipt.vendor,
           currency: receipt.currency,
           purchaseDate: receipt.date,
+          storeLocation: receipt.storeLocation,
           lineItems: receipt.line_items,
           config,
         })
@@ -779,6 +783,7 @@ export async function processPaperlessDocument(
         vendor: receipt.vendor,
         amount: Math.round(receipt.amount * 100),
         currency: receipt.currency,
+        storeLocation: receipt.storeLocation,
         receiptData: JSON.stringify(receipt),
       })
     }
@@ -1041,6 +1046,7 @@ export async function processPaperlessDocument(
       vendor: receipt.vendor,
       amount: Math.round(receipt.amount * 100),
       currency: receipt.currency,
+      storeLocation: receipt.storeLocation,
       receiptData: JSON.stringify(receipt),
     })
 

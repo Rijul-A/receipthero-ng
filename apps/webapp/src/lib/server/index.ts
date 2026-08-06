@@ -65,5 +65,16 @@ export {
   searchItemNames,
   getItemPriceHistory,
   exportItemsCsv,
+  updateReceiptItem,
+  previewRename,
+  renameCanonicalGroup,
   type ReceiptItemEntry,
+  type ItemEdit,
 } from './items.functions'
+export {
+  getReceiptDetail,
+  updateReceipt,
+  type ReceiptDetail,
+  type ProcessingLogEntry,
+  type ReceiptEdit,
+} from './receipts.functions'
