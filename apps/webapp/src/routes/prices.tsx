@@ -75,21 +75,22 @@ function PricesPage() {
     })
   }
 
-  // You've explicitly grouped these names together (e.g. "Almarai Milk 1L" and
-  // "Al Marai Fresh Milk 1L" from different stores, or "330ml x6" and "150ml
-  // x15" packs of the same product), but rows can still be mutually
-  // incomparable within that selection: a per-100ml price isn't comparable to
-  // a per-pack fallback price (no size info), and different currencies can't
-  // be compared as raw numbers without conversion. So "cheapest" is computed
-  // per (comparison label, currency) group, not as one global minimum —
+  // The selected names might genuinely be different products (e.g. you added
+  // both "Diet Coke" and "Sprite" just to browse them together, not because
+  // they're the same thing), and even within one product, rows can be
+  // mutually incomparable: a per-100ml price isn't comparable to a per-pack
+  // fallback price (no size info), and different currencies can't be compared
+  // as raw numbers without conversion. So "cheapest" is computed per
+  // (product, comparison label, currency) group, not as one global minimum —
   // avoids silently declaring a winner across numbers that aren't actually
-  // on the same scale.
+  // on the same scale, or across different products entirely.
   const cheapestRowIds = useMemo(() => {
     const groups = new Map<string, Array<{ id: number; value: number }>>()
     for (const row of history ?? []) {
       const comparable = comparablePriceOf(row)
       if (comparable === null) continue
-      const key = `${comparable.label}|${row.currency ?? ''}`
+      const product = row.canonicalName ?? row.itemName
+      const key = `${product}|${comparable.label}|${row.currency ?? ''}`
       const group = groups.get(key) ?? []
       group.push({ id: row.id, value: comparable.value })
       groups.set(key, group)

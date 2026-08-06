@@ -1,4 +1,4 @@
-import { desc, inArray, like, sql } from 'drizzle-orm'
+import { desc, eq, inArray, like, sql } from 'drizzle-orm'
 import type { Config } from '@sm-rn/shared/schemas'
 import { db, schema } from '../db'
 import { chatJson } from './ai-json'
@@ -156,6 +156,11 @@ async function annotateLineItems(
  * Records the line items from a processed receipt for cross-vendor price
  * comparison. Tolerant of malformed/missing fields since `line_items` shape
  * varies by workflow (custom workflows define their own JSON Schema).
+ *
+ * Idempotent per documentId: clears any rows already recorded for this
+ * document before inserting, so reprocessing (manual retry, batch reprocess)
+ * replaces the old line items instead of duplicating them alongside a
+ * second copy.
  */
 export async function recordReceiptItems(params: {
   documentId: number
@@ -166,6 +171,11 @@ export async function recordReceiptItems(params: {
   config: Config
 }): Promise<void> {
   const { documentId, vendor, currency, purchaseDate, lineItems, config } = params
+
+  // Clear any previously-recorded items for this document first, regardless
+  // of whether this pass finds any to insert, so a reprocess never leaves
+  // stale rows behind alongside (or instead of) fresh ones.
+  await db.delete(schema.receiptItems).where(eq(schema.receiptItems.documentId, documentId)).run()
 
   if (!Array.isArray(lineItems) || lineItems.length === 0) return
 
