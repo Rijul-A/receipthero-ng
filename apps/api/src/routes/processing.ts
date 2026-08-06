@@ -52,7 +52,10 @@ processing.post('/:id/retry', zValidator('json', RetrySchema), async (c) => {
 })
 
 const BatchReprocessSchema = z.object({
-  documentIds: z.array(z.number().int()).min(1),
+  // Capped since this fans out to a Paperless + AI provider call per
+  // document in an unbounded background loop - an accidental huge selection
+  // shouldn't be able to hammer a paid AI provider or Paperless instance.
+  documentIds: z.array(z.number().int()).min(1).max(500),
 })
 
 // POST /api/processing/batch-reprocess - Re-run processing for multiple already-processed documents

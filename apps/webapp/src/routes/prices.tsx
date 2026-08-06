@@ -16,12 +16,15 @@ export const Route = createFileRoute('/prices')({
   component: PricesPage,
 })
 
-function formatPrice(cents: number | null, currency: string | null): string {
+export function formatPrice(
+  cents: number | null,
+  currency: string | null,
+): string {
   if (cents === null) return '—'
   return `${(cents / 100).toFixed(2)} ${currency ?? ''}`.trim()
 }
 
-function formatSize(row: {
+export function formatSize(row: {
   totalSize: number | null
   sizeUnit: string | null
 }): string {
@@ -35,8 +38,13 @@ function formatSize(row: {
  * extracted total pack size) over the raw pack/quantity price, since two
  * differently-packaged versions of the same product (e.g. "330ml x6" vs
  * "150ml x15") aren't comparable by pack price alone.
+ *
+ * Requires a positive price: a discount/refund line (negative totalPrice)
+ * that the AI happens to canonicalize under the same product would otherwise
+ * always "win" the cheapest comparison by virtue of being negative, even
+ * though it isn't a real purchase price to compare against.
  */
-function comparablePriceOf(row: {
+export function comparablePriceOf(row: {
   unitPrice: number | null
   totalPrice: number | null
   quantity: number
@@ -47,6 +55,7 @@ function comparablePriceOf(row: {
     row.totalSize !== null &&
     row.totalSize > 0 &&
     row.totalPrice !== null &&
+    row.totalPrice > 0 &&
     row.sizeUnit
   ) {
     const per100 = (row.totalPrice / row.totalSize) * 100
@@ -54,11 +63,57 @@ function comparablePriceOf(row: {
       row.sizeUnit === 'count' ? 'per 100' : `per 100${row.sizeUnit}`
     return { value: per100, label }
   }
-  if (row.unitPrice !== null) return { value: row.unitPrice, label: 'per pack' }
-  if (row.totalPrice !== null && row.quantity > 0) {
+  if (row.unitPrice !== null && row.unitPrice > 0) {
+    return { value: row.unitPrice, label: 'per pack' }
+  }
+  if (row.totalPrice !== null && row.totalPrice > 0 && row.quantity > 0) {
     return { value: row.totalPrice / row.quantity, label: 'per pack' }
   }
   return null
+}
+
+// The selected names might genuinely be different products (e.g. you added
+// both "Diet Coke" and "Sprite" just to browse them together, not because
+// they're the same thing), and even within one product, rows can be
+// mutually incomparable: a per-100ml price isn't comparable to a per-pack
+// fallback price (no size info), and different currencies can't be compared
+// as raw numbers without conversion. So "cheapest" is computed per
+// (product, comparison label, currency) group, not as one global minimum —
+// avoids silently declaring a winner across numbers that aren't actually
+// on the same scale, or across different products entirely.
+export function computeCheapestRowIds(
+  history: Array<{
+    id: number
+    itemName: string
+    canonicalName: string | null
+    currency: string | null
+    unitPrice: number | null
+    totalPrice: number | null
+    quantity: number
+    totalSize: number | null
+    sizeUnit: string | null
+  }>,
+): Set<number> {
+  const groups = new Map<string, Array<{ id: number; value: number }>>()
+  for (const row of history) {
+    const comparable = comparablePriceOf(row)
+    if (comparable === null) continue
+    const product = row.canonicalName ?? row.itemName
+    const key = `${product}|${comparable.label}|${row.currency ?? ''}`
+    const group = groups.get(key) ?? []
+    group.push({ id: row.id, value: comparable.value })
+    groups.set(key, group)
+  }
+
+  const winners = new Set<number>()
+  for (const group of groups.values()) {
+    // Only worth highlighting a "winner" when there's more than one row to
+    // compare it against within its group.
+    if (group.length < 2) continue
+    const best = group.reduce((a, b) => (b.value < a.value ? b : a))
+    winners.add(best.id)
+  }
+  return winners
 }
 
 function PricesPage() {
@@ -75,37 +130,10 @@ function PricesPage() {
     })
   }
 
-  // The selected names might genuinely be different products (e.g. you added
-  // both "Diet Coke" and "Sprite" just to browse them together, not because
-  // they're the same thing), and even within one product, rows can be
-  // mutually incomparable: a per-100ml price isn't comparable to a per-pack
-  // fallback price (no size info), and different currencies can't be compared
-  // as raw numbers without conversion. So "cheapest" is computed per
-  // (product, comparison label, currency) group, not as one global minimum —
-  // avoids silently declaring a winner across numbers that aren't actually
-  // on the same scale, or across different products entirely.
-  const cheapestRowIds = useMemo(() => {
-    const groups = new Map<string, Array<{ id: number; value: number }>>()
-    for (const row of history ?? []) {
-      const comparable = comparablePriceOf(row)
-      if (comparable === null) continue
-      const product = row.canonicalName ?? row.itemName
-      const key = `${product}|${comparable.label}|${row.currency ?? ''}`
-      const group = groups.get(key) ?? []
-      group.push({ id: row.id, value: comparable.value })
-      groups.set(key, group)
-    }
-
-    const winners = new Set<number>()
-    for (const group of groups.values()) {
-      // Only worth highlighting a "winner" when there's more than one row to
-      // compare it against within its group.
-      if (group.length < 2) continue
-      const best = group.reduce((a, b) => (b.value < a.value ? b : a))
-      winners.add(best.id)
-    }
-    return winners
-  }, [history])
+  const cheapestRowIds = useMemo(
+    () => computeCheapestRowIds(history ?? []),
+    [history],
+  )
 
   const addItem = (name: string) => {
     if (!selected.includes(name)) setSelected([...selected, name])
