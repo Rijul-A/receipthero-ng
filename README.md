@@ -55,6 +55,15 @@ Powered by **TanStack AI** with support for multiple LLM providers — Together 
 
 ![Currency Conversion](docs/images/currency-conversion.png)
 
+### 💰 Cross-Vendor Price Comparison
+
+- Search item names seen across your processed receipts and compare prices across stores
+- AI-powered canonicalization automatically groups the same product across differently-worded
+  receipts (e.g. "Almarai Milk 1L" vs. "Al Marai Fresh Milk 1L"), one batched call per receipt —
+  browsing the comparison page never triggers an AI request
+- Compares by unit price (not raw total), so different pack sizes/quantities don't skew results
+- Falls back gracefully to raw item names if the AI provider is unavailable
+
 ### 📊 Real-Time Dashboard
 
 - **System Health**: Live status of all integrations
@@ -299,6 +308,7 @@ When enabled:
 - [x] Worker pause/resume controls
 - [x] Web-based configuration
 - [x] Document type detection (alternative to tag-based)
+- [x] Cross-vendor price comparison with AI-powered item matching
 - [ ] Receipt analytics and charts
 - [ ] Monthly/weekly spending reports
 - [ ] Export to CSV/Excel
@@ -387,6 +397,11 @@ This is a Turborepo monorepo:
 ### Statistics
 
 - `GET /api/stats/currency-totals` - Get aggregated currency totals
+
+### Price Comparison
+
+- `GET /api/items/search?q=` - Search canonical item names from processed receipts
+- `GET /api/items/history?names=` - Price history for one or more item names, newest first
 
 </details>
 
