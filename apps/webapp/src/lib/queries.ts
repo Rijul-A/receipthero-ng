@@ -10,6 +10,7 @@ import {
   getDocumentLogs,
   getDocumentThumbnail,
   getHealthStatus,
+  getItemPriceHistory as getItemPriceHistoryFn,
   getProcessingLogs,
   getQueueStatus as getQueueStatusFn,
   getWebhookStatus as getWebhookStatusFn,
@@ -18,6 +19,7 @@ import {
   retryAllQueue as retryAllQueueFn,
   retryDocument,
   saveConfig as saveConfigFn,
+  searchItemNames as searchItemNamesFn,
   testAiConnection,
   testPaperlessConnection,
   triggerScanAndWait,
@@ -28,6 +30,7 @@ import type {
   HealthStatus,
   QueueActionResponse,
   QueueStatus,
+  ReceiptItemEntry,
   SaveConfigResponse,
   TestConnectionResponse,
   TriggerScanResponse,
@@ -86,6 +89,13 @@ export const queueKeys = {
 export const webhookKeys = {
   all: ['webhooks'] as const,
   status: () => [...webhookKeys.all, 'status'] as const,
+}
+
+export const itemKeys = {
+  all: ['items'] as const,
+  search: (query: string) => [...itemKeys.all, 'search', query] as const,
+  history: (itemNames: Array<string>) =>
+    [...itemKeys.all, 'history', itemNames] as const,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -393,5 +403,31 @@ export function useWebhookStatus() {
     queryKey: webhookKeys.status(),
     queryFn: () => getWebhookStatusFn(),
     refetchInterval: 30_000,
+  })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Item Price Comparison Queries
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Autocomplete search over item names seen across processed receipts.
+ */
+export function useItemNameSearch(query: string) {
+  return useQuery({
+    queryKey: itemKeys.search(query),
+    queryFn: () => searchItemNamesFn({ data: { query } }),
+    enabled: query.trim().length > 0,
+  })
+}
+
+/**
+ * Price history (newest first) for one or more user-selected item names.
+ */
+export function useItemPriceHistory(itemNames: Array<string>) {
+  return useQuery<Array<ReceiptItemEntry>>({
+    queryKey: itemKeys.history(itemNames),
+    queryFn: () => getItemPriceHistoryFn({ data: { itemNames } }),
+    enabled: itemNames.length > 0,
   })
 }

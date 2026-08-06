@@ -1,4 +1,4 @@
-import { RefreshCw, Settings, Workflow } from 'lucide-react'
+import { RefreshCw, Settings, TrendingDown, Workflow } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -74,6 +74,12 @@ export function DashboardHeader({
           <Button variant="outline" size="sm">
             <Workflow className="h-4 w-4 mr-2" />
             Workflows
+          </Button>
+        </Link>
+        <Link to="/prices">
+          <Button variant="outline" size="sm">
+            <TrendingDown className="h-4 w-4 mr-2" />
+            Prices
           </Button>
         </Link>
         <Link to="/settings">

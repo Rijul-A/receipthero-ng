@@ -6,6 +6,7 @@ import { createAIAdapter, type AIAdapter } from './ai-client'
 import { reporter } from './reporter'
 import { createLogger } from './logger'
 import { skippedDocuments } from './skipped-documents'
+import { recordReceiptItems } from './receipt-items'
 import { executeWorkflow } from './workflow-executor'
 import { getWorkflowForTag } from './workflow'
 
@@ -302,6 +303,18 @@ export async function processPaperlessDocument(
         date: receipt.date,
         category: receipt.category,
       })
+
+      try {
+        await recordReceiptItems({
+          documentId,
+          vendor: receipt.vendor,
+          currency: receipt.currency,
+          purchaseDate: receipt.date,
+          lineItems: receipt.line_items,
+        })
+      } catch {
+        docLogger.warn(` Failed to record line items for price comparison`)
+      }
 
       // Persist extracted data immediately so retries can reuse it
       await reporter.report('receipt:processing', {
@@ -743,6 +756,18 @@ export async function processPaperlessDocument(
         date: receipt.date,
         category: receipt.category,
       })
+
+      try {
+        await recordReceiptItems({
+          documentId,
+          vendor: receipt.vendor,
+          currency: receipt.currency,
+          purchaseDate: receipt.date,
+          lineItems: receipt.line_items,
+        })
+      } catch {
+        docLogger.warn(` Failed to record line items for price comparison`)
+      }
 
       // Persist extracted data immediately so retries can reuse it
       await reporter.report('receipt:processing', {

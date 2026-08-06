@@ -5,6 +5,7 @@ import { RetryQueue } from './retry-queue'
 import { reporter } from './reporter'
 import { createLogger } from './logger'
 import { skippedDocuments } from './skipped-documents'
+import { recordReceiptItems } from './receipt-items'
 import { db, schema } from '../db'
 import { eq, desc } from 'drizzle-orm'
 import type { Workflow } from '../db/schema'
@@ -236,6 +237,23 @@ export async function executeWorkflow(
     if (config.processing.updateContent) {
       const markdown = dataToMarkdown(extractedData, workflow.name)
       updates.content = doc.content ? `${markdown}\n\n---\n\n${doc.content}` : markdown
+    }
+
+    // Record line items for cross-vendor price comparison (best-effort)
+    try {
+      const vendorValue = mapping.correspondentField
+        ? extractedData[mapping.correspondentField]
+        : undefined
+      const dateValue = mapping.dateField ? extractedData[mapping.dateField] : undefined
+      await recordReceiptItems({
+        documentId,
+        vendor: typeof vendorValue === 'string' ? vendorValue : undefined,
+        currency: typeof extractedData.currency === 'string' ? extractedData.currency : undefined,
+        purchaseDate: typeof dateValue === 'string' ? dateValue : undefined,
+        lineItems: extractedData.line_items,
+      })
+    } catch {
+      docLogger.warn(`Failed to record line items for price comparison`)
     }
 
     // Apply updates

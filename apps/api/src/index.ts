@@ -12,6 +12,7 @@ import processing from './routes/processing'
 import worker from './routes/worker'
 import queue from './routes/queue'
 import stats from './routes/stats'
+import items from './routes/items'
 import webhooks from './routes/webhooks'
 import ws from './routes/ws'
 import { websocket } from 'hono/bun'
@@ -41,6 +42,7 @@ app.route('/api/processing', processing)
 app.route('/api/worker', worker)
 app.route('/api/queue', queue)
 app.route('/api/stats', stats)
+app.route('/api/items', items)
 app.route('/api/workflows', workflows)
 app.route('/api/webhooks', webhooks)
 

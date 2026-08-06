@@ -55,3 +55,8 @@ export {
   type WebhookStatusResponse,
   type WebhookQueueStats,
 } from './webhooks.functions'
+export {
+  searchItemNames,
+  getItemPriceHistory,
+  type ReceiptItemEntry,
+} from './items.functions'

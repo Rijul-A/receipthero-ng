@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as PricesRouteImport } from './routes/prices'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkflowsIndexRouteImport } from './routes/workflows/index'
 import { Route as WorkflowsPlaygroundRouteImport } from './routes/workflows/playground'
@@ -18,6 +19,11 @@ import { Route as WorkflowsIdRouteImport } from './routes/workflows/$id'
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PricesRoute = PricesRouteImport.update({
+  id: '/prices',
+  path: '/prices',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -43,6 +49,7 @@ const WorkflowsIdRoute = WorkflowsIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/prices': typeof PricesRoute
   '/settings': typeof SettingsRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/workflows/playground': typeof WorkflowsPlaygroundRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/prices': typeof PricesRoute
   '/settings': typeof SettingsRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/workflows/playground': typeof WorkflowsPlaygroundRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/prices': typeof PricesRoute
   '/settings': typeof SettingsRoute
   '/workflows/$id': typeof WorkflowsIdRoute
   '/workflows/playground': typeof WorkflowsPlaygroundRoute
@@ -67,6 +76,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/prices'
     | '/settings'
     | '/workflows/$id'
     | '/workflows/playground'
@@ -74,6 +84,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/prices'
     | '/settings'
     | '/workflows/$id'
     | '/workflows/playground'
@@ -81,6 +92,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/prices'
     | '/settings'
     | '/workflows/$id'
     | '/workflows/playground'
@@ -89,6 +101,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PricesRoute: typeof PricesRoute
   SettingsRoute: typeof SettingsRoute
   WorkflowsIdRoute: typeof WorkflowsIdRoute
   WorkflowsPlaygroundRoute: typeof WorkflowsPlaygroundRoute
@@ -102,6 +115,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prices': {
+      id: '/prices'
+      path: '/prices'
+      fullPath: '/prices'
+      preLoaderRoute: typeof PricesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -137,6 +157,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PricesRoute: PricesRoute,
   SettingsRoute: SettingsRoute,
   WorkflowsIdRoute: WorkflowsIdRoute,
   WorkflowsPlaygroundRoute: WorkflowsPlaygroundRoute,

@@ -110,3 +110,20 @@ export const webhookQueue = sqliteTable('webhook_queue', {
 
 export type WebhookQueueEntry = typeof webhookQueue.$inferSelect
 export type NewWebhookQueueEntry = typeof webhookQueue.$inferInsert
+
+// Individual line items extracted from receipts, for cross-vendor price comparison
+export const receiptItems = sqliteTable('receipt_items', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  documentId: integer('documentId').notNull(),
+  vendor: text('vendor'),
+  itemName: text('itemName').notNull(),
+  quantity: integer('quantity').notNull().default(1),
+  unitPrice: integer('unitPrice'), // Stored in cents/base units
+  totalPrice: integer('totalPrice'), // Stored in cents/base units
+  currency: text('currency'),
+  purchaseDate: text('purchaseDate'), // ISO date string, from the receipt itself
+  createdAt: text('createdAt').notNull(),
+})
+
+export type ReceiptItemEntry = typeof receiptItems.$inferSelect
+export type NewReceiptItemEntry = typeof receiptItems.$inferInsert
