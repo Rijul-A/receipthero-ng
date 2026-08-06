@@ -129,6 +129,15 @@ async function annotateLineItems(
       },
     })
 
+    // The model is told to reuse an existing canonical name when it
+    // recognizes the same product, but nothing forces it to reproduce that
+    // name byte-for-byte — it might return "diet coke" against an existing
+    // "Diet Coke". Since SQLite string comparison is case-sensitive, that
+    // would silently fragment one product into two groups over time. Snap
+    // to the existing name's exact casing whenever there's a case-insensitive
+    // match, rather than trusting the model's output literally.
+    const existingByLowerCase = new Map(existingNames.map((n) => [n.toLowerCase(), n]))
+
     const map = { ...identity }
     for (const item of result.items) {
       if (
@@ -136,8 +145,14 @@ async function annotateLineItems(
         typeof item.canonical === 'string' &&
         item.canonical.trim()
       ) {
+        const canonical = item.canonical.trim()
+        const resolved = existingByLowerCase.get(canonical.toLowerCase()) ?? canonical
+        // Also snap subsequent items in this same batch to the first casing
+        // seen for a given product, in case the model varies casing within
+        // one response too.
+        existingByLowerCase.set(canonical.toLowerCase(), resolved)
         map[item.raw] = {
-          canonicalName: item.canonical.trim(),
+          canonicalName: resolved,
           totalSize: typeof item.totalSize === 'number' ? item.totalSize : null,
           sizeUnit: item.sizeUnit ?? null,
         }
@@ -172,31 +187,29 @@ export async function recordReceiptItems(params: {
 }): Promise<void> {
   const { documentId, vendor, currency, purchaseDate, lineItems, config } = params
 
-  // Clear any previously-recorded items for this document first, regardless
-  // of whether this pass finds any to insert, so a reprocess never leaves
-  // stale rows behind alongside (or instead of) fresh ones.
-  await db.delete(schema.receiptItems).where(eq(schema.receiptItems.documentId, documentId)).run()
-
-  if (!Array.isArray(lineItems) || lineItems.length === 0) return
-
   const now = new Date().toISOString()
   const parsed: ParsedLineItem[] = []
 
-  for (const raw of lineItems as LineItemInput[]) {
-    const name = typeof raw?.name === 'string' ? raw.name.trim() : ''
-    if (!name) continue
+  if (Array.isArray(lineItems)) {
+    for (const raw of lineItems as LineItemInput[]) {
+      const name = typeof raw?.name === 'string' ? raw.name.trim() : ''
+      if (!name) continue
 
-    const totalPrice = typeof raw.totalPrice === 'number' ? Math.round(raw.totalPrice * 100) : null
-    const unitPrice = typeof raw.unitPrice === 'number' ? Math.round(raw.unitPrice * 100) : null
-    const quantity =
-      typeof raw.quantity === 'number' && raw.quantity > 0 ? Math.round(raw.quantity) : 1
+      const totalPrice =
+        typeof raw.totalPrice === 'number' ? Math.round(raw.totalPrice * 100) : null
+      const unitPrice = typeof raw.unitPrice === 'number' ? Math.round(raw.unitPrice * 100) : null
+      const quantity =
+        typeof raw.quantity === 'number' && raw.quantity > 0 ? Math.round(raw.quantity) : 1
 
-    parsed.push({ name, quantity, unitPrice, totalPrice })
+      parsed.push({ name, quantity, unitPrice, totalPrice })
+    }
   }
 
-  if (parsed.length === 0) return
-
-  const annotations = await annotateLineItems(parsed, config)
+  // The AI call happens before touching the DB at all — bun:sqlite
+  // transactions run their callback synchronously to completion, so an
+  // async network call can't live inside one anyway, and there's no
+  // atomicity requirement between "ask the AI" and "write the DB".
+  const annotations = parsed.length > 0 ? await annotateLineItems(parsed, config) : {}
 
   const rows: schema.NewReceiptItemEntry[] = parsed.map((item) => {
     const annotation = annotations[item.name]
@@ -216,7 +229,16 @@ export async function recordReceiptItems(params: {
     }
   })
 
-  await db.insert(schema.receiptItems).values(rows).run()
+  // Clear any previously-recorded items for this document and insert the
+  // fresh set atomically, so a reprocess either fully replaces the old data
+  // or (on failure) leaves it untouched — never a window where the document
+  // has no line items at all.
+  db.transaction((tx) => {
+    tx.delete(schema.receiptItems).where(eq(schema.receiptItems.documentId, documentId)).run()
+    if (rows.length > 0) {
+      tx.insert(schema.receiptItems).values(rows).run()
+    }
+  })
 }
 
 /** Autocomplete: distinct canonical product names seen so far, matching a search term. */
