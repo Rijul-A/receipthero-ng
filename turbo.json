@@ -1,38 +1,21 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
-  "globalDependencies": [
-    ".env",
-    ".env.local"
-  ],
-  "globalEnv": [
-    "NODE_ENV"
-  ],
+  "globalDependencies": [".env", ".env.local"],
+  "globalEnv": ["NODE_ENV"],
   "tasks": {
     "db:setup": {
       "cache": false
     },
     "build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "env": [
-        "DATABASE_PATH",
-        "CONFIG_PATH"
-      ],
-      "outputs": [
-        ".next/**",
-        "!.next/cache/**",
-        "dist/**",
-        ".output/**"
-      ]
+      "dependsOn": ["^build"],
+      "env": ["DATABASE_PATH", "CONFIG_PATH"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", ".output/**"]
     },
     "dev": {
       "cache": false,
       "persistent": true,
-      "dependsOn": [
-        "^db:setup"
-      ],
+      "dependsOn": ["^db:setup"],
       "env": [
         "PORT",
         "API_URL",
@@ -46,9 +29,7 @@
     "start": {
       "cache": false,
       "persistent": true,
-      "dependsOn": [
-        "^db:setup"
-      ],
+      "dependsOn": ["^db:setup"],
       "env": [
         "PORT",
         "API_URL",
@@ -60,21 +41,12 @@
       ]
     },
     "test": {
-      "dependsOn": [
-        "^build"
-      ],
-      "env": [
-        "DATABASE_PATH",
-        "CONFIG_PATH"
-      ],
-      "outputs": [
-        "coverage/**"
-      ]
+      "dependsOn": ["^build"],
+      "env": ["DATABASE_PATH", "CONFIG_PATH"],
+      "outputs": ["coverage/**"]
     },
     "typecheck": {
-      "dependsOn": [
-        "^build"
-      ]
+      "dependsOn": ["^build"]
     },
     "lint": {
       "outputs": []

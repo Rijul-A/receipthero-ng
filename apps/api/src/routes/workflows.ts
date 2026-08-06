@@ -101,7 +101,7 @@ app.post('/:id/test', async (c) => {
         : workflow.jsonSchema
 
     const items = await extractWithSchema(
-      body.image,
+      Buffer.from(body.image, 'base64'),
       jsonSchema,
       workflow.promptInstructions ?? undefined,
       config,

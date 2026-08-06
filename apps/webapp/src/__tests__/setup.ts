@@ -166,5 +166,9 @@ export const mockConfigData = {
       heliconeEnabled: false,
       heliconeApiKey: '',
     },
+    webhooks: {
+      enabled: false,
+      secret: '',
+    },
   },
 }

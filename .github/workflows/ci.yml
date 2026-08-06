@@ -30,6 +30,12 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      # apps/api, apps/worker and packages/core run on Bun at runtime (bun:sqlite,
+      # bun:test, etc. — see Dockerfile), so `pnpm run test`/`typecheck` needs it
+      # available even though pnpm/install itself runs on Node.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 

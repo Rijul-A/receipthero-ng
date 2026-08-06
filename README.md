@@ -11,6 +11,7 @@
 It transforms your chaotic receipt archive into a **searchable, structured database** with automatic vendor detection, item extraction, and **multi-currency conversion** — all through a beautiful real-time dashboard.
 
 > 💡 Just upload a receipt and let AI do the rest:
+>
 > - Vendor name, date, and total amount extracted automatically
 > - Line items parsed with individual prices
 > - Currency converted to your preferred currencies
@@ -31,6 +32,7 @@ Powered by **TanStack AI** with support for multiple LLM providers — Together 
 ## ✨ Features
 
 ### 🤖 AI-Powered Receipt Extraction
+
 - Multi-provider AI support via TanStack AI (Together AI, Ollama, OpenRouter, any OpenAI-compatible API)
 - Extracts vendor, amount, currency, date, payment method
 - Parses individual line items with prices
@@ -38,9 +40,11 @@ Powered by **TanStack AI** with support for multiple LLM providers — Together 
 - Smart retry with exponential backoff for reliability
 
 <!-- TODO: Add screenshot of processed receipt in Paperless -->
+
 ![Receipt Extraction Demo](docs/images/receipt-extraction.png)
 
 ### 💱 Automatic Currency Conversion
+
 - Convert receipt amounts to multiple target currencies
 - Uses fawazahmed0 exchange-api with dual CDN fallback
 - Weekly average exchange rates for accuracy
@@ -48,9 +52,11 @@ Powered by **TanStack AI** with support for multiple LLM providers — Together 
 - Configure your preferred currencies (GBP, USD, EUR, SAR, etc.)
 
 <!-- TODO: Add screenshot of currency totals card -->
+
 ![Currency Conversion](docs/images/currency-conversion.png)
 
 ### 📊 Real-Time Dashboard
+
 - **System Health**: Live status of all integrations
 - **Currency Totals**: Aggregated spending in all your currencies
 - **Integration Stats**: Documents detected, processed, failed, queued
@@ -58,18 +64,22 @@ Powered by **TanStack AI** with support for multiple LLM providers — Together 
 - **Live Logs**: Real-time processing updates via WebSocket
 
 <!-- TODO: Add dashboard screenshot -->
+
 ![Dashboard](docs/images/dashboard.png)
 
 ### ⚙️ Easy Configuration
+
 - Web-based settings page for all options
 - Test connections before saving
 - Dynamic currency list from live exchange rates
 - No config files needed (but supported)
 
 <!-- TODO: Add settings page screenshot -->
+
 ![Settings](docs/images/settings.png)
 
 ### 🔗 Seamless Paperless-ngx Integration
+
 - Automatic document title: `{Vendor} - {Amount} {Currency}`
 - Creates correspondents for vendors
 - Applies category tags automatically
@@ -132,6 +142,7 @@ open http://localhost:3000
 ```
 
 > 📁 **Directory Structure:**
+>
 > ```
 > ~/services/receipthero/
 > ├── docker-compose.yaml
@@ -189,7 +200,7 @@ Your receipts will include converted amounts:
   "amount": 10,
   "currency": "AED",
   "conversions": {
-    "AED": 10.00,
+    "AED": 10.0,
     "GBP": 2.15,
     "USD": 2.72,
     "SAR": 10.22
@@ -272,6 +283,7 @@ By default, ReceiptHero looks for documents tagged with `receipt`. If you alread
 ```
 
 When enabled:
+
 - Documents with `document_type = "receipt"` are automatically processed
 - No need to manually tag receipts
 - Works with your existing Paperless-ngx document type workflow
@@ -323,13 +335,13 @@ pnpm turbo typecheck # Type check all packages
 
 This is a Turborepo monorepo:
 
-| Package | Description |
-|---------|-------------|
-| `@sm-rn/api` | Hono API backend (Bun runtime) |
-| `@sm-rn/webapp` | TanStack Start frontend |
-| `@sm-rn/worker` | Background processing worker |
-| `@sm-rn/core` | Core services (Paperless, OCR, currency, AI adapter, logging) |
-| `@sm-rn/shared` | Shared types and schemas |
+| Package         | Description                                                   |
+| --------------- | ------------------------------------------------------------- |
+| `@sm-rn/api`    | Hono API backend (Bun runtime)                                |
+| `@sm-rn/webapp` | TanStack Start frontend                                       |
+| `@sm-rn/worker` | Background processing worker                                  |
+| `@sm-rn/core`   | Core services (Paperless, OCR, currency, AI adapter, logging) |
+| `@sm-rn/shared` | Shared types and schemas                                      |
 
 ### Tech Stack
 
@@ -345,6 +357,7 @@ This is a Turborepo monorepo:
 <summary>Click to expand API endpoints</summary>
 
 ### Health & Configuration
+
 - `GET /api/health` - Health check with stats
 - `GET /api/config` - Get configuration (masked keys)
 - `POST /api/config` - Save configuration
@@ -353,22 +366,26 @@ This is a Turborepo monorepo:
 - `POST /api/config/test-ai` - Test AI provider connection
 
 ### Processing
+
 - `POST /api/ocr` - Extract receipt data from image
 - `GET /api/processing/logs` - Get processing logs
 - `GET /api/processing/logs/:documentId` - Get document-specific logs
 
 ### Worker Control
+
 - `GET /api/worker/status` - Get worker status
 - `POST /api/worker/pause` - Pause worker
 - `POST /api/worker/resume` - Resume worker
 - `POST /api/worker/trigger-scan` - Trigger immediate scan
 
 ### Queue Management
+
 - `GET /api/queue/status` - Get queue status
 - `POST /api/queue/retry-all` - Retry all failed items
 - `POST /api/queue/clear` - Clear the queue
 
 ### Statistics
+
 - `GET /api/stats/currency-totals` - Get aggregated currency totals
 
 </details>
@@ -398,6 +415,7 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 ## 🙏 Support
 
 If ReceiptHero helps you manage your receipts, consider:
+
 - ⭐ Starring the repository
 - 🐛 Reporting bugs and suggesting features
 - 🤝 Contributing code or documentation

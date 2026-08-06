@@ -11,7 +11,7 @@ export type AIAdapter = AnyTextAdapter
 
 /** Options for testing an AI connection */
 export interface TestAIConnectionOptions {
-  provider: 'openai-compat' | 'ollama' | 'openrouter'
+  provider: 'openai-compat' | 'together-ai' | 'ollama' | 'openrouter'
   apiKey?: string
   baseURL?: string
   model: string
@@ -38,7 +38,8 @@ export async function testAIConnection(
   try {
     let adapter: AIAdapter
     switch (provider) {
-      case 'openai-compat': {
+      case 'openai-compat':
+      case 'together-ai': {
         if (!apiKey) {
           return {
             success: false,
@@ -114,7 +115,8 @@ export function createAIAdapter(config: Config): AIAdapter {
   const { ai, observability } = config
 
   switch (ai.provider) {
-    case 'openai-compat': {
+    case 'openai-compat':
+    case 'together-ai': {
       if (!ai.apiKey) {
         throw new Error(
           'AI API key is required for openai-compat provider. Set AI_API_KEY or TOGETHER_API_KEY.',

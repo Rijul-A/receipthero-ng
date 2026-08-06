@@ -1,25 +1,24 @@
-import { describe, it, expect, mock } from 'bun:test'
+import { describe, it, expect } from 'bun:test'
+import { ConfigSchema } from '@sm-rn/shared/schemas'
 import { extractWithSchema } from '../services/extract'
 
-// Mock the TanStack AI chat function
-mock.module('@tanstack/ai', () => ({
-  chat: async (_args: any) => {
-    // Basic mock response matching the wrapped schema structure
-    return {
-      items: [
-        {
-          vendor: 'Test Store',
-          amount: 12.34,
-          date: '2024-01-01',
-        },
-      ],
-    }
-  },
-}))
+// extractWithSchema calls fetch() directly against the OpenAI-compatible
+// /v1/chat/completions endpoint (see extract.ts for why it bypasses the
+// @tanstack/ai adapters), so the mock needs to be at the fetch level.
+const mockResult = {
+  items: [
+    {
+      vendor: 'Test Store',
+      amount: 12.34,
+      date: '2024-01-01',
+    },
+  ],
+}
 
 describe('extractWithSchema', () => {
-  const mockAdapter = {} as any
-  const mockImage = 'data:image/jpeg;base64,mock'
+  // Minimal JPEG magic bytes so normalizeImageForVision() passes the image
+  // through unchanged instead of invoking sharp for transcoding.
+  const mockImageBuffer = Buffer.from([0xff, 0xd8, 0xff, 0, 0, 0, 0, 0])
   const mockJsonSchema = {
     type: 'object',
     properties: {
@@ -29,18 +28,34 @@ describe('extractWithSchema', () => {
     },
     required: ['vendor', 'amount', 'date'],
   }
+  const mockConfig = ConfigSchema.parse({
+    paperless: {},
+    processing: {},
+    ai: { provider: 'ollama', model: 'test-model' },
+  })
 
   it('should extract data correctly using a JSON Schema', async () => {
-    const result = await extractWithSchema(
-      mockImage,
-      mockJsonSchema,
-      'Test instructions',
-      mockAdapter,
-    )
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: JSON.stringify(mockResult) } }] }),
+        { status: 200 },
+      )) as unknown as typeof fetch
 
-    expect(result).toHaveLength(1)
-    expect(result[0].vendor).toBe('Test Store')
-    expect(result[0].amount).toBe(12.34)
-    expect(result[0].date).toBe('2024-01-01')
+    try {
+      const result = await extractWithSchema(
+        mockImageBuffer,
+        mockJsonSchema,
+        'Test instructions',
+        mockConfig,
+      )
+
+      expect(result).toHaveLength(1)
+      expect(result[0].vendor).toBe('Test Store')
+      expect(result[0].amount).toBe(12.34)
+      expect(result[0].date).toBe('2024-01-01')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
   })
 })

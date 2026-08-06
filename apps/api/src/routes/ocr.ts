@@ -41,7 +41,7 @@ ocr.post('/', zValidator('json', OcrRequestSchema), async (c) => {
     const adapter = createAIAdapter(config)
 
     // Extract receipt data
-    const receipts = await extractReceiptData(base64Image, adapter)
+    const receipts = await extractReceiptData(Buffer.from(base64Image, 'base64'), adapter)
 
     return c.json({ receipts })
   } catch (error) {

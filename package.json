@@ -41,7 +41,7 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
-    "format": "turbo run format",
+    "format": "prettier --write .",
     "format:check": "prettier --check .",
     "deps:reset": "pnpx npkill -D -y",
     "db:nuke": "rm -rf ./receipthero.db && rm -rf ./packages/core/drizzle",
