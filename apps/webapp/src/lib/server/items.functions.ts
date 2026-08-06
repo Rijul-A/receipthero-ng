@@ -82,7 +82,7 @@ export interface ItemEdit {
   itemName?: string
   canonicalName?: string
   unitPrice?: number
-  totalPrice?: number
+  totalPrice?: number | null
   quantity?: number
   totalSize?: number | null
   sizeUnit?: 'ml' | 'g' | 'count' | null

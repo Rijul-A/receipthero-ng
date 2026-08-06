@@ -418,10 +418,13 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
     }
 
     // totalPrice may legitimately be zero or negative (free item, refund/
-    // discount line) - only an empty or unparseable field is invalid, not
-    // any particular value.
-    if (totalPrice.trim() === '' || !Number.isFinite(parsedTotalPrice)) {
-      toast.error('Price must be a number')
+    // discount line), and blank means "price unknown" - the state items
+    // land in when the AI couldn't read a price at all, which must stay
+    // saveable so the name/quantity/size on those items can still be
+    // corrected. Only an unparseable non-empty value is invalid.
+    const nextTotalPrice = totalPrice.trim() === '' ? null : parsedTotalPrice
+    if (nextTotalPrice !== null && !Number.isFinite(nextTotalPrice)) {
+      toast.error('Price must be a number, or left blank if unknown')
       return
     }
 
@@ -442,13 +445,21 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
       sizeEdits = { totalSize: parsedTotalSize, sizeUnit: sizeUnit || null }
     }
 
+    // Only send canonicalName when it actually changed. Sending it
+    // unconditionally would record a raw-name -> canonical-name override on
+    // every save (see updateReceiptItem), permanently freezing the AI's
+    // current guess for that raw text - a side effect nobody asked for when
+    // they were just fixing a price.
+    const originalName = item.canonicalName ?? item.itemName
+    const nameChanged = name.trim() !== originalName
+
     updateItem.mutate(
       {
         id: item.id,
         edits: {
-          canonicalName: name,
+          ...(nameChanged ? { canonicalName: name.trim() } : {}),
           quantity: parsedQuantity,
-          totalPrice: parsedTotalPrice,
+          totalPrice: nextTotalPrice,
           ...sizeEdits,
         },
       },

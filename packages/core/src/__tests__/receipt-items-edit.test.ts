@@ -161,6 +161,47 @@ describe('updateReceiptItem', () => {
     expect(corrected?.unitPrice).toBe(450)
   })
 
+  it('clears totalPrice (and unitPrice) when explicitly set to null', async () => {
+    await recordReceiptItems({
+      documentId: TEST_DOC_ID,
+      lineItems: [{ name: 'Widget Item 9200', quantity: 1, unitPrice: 3, totalPrice: 3 }],
+      config: mockConfig,
+    })
+    const [row] = await getItemPriceHistory(['Widget Item 9200'])
+
+    // Blank price means "unknown", distinct from a real 0 - and must stay
+    // saveable so other fields on such an item can still be corrected.
+    await updateReceiptItem(row.id, { totalPrice: null })
+
+    const corrected = await db
+      .select()
+      .from(schema.receiptItems)
+      .where(eq(schema.receiptItems.id, row.id))
+      .get()
+    expect(corrected?.totalPrice).toBeNull()
+    expect(corrected?.unitPrice).toBeNull()
+  })
+
+  it('does not record a name override when canonicalName is not part of the edit', async () => {
+    await recordReceiptItems({
+      documentId: TEST_DOC_ID,
+      lineItems: [{ name: 'Widget Item 9200', quantity: 1, unitPrice: 3, totalPrice: 3 }],
+      config: mockConfig,
+    })
+    const [row] = await getItemPriceHistory(['Widget Item 9200'])
+
+    // A price-only correction shouldn't freeze the AI's current naming
+    // guess for this raw text forever.
+    await updateReceiptItem(row.id, { totalPrice: 7 })
+
+    const override = await db
+      .select()
+      .from(schema.itemNameOverrides)
+      .where(eq(schema.itemNameOverrides.rawItemNameLower, 'widget item 9200'))
+      .get()
+    expect(override).toBeUndefined()
+  })
+
   it('corrects totalSize/sizeUnit directly', async () => {
     await recordReceiptItems({
       documentId: TEST_DOC_ID,

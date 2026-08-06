@@ -336,7 +336,9 @@ export interface ReceiptItemEdit {
   itemName?: string
   canonicalName?: string
   unitPrice?: number // major units (e.g. dollars); converted to cents for storage
-  totalPrice?: number // major units
+  // null means "price unknown" - the state items land in when the AI
+  // couldn't read a price off the receipt at all. Distinct from 0.
+  totalPrice?: number | null // major units
   quantity?: number
   // Total volume/weight covered by this line's full quantity (already
   // multiplied out - not a per-unit size). See recordReceiptItems/
@@ -375,7 +377,9 @@ export async function updateReceiptItem(
   const updates: Partial<schema.NewReceiptItemEntry> = {}
   if (edits.itemName !== undefined) updates.itemName = nextItemName
   if (edits.canonicalName !== undefined) updates.canonicalName = edits.canonicalName.trim()
-  if (edits.totalPrice !== undefined) updates.totalPrice = Math.round(edits.totalPrice * 100)
+  if (edits.totalPrice !== undefined) {
+    updates.totalPrice = edits.totalPrice === null ? null : Math.round(edits.totalPrice * 100)
+  }
   if (edits.quantity !== undefined && edits.quantity > 0) {
     updates.quantity = Math.round(edits.quantity)
   }
@@ -391,7 +395,10 @@ export async function updateReceiptItem(
   if (edits.unitPrice !== undefined) {
     updates.unitPrice = Math.round(edits.unitPrice * 100)
   } else if (edits.totalPrice !== undefined || edits.quantity !== undefined) {
-    const nextTotalPrice = updates.totalPrice ?? existing.totalPrice
+    // `??` would be wrong here: totalPrice can be explicitly set to null
+    // (price unknown), which must not fall back to the existing value.
+    const nextTotalPrice =
+      updates.totalPrice !== undefined ? updates.totalPrice : existing.totalPrice
     const nextQuantity = updates.quantity ?? existing.quantity
     updates.unitPrice =
       nextTotalPrice !== null && nextQuantity > 0 ? Math.round(nextTotalPrice / nextQuantity) : null
