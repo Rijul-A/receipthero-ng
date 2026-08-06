@@ -1,5 +1,7 @@
 import { Hono } from 'hono'
-import { loadConfig, db, processingLogs } from '@sm-rn/core'
+import { zValidator } from '@hono/zod-validator'
+import { z } from 'zod'
+import { loadConfig, db, processingLogs, getSpendingReport } from '@sm-rn/core'
 import { eq } from 'drizzle-orm'
 import { toCsv } from '../lib/csv'
 
@@ -161,5 +163,43 @@ stats.get('/export/receipts', async (c) => {
   c.header('Content-Disposition', 'attachment; filename="receipts.csv"')
   return c.body(csv)
 })
+
+/**
+ * GET /api/stats/spending?groupBy=week|month
+ *
+ * Spend aggregated by week or month, broken down by currency and category.
+ */
+stats.get(
+  '/spending',
+  zValidator('query', z.object({ groupBy: z.enum(['week', 'month']).default('month') })),
+  async (c) => {
+    const { groupBy } = c.req.valid('query')
+    const rows = await getSpendingReport(groupBy)
+    return c.json({ groupBy, rows })
+  },
+)
+
+/**
+ * GET /api/stats/spending/export?groupBy=week|month
+ *
+ * CSV export of the spending report.
+ */
+stats.get(
+  '/spending/export',
+  zValidator('query', z.object({ groupBy: z.enum(['week', 'month']).default('month') })),
+  async (c) => {
+    const { groupBy } = c.req.valid('query')
+    const rows = await getSpendingReport(groupBy)
+
+    const csv = toCsv(
+      rows.map((r) => ({ ...r, total: r.total.toFixed(2) })),
+      ['period', 'currency', 'category', 'total', 'count'],
+    )
+
+    c.header('Content-Type', 'text/csv; charset=utf-8')
+    c.header('Content-Disposition', `attachment; filename="spending-${groupBy}.csv"`)
+    return c.body(csv)
+  },
+)
 
 export default stats

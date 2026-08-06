@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   Download,
   ListChecks,
   RefreshCw,
@@ -112,6 +113,12 @@ export function DashboardHeader({
           <Button variant="outline" size="sm">
             <TrendingDown className="h-4 w-4 mr-2" />
             Prices
+          </Button>
+        </Link>
+        <Link to="/reports">
+          <Button variant="outline" size="sm">
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Reports
           </Button>
         </Link>
         <Link to="/settings">

@@ -54,3 +54,44 @@ export const exportReceiptsCsv = createServerFn({ method: 'GET' }).handler(
     return response.text()
   },
 )
+
+export interface SpendingReportRow {
+  period: string
+  currency: string
+  category: string
+  total: number
+  count: number
+}
+
+export interface SpendingReportResponse {
+  groupBy: 'week' | 'month'
+  rows: Array<SpendingReportRow>
+}
+
+/**
+ * Spend aggregated by week or month, by currency and category.
+ * Proxies to GET /api/stats/spending?groupBy=...
+ */
+export const getSpendingReport = createServerFn({ method: 'GET' })
+  .inputValidator((input: { groupBy: 'week' | 'month' }) => input)
+  .handler(async (ctx) => {
+    return apiCall<SpendingReportResponse>(
+      `/api/stats/spending?groupBy=${ctx.data.groupBy}`,
+    )
+  })
+
+/**
+ * CSV export of the spending report.
+ * Proxies to GET /api/stats/spending/export?groupBy=...
+ */
+export const exportSpendingReportCsv = createServerFn({ method: 'GET' })
+  .inputValidator((input: { groupBy: 'week' | 'month' }) => input)
+  .handler(async (ctx) => {
+    const response = await fetch(
+      `${API_URL}/api/stats/spending/export?groupBy=${ctx.data.groupBy}`,
+    )
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`)
+    }
+    return response.text()
+  })

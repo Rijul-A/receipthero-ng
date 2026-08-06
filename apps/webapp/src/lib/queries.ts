@@ -5,6 +5,7 @@ import {
   clearSkippedDocuments,
   exportItemsCsv as exportItemsCsvFn,
   exportReceiptsCsv as exportReceiptsCsvFn,
+  exportSpendingReportCsv as exportSpendingReportCsvFn,
   getAppLogs,
   getAvailableCurrencies as getAvailableCurrenciesFn,
   getConfig as getConfigFn,
@@ -16,6 +17,7 @@ import {
   getItemPriceHistory as getItemPriceHistoryFn,
   getProcessingLogs,
   getQueueStatus as getQueueStatusFn,
+  getSpendingReport as getSpendingReportFn,
   getWebhookStatus as getWebhookStatusFn,
   pauseWorker as pauseWorkerFn,
   resumeWorker as resumeWorkerFn,
@@ -36,6 +38,7 @@ import type {
   QueueStatus,
   ReceiptItemEntry,
   SaveConfigResponse,
+  SpendingReportRow,
   TestConnectionResponse,
   TriggerScanResponse,
   WebhookStatusResponse,
@@ -78,6 +81,8 @@ export const configKeys = {
 export const statsKeys = {
   all: ['stats'] as const,
   currencyTotals: () => [...statsKeys.all, 'currency-totals'] as const,
+  spending: (groupBy: 'week' | 'month') =>
+    [...statsKeys.all, 'spending', groupBy] as const,
 }
 
 export const workerKeys = {
@@ -262,6 +267,30 @@ export function useExportReceiptsCsv() {
     mutationFn: async () => {
       const csv = await exportReceiptsCsvFn()
       downloadTextFile('receipts.csv', csv)
+    },
+  })
+}
+
+/**
+ * Fetches spend aggregated by week or month, by currency and category.
+ */
+export function useSpendingReport(groupBy: 'week' | 'month') {
+  return useQuery<Array<SpendingReportRow>>({
+    queryKey: statsKeys.spending(groupBy),
+    queryFn: async () =>
+      (await getSpendingReportFn({ data: { groupBy } })).rows,
+    staleTime: 1000 * 60 * 5,
+  })
+}
+
+/**
+ * Downloads a CSV export of the spending report.
+ */
+export function useExportSpendingReportCsv() {
+  return useMutation({
+    mutationFn: async (groupBy: 'week' | 'month') => {
+      const csv = await exportSpendingReportCsvFn({ data: { groupBy } })
+      downloadTextFile(`spending-${groupBy}.csv`, csv)
     },
   })
 }

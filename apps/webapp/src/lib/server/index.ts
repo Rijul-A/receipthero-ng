@@ -44,8 +44,12 @@ export {
 export {
   getCurrencyTotals,
   exportReceiptsCsv,
+  getSpendingReport,
+  exportSpendingReportCsv,
   type CurrencyTotal,
   type CurrencyTotalsResponse,
+  type SpendingReportRow,
+  type SpendingReportResponse,
 } from './stats.functions'
 export {
   getDocumentThumbnail,
