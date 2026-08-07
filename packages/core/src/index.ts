@@ -7,6 +7,7 @@ export * from './services/fawazahmed0' // Primary currency API (fawazahmed0)
 export { extractReceiptData } from './services/ocr'
 export * from './services/paperless'
 export * from './services/paperless-auth'
+export * from './services/date-format'
 export * from './services/retry-queue'
 export * from './services/ai-client'
 export * from './services/reporter'

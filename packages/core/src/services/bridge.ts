@@ -10,6 +10,7 @@ import { recordReceiptItems } from './receipt-items'
 import { recalculateReceiptTotal } from './receipts'
 import { executeWorkflow } from './workflow-executor'
 import { getWorkflowForTag } from './workflow'
+import { normalizeDateForPaperless } from './date-format'
 
 import { db, schema } from '../db'
 import { eq, desc } from 'drizzle-orm'
@@ -564,10 +565,21 @@ export async function processPaperlessDocument(
       docLogger.debug(` Skipping content update (updateContent disabled)`)
     }
 
+    // Paperless rejects the *entire* update if `created` isn't exactly
+    // YYYY-MM-DD - drop it rather than let a malformed AI-extracted date
+    // (a smaller/local model drifting from the prompt's format instruction)
+    // block the title/correspondent/tags update too.
+    const normalizedDateLegacy = normalizeDateForPaperless(receipt.date)
+    if (receipt.date && !normalizedDateLegacy) {
+      docLogger.warn(` Could not normalize extracted date to YYYY-MM-DD, leaving created unset`, {
+        date: receipt.date,
+      })
+    }
+
     try {
       await client.updateDocument(documentId, {
         title: newTitleLegacy,
-        created: receipt.date,
+        ...(normalizedDateLegacy && { created: normalizedDateLegacy }),
         correspondent: correspondentIdLegacy,
         tags: currentTagsFinal,
         ...(newContentLegacy && { content: newContentLegacy }),
@@ -1040,10 +1052,21 @@ export async function processPaperlessDocument(
       docLogger.debug(` Skipping content update (updateContent disabled)`)
     }
 
+    // Paperless rejects the *entire* update if `created` isn't exactly
+    // YYYY-MM-DD - drop it rather than let a malformed AI-extracted date
+    // (a smaller/local model drifting from the prompt's format instruction)
+    // block the title/correspondent/tags update too.
+    const normalizedDate = normalizeDateForPaperless(receipt.date)
+    if (receipt.date && !normalizedDate) {
+      docLogger.warn(` Could not normalize extracted date to YYYY-MM-DD, leaving created unset`, {
+        date: receipt.date,
+      })
+    }
+
     try {
       await client.updateDocument(documentId, {
         title: newTitle,
-        created: receipt.date,
+        ...(normalizedDate && { created: normalizedDate }),
         correspondent: correspondentId,
         tags: currentTags,
         ...(newContent && { content: newContent }),

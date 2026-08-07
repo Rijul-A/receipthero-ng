@@ -6,6 +6,7 @@ import { reporter } from './reporter'
 import { createLogger } from './logger'
 import { skippedDocuments } from './skipped-documents'
 import { recordReceiptItems } from './receipt-items'
+import { normalizeDateForPaperless } from './date-format'
 import { db, schema } from '../db'
 import { eq, desc } from 'drizzle-orm'
 import type { Workflow } from '../db/schema'
@@ -175,8 +176,19 @@ export async function executeWorkflow(
     }
 
     // 2. Date
+    // Paperless rejects the *entire* update if `created` isn't exactly
+    // YYYY-MM-DD - drop it rather than let a malformed AI-extracted date
+    // block the title/correspondent/tags update too.
     if (mapping.dateField && extractedData[mapping.dateField]) {
-      updates.created = String(extractedData[mapping.dateField])
+      const rawDate = String(extractedData[mapping.dateField])
+      const normalizedDate = normalizeDateForPaperless(rawDate)
+      if (normalizedDate) {
+        updates.created = normalizedDate
+      } else {
+        logger.warn(`Could not normalize extracted date to YYYY-MM-DD, leaving created unset`, {
+          date: rawDate,
+        })
+      }
     }
 
     // 3. Correspondent
