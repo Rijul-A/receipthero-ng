@@ -21,6 +21,7 @@ import {
   getItemCounts as getItemCountsFn,
   getItemFrequencyReport as getItemFrequencyReportFn,
   getItemPriceHistory as getItemPriceHistoryFn,
+  getItemReviewStatus as getItemReviewStatusFn,
   getProcessingLogs,
   getQueueStatus as getQueueStatusFn,
   getReceiptDetail as getReceiptDetailFn,
@@ -54,6 +55,7 @@ import type {
   HealthStatus,
   ItemEdit,
   ItemFrequency,
+  ItemReviewStatus,
   NewItem,
   QueueActionResponse,
   QueueStatus,
@@ -85,6 +87,7 @@ export type {
   CurrencyTotalsResponse,
   DocumentImageResponse,
   WebhookStatusResponse,
+  ItemReviewStatus,
 }
 export type { Config }
 
@@ -422,6 +425,19 @@ export function useItemCounts(documentIds: Array<number>) {
   return useQuery({
     queryKey: [...itemKeys.all, 'counts', documentIds] as const,
     queryFn: () => getItemCountsFn({ data: { documentIds } }),
+    enabled: documentIds.length > 0,
+  })
+}
+
+/**
+ * Per-document item sum + review-item flag - combined with each receipt's
+ * own extracted total (already on hand from the processing-logs list) to
+ * show a "Review required" indicator without opening each receipt.
+ */
+export function useItemReviewStatus(documentIds: Array<number>) {
+  return useQuery({
+    queryKey: [...itemKeys.all, 'review-status', documentIds] as const,
+    queryFn: () => getItemReviewStatusFn({ data: { documentIds } }),
     enabled: documentIds.length > 0,
   })
 }

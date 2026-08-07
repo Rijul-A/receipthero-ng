@@ -11,6 +11,7 @@ import {
   renameCanonicalGroup,
   getItemFrequencyReport,
   getItemCountsByDocument,
+  getItemReviewStatusByDocument,
   db,
   receiptItems,
 } from '@sm-rn/core'
@@ -63,6 +64,28 @@ items.get(
       .filter((id) => !Number.isNaN(id))
     const counts = await getItemCountsByDocument(ids)
     return c.json({ counts })
+  },
+)
+
+/**
+ * GET /api/items/review-status?documentIds=1,2,3
+ *
+ * Per-document item sum and whether any individual item is flagged
+ * (zero/negative price) - the receipts list combines the sum with each
+ * receipt's own extracted total (which it already has) to show a "Review
+ * required" indicator without opening each receipt.
+ */
+items.get(
+  '/review-status',
+  zValidator('query', z.object({ documentIds: z.string().min(1) })),
+  async (c) => {
+    const { documentIds } = c.req.valid('query')
+    const ids = documentIds
+      .split(',')
+      .map((id) => parseInt(id.trim(), 10))
+      .filter((id) => !Number.isNaN(id))
+    const status = await getItemReviewStatusByDocument(ids)
+    return c.json({ status })
   },
 )
 

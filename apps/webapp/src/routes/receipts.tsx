@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { RefreshCw } from 'lucide-react'
+import { Loader2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,12 +9,17 @@ import { ReceiptEditDialog } from '@/components/receipts/receipt-edit-dialog'
 import {
   useBatchReprocess,
   useItemCounts,
+  useItemReviewStatus,
   useProcessingLogs,
 } from '@/lib/queries'
 
 export const Route = createFileRoute('/receipts')({
   component: ReceiptsPage,
 })
+
+// A cent or two of drift is normal rounding noise (e.g. tax splitting
+// unevenly across items) - only flag a real mismatch.
+const MISMATCH_TOLERANCE_CENTS = 2
 
 function ReceiptsPage() {
   const { data: logs, isLoading } = useProcessingLogs()
@@ -28,7 +33,20 @@ function ReceiptsPage() {
     () => (logs ?? []).filter((log) => log.status === 'completed'),
     [logs],
   )
+  // Shown alongside processed receipts so it's obvious a document is
+  // mid-flight, and so it can be excluded from selection - reprocessing
+  // something already being processed doesn't make sense.
+  const activeReceipts = useMemo(
+    () =>
+      (logs ?? []).filter(
+        (log) => log.status === 'processing' || log.status === 'retrying',
+      ),
+    [logs],
+  )
   const { data: itemCounts } = useItemCounts(
+    processedReceipts.map((r) => r.documentId),
+  )
+  const { data: reviewStatus } = useItemReviewStatus(
     processedReceipts.map((r) => r.documentId),
   )
 
@@ -60,6 +78,14 @@ function ReceiptsPage() {
     })
   }
 
+  const needsReview = (documentId: number, amount: number | undefined) => {
+    const status = reviewStatus?.[documentId]
+    if (!status) return false
+    const mismatch =
+      Math.abs(status.itemsTotal - (amount ?? 0)) > MISMATCH_TOLERANCE_CENTS
+    return status.hasReviewItem || mismatch
+  }
+
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
       <div className="flex items-start justify-between gap-4">
@@ -68,7 +94,9 @@ function ReceiptsPage() {
           <p className="text-muted-foreground">
             Re-run already-processed receipts — useful after changing a
             workflow's extraction schema, or to backfill data (like
-            price-comparison line items) that older receipts predate.
+            price-comparison line items) that older receipts predate. Documents
+            currently being processed are also listed below for visibility, but
+            can't be selected.
           </p>
         </div>
         <Button
@@ -83,13 +111,13 @@ function ReceiptsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-            Processed Receipts
+            Receipts
           </CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <p className="text-xs text-muted-foreground">Loading...</p>
-          ) : processedReceipts.length === 0 ? (
+          ) : processedReceipts.length === 0 && activeReceipts.length === 0 ? (
             <p className="text-xs text-muted-foreground">
               No processed receipts yet.
             </p>
@@ -114,6 +142,31 @@ function ReceiptsPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {activeReceipts.map((receipt) => (
+                    <tr key={receipt.id} className="border-b last:border-0">
+                      <td className="py-2 pr-4">
+                        <input
+                          type="checkbox"
+                          disabled
+                          aria-label="Currently processing"
+                        />
+                      </td>
+                      <td className="py-2 pr-4 text-muted-foreground">
+                        {receipt.fileName ?? `Document ${receipt.documentId}`}
+                      </td>
+                      <td className="py-2 pr-4 text-muted-foreground">—</td>
+                      <td className="py-2 pr-4 text-muted-foreground">—</td>
+                      <td className="py-2 pr-4 text-muted-foreground">—</td>
+                      <td className="py-2 pr-4">
+                        <Badge variant="outline" className="gap-1.5">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          {receipt.status === 'retrying'
+                            ? 'Retrying'
+                            : 'Processing'}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
                   {processedReceipts.map((receipt) => (
                     <tr
                       key={receipt.id}
@@ -141,16 +194,26 @@ function ReceiptsPage() {
                           : '—'}
                       </td>
                       <td className="py-2 pr-4">
-                        {itemCounts?.[receipt.documentId] ? (
-                          itemCounts[receipt.documentId]
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="text-amber-600 border-amber-600"
-                          >
-                            0 - needs review
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {itemCounts?.[receipt.documentId] ? (
+                            itemCounts[receipt.documentId]
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="text-amber-600 border-amber-600"
+                            >
+                              0 - needs review
+                            </Badge>
+                          )}
+                          {needsReview(receipt.documentId, receipt.amount) && (
+                            <Badge
+                              variant="outline"
+                              className="text-amber-600 border-amber-600"
+                            >
+                              Review required
+                            </Badge>
+                          )}
+                        </div>
                       </td>
                       <td className="py-2 pr-4">
                         <Badge variant="outline">{receipt.updatedAt}</Badge>

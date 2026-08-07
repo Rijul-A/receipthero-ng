@@ -75,10 +75,12 @@ export {
   renameCanonicalGroup,
   getItemFrequencyReport,
   getItemCounts,
+  getItemReviewStatus,
   type ReceiptItemEntry,
   type NewItem,
   type ItemEdit,
   type ItemFrequency,
+  type ItemReviewStatus,
 } from './items.functions'
 export {
   getReceiptDetail,

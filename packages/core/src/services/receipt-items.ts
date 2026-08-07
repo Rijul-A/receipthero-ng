@@ -363,6 +363,36 @@ export async function getItemCountsByDocument(
   return counts
 }
 
+/**
+ * Per-document item review signal for the receipts list: the sum of all
+ * recorded line items (for comparison against the receipt's own extracted
+ * total, computed by the caller which already has that value) and whether
+ * any item is individually flagged (zero/negative price).
+ */
+export async function getItemReviewStatusByDocument(
+  documentIds: Array<number>,
+): Promise<Record<number, { itemsTotal: number; hasReviewItem: boolean }>> {
+  if (documentIds.length === 0) return {}
+
+  const rows = await db
+    .select({
+      documentId: schema.receiptItems.documentId,
+      totalPrice: schema.receiptItems.totalPrice,
+    })
+    .from(schema.receiptItems)
+    .where(inArray(schema.receiptItems.documentId, documentIds))
+    .all()
+
+  const result: Record<number, { itemsTotal: number; hasReviewItem: boolean }> = {}
+  for (const row of rows) {
+    const entry = result[row.documentId] ?? { itemsTotal: 0, hasReviewItem: false }
+    entry.itemsTotal += row.totalPrice ?? 0
+    if (row.totalPrice !== null && row.totalPrice <= 0) entry.hasReviewItem = true
+    result[row.documentId] = entry
+  }
+  return result
+}
+
 /** Autocomplete: distinct canonical product names seen so far, matching a search term. */
 export async function searchItemNames(query: string, limit = 20): Promise<string[]> {
   const rows = await db

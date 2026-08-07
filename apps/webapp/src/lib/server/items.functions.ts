@@ -48,6 +48,27 @@ export const getItemCounts = createServerFn({ method: 'GET' })
     return counts
   })
 
+export interface ItemReviewStatus {
+  itemsTotal: number
+  hasReviewItem: boolean
+}
+
+/**
+ * Per-document item sum and review-item flag, keyed by documentId - the
+ * receipts list combines this with each receipt's own extracted total to
+ * show a "Review required" indicator without opening each receipt.
+ * Proxies to GET /api/items/review-status?documentIds=...
+ */
+export const getItemReviewStatus = createServerFn({ method: 'GET' })
+  .inputValidator((input: { documentIds: Array<number> }) => input)
+  .handler(async (ctx) => {
+    if (ctx.data.documentIds.length === 0) return {}
+    const { status } = await apiCall<{
+      status: Record<number, ItemReviewStatus>
+    }>(`/api/items/review-status?documentIds=${ctx.data.documentIds.join(',')}`)
+    return status
+  })
+
 /**
  * Search item names seen across processed receipts (autocomplete).
  * Proxies to GET /api/items/search?q=...
