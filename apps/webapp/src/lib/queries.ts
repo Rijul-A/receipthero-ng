@@ -195,6 +195,10 @@ export function useDocumentLogs(documentId: number | null) {
     queryKey: ['document-logs', documentId],
     queryFn: () => getDocumentLogs({ data: { documentId: documentId! } }),
     enabled: !!documentId, // Only fetch when documentId is provided
+    // Previously fetched once on open and never again, so the log dialog
+    // for a still-processing document just froze at whatever was there
+    // when you opened it - matches useProcessingLogs' own polling cadence.
+    refetchInterval: 5_000,
   })
 }
 
