@@ -63,7 +63,7 @@ export function DashboardHeader({
           Paperless-NGX Integration & Worker Status
         </p>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap justify-end">
         {lastRefresh && (
           <span className="text-sm text-muted-foreground hidden md:inline-block">
             Last updated: {formatTime(lastRefresh)}
