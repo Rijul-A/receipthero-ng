@@ -521,21 +521,21 @@ function ReceiptDetail({
         </div>
       )}
 
-      <div className="flex items-center justify-between border-t pt-3">
-        <div className="text-xs">
-          <span className="text-muted-foreground">
-            Total (from items below):{' '}
-          </span>
-          <span className="font-medium">
+      <div className="flex items-center justify-between border-t pt-3 text-xs">
+        <span className="text-muted-foreground">Total (from items below)</span>
+        <span className="font-medium tabular-nums">
+          <span className="inline-block text-right">
             {formatMajorUnits(
               detail.items.reduce(
                 (sum, item) => sum + (item.totalPrice ?? 0),
                 0,
               ),
-            )}{' '}
+            )}
+          </span>{' '}
+          <span className="text-muted-foreground">
             {detail.log.currency ?? ''}
           </span>
-        </div>
+        </span>
       </div>
 
       <div className="space-y-2">
@@ -554,7 +554,8 @@ function ReceiptDetail({
                   <th className="py-2 pr-4">Name</th>
                   <th className="py-2 pr-4">Qty</th>
                   <th className="py-2 pr-4">Total size</th>
-                  <th className="py-2 pr-4">Price</th>
+                  <th className="py-2 pr-4 text-right">Price</th>
+                  <th className="py-2 pr-4">Currency</th>
                 </tr>
               </thead>
               <tbody>
@@ -567,8 +568,8 @@ function ReceiptDetail({
                     <td className="py-2 pr-4">
                       {formatTotalSize(item.totalSize, item.sizeUnit)}
                     </td>
-                    <td className="py-2 pr-4">
-                      {formatMajorUnits(item.totalPrice)} {item.currency ?? ''}
+                    <td className="py-2 pr-4 text-right tabular-nums">
+                      {formatMajorUnits(item.totalPrice)}
                       {needsReview(item.totalPrice) && (
                         <Badge
                           variant="outline"
@@ -577,6 +578,9 @@ function ReceiptDetail({
                           Needs review
                         </Badge>
                       )}
+                    </td>
+                    <td className="py-2 pr-4 text-muted-foreground">
+                      {item.currency ?? ''}
                     </td>
                   </tr>
                 ))}
@@ -609,6 +613,7 @@ function ReceiptDetail({
                   <ItemEditRow
                     key={item.id}
                     item={item}
+                    currency={currency}
                     onChange={(patch) => handleItemFieldChange(item.id, patch)}
                     onDelete={() => handleDeleteItem(item)}
                     isDeleting={deleteItem.isPending}
@@ -619,6 +624,7 @@ function ReceiptDetail({
             {showAddItem ? (
               <NewItemRow
                 documentId={documentId}
+                currency={currency}
                 onAdded={handleItemAdded}
                 onCancel={() => setShowAddItem(false)}
               />
@@ -659,11 +665,13 @@ function ReceiptDetail({
 
 function ItemEditRow({
   item,
+  currency,
   onChange,
   onDelete,
   isDeleting,
 }: {
   item: EditableItem
+  currency: string
   onChange: (patch: Partial<EditableItem>) => void
   onDelete: () => void
   isDeleting: boolean
@@ -702,7 +710,7 @@ function ItemEditRow({
       style={style}
       className={`space-y-1 border-b pb-2 last:border-0 bg-background ${isDragging ? 'opacity-50 z-10 relative' : ''}`}
     >
-      <div className="grid grid-cols-[auto_minmax(0,2fr)_3rem_3.5rem_3.5rem_4rem_auto] gap-1.5 items-end">
+      <div className="grid grid-cols-[auto_minmax(6rem,1fr)_2.75rem_4.5rem_2.75rem_3.5rem_3.5rem_auto] gap-1.5 items-end">
         <button
           type="button"
           className="flex items-center justify-center h-8 w-5 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none"
@@ -737,8 +745,14 @@ function ItemEditRow({
             step="0.01"
             value={item.totalPrice}
             onChange={(e) => onChange({ totalPrice: e.target.value })}
-            className="text-xs px-1.5"
+            className="text-xs px-1.5 text-right"
           />
+        </div>
+        <div className="space-y-1 min-w-0 pb-1.5">
+          <Label className="text-[10px] text-muted-foreground">Cur.</Label>
+          <p className="text-xs text-muted-foreground truncate">
+            {currency || '—'}
+          </p>
         </div>
         <div className="space-y-1 min-w-0">
           <Label className="text-[10px] text-muted-foreground">Size</Label>
@@ -803,10 +817,12 @@ function ItemEditRow({
 
 function NewItemRow({
   documentId,
+  currency,
   onAdded,
   onCancel,
 }: {
   documentId: number
+  currency: string
   onAdded: (item: ReceiptItemEntry) => void
   onCancel: () => void
 }) {
@@ -875,9 +891,9 @@ function NewItemRow({
   }
 
   return (
-    <div className="space-y-1 border border-dashed p-2">
-      <div className="grid grid-cols-[1fr_5rem_6rem_auto_auto] gap-2 items-end">
-        <div className="space-y-1">
+    <div className="space-y-2 border border-dashed p-2">
+      <div className="grid grid-cols-[minmax(6rem,1fr)_2.75rem_4.5rem_2.75rem_3.5rem_3.5rem] gap-1.5 items-end">
+        <div className="space-y-1 min-w-0">
           <Label className="text-[10px] text-muted-foreground">Name</Label>
           <Input
             value={name}
@@ -887,57 +903,52 @@ function NewItemRow({
             autoFocus
           />
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <Label className="text-[10px] text-muted-foreground">Qty</Label>
           <Input
             type="number"
             min="1"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            className="text-xs"
+            className="text-xs px-1.5"
           />
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <Label className="text-[10px] text-muted-foreground">Price</Label>
           <Input
             type="number"
             step="0.01"
             value={totalPrice}
             onChange={(e) => setTotalPrice(e.target.value)}
-            className="text-xs"
+            className="text-xs px-1.5 text-right"
           />
         </div>
-        <Button size="sm" onClick={handleAdd} disabled={createItem.isPending}>
-          Add
-        </Button>
-        <Button size="sm" variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-[6rem_6rem_1fr] gap-2 items-end">
-        <div className="space-y-1">
-          <Label className="text-[10px] text-muted-foreground">
-            Total size
-          </Label>
+        <div className="space-y-1 min-w-0 pb-1.5">
+          <Label className="text-[10px] text-muted-foreground">Cur.</Label>
+          <p className="text-xs text-muted-foreground truncate">
+            {currency || '—'}
+          </p>
+        </div>
+        <div className="space-y-1 min-w-0">
+          <Label className="text-[10px] text-muted-foreground">Size</Label>
           <Input
             type="number"
             step="any"
             min="0"
-            placeholder="e.g. 1980"
+            placeholder="1980"
             value={totalSize}
             onChange={(e) => setTotalSize(e.target.value)}
-            className="text-xs"
+            className="text-xs px-1.5"
           />
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <Label className="text-[10px] text-muted-foreground">Unit</Label>
           <select
             value={sizeUnit}
             onChange={(e) =>
               setSizeUnit(e.target.value as 'ml' | 'g' | 'count' | '')
             }
-            className="h-8 w-full rounded-none border border-input bg-transparent px-2.5 text-xs"
+            className="h-8 w-full rounded-none border border-input bg-transparent px-1 text-xs"
           >
             <option value="">—</option>
             <option value="ml">ml</option>
@@ -945,6 +956,15 @@ function NewItemRow({
             <option value="count">count</option>
           </select>
         </div>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button size="sm" variant="ghost" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button size="sm" onClick={handleAdd} disabled={createItem.isPending}>
+          Add
+        </Button>
       </div>
     </div>
   )
