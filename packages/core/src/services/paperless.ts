@@ -18,7 +18,12 @@ export class PaperlessClient {
   private config: PaperlessConfig
   private tagCache: Map<string, Tag> = new Map()
   private lastTagRefresh = 0
-  private readonly CACHE_LIFETIME = 3000 // 3 seconds
+  // Newly-created tags are already written straight into the cache (see
+  // createTagSafely/getOrCreateTag), so this only needs to catch tags
+  // created by something else (another user, another workflow run) - a
+  // short TTL bought nothing but forced a full paginated re-fetch mid-run
+  // for every tag call once a slower model pushed processing past it.
+  private readonly CACHE_LIFETIME = 60_000 // 1 minute, matches the other Paperless caches below
 
   constructor(config: PaperlessConfig) {
     this.config = config

@@ -320,6 +320,8 @@ export async function executeWorkflow(
       receiptData: JSON.stringify(extractedData),
     })
 
+    docLogger.info(`✓ Workflow completed successfully: ${workflow.name}`)
+
     if (retryQueue) await retryQueue.remove(documentId)
   } catch (error: any) {
     const msg = error instanceof Error ? error.message : String(error)
