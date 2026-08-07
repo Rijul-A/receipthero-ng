@@ -31,6 +31,21 @@ export interface ReceiptItemEntry {
 }
 
 /**
+ * Number of recorded line items per document, keyed by documentId - flags
+ * processed receipts that came back with zero items.
+ * Proxies to GET /api/items/counts?documentIds=...
+ */
+export const getItemCounts = createServerFn({ method: 'GET' })
+  .inputValidator((input: { documentIds: Array<number> }) => input)
+  .handler(async (ctx) => {
+    if (ctx.data.documentIds.length === 0) return {}
+    const { counts } = await apiCall<{ counts: Record<number, number> }>(
+      `/api/items/counts?documentIds=${ctx.data.documentIds.join(',')}`,
+    )
+    return counts
+  })
+
+/**
  * Search item names seen across processed receipts (autocomplete).
  * Proxies to GET /api/items/search?q=...
  */

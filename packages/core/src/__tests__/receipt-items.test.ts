@@ -10,7 +10,7 @@ mock.module('../services/ai-json', () => ({
   chatJson: async (args: unknown) => chatJsonImpl(args),
 }))
 
-const { recordReceiptItems, getItemPriceHistory, searchItemNames } =
+const { recordReceiptItems, getItemPriceHistory, searchItemNames, getItemCountsByDocument } =
   await import('../services/receipt-items')
 
 const mockConfig = ConfigSchema.parse({
@@ -124,5 +124,42 @@ describe('recordReceiptItems', () => {
     expect(rows).toHaveLength(1)
     expect(rows[0].canonicalName).toBe('Mystery Item')
     expect(rows[0].totalSize).toBeNull()
+  })
+})
+
+describe('getItemCountsByDocument', () => {
+  beforeEach(async () => {
+    await cleanup(TEST_DOC_ID, TEST_DOC_ID_2)
+    chatJsonImpl = () => ({ items: [] })
+  })
+  afterEach(async () => {
+    await cleanup(TEST_DOC_ID, TEST_DOC_ID_2)
+  })
+
+  it('counts recorded items per document, omitting documents with zero', async () => {
+    await recordReceiptItems({
+      documentId: TEST_DOC_ID,
+      lineItems: [
+        { name: 'Milk 1L', quantity: 1, unitPrice: 5, totalPrice: 5 },
+        { name: 'Bread', quantity: 1, unitPrice: 3, totalPrice: 3 },
+      ],
+      config: mockConfig,
+    })
+    // TEST_DOC_ID_2 is recorded with zero line items - a valid-but-empty
+    // extraction, the exact case this function exists to surface.
+    await recordReceiptItems({
+      documentId: TEST_DOC_ID_2,
+      lineItems: [],
+      config: mockConfig,
+    })
+
+    const counts = await getItemCountsByDocument([TEST_DOC_ID, TEST_DOC_ID_2])
+
+    expect(counts[TEST_DOC_ID]).toBe(2)
+    expect(counts[TEST_DOC_ID_2]).toBeUndefined()
+  })
+
+  it('returns an empty object for an empty input array', async () => {
+    expect(await getItemCountsByDocument([])).toEqual({})
   })
 })

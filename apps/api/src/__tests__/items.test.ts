@@ -242,4 +242,25 @@ describe('items routes', () => {
       expect(res.status).toBe(400)
     })
   })
+
+  describe('GET /api/items/counts', () => {
+    test('counts recorded items per document, omitting a document with zero', async () => {
+      await seedLog(DOC_ID)
+      await seedItem()
+      await seedLog(OTHER_DOC_ID)
+
+      const res = await app.request(`/api/items/counts?documentIds=${DOC_ID},${OTHER_DOC_ID}`, {
+        headers: authHeaders(),
+      })
+      expect(res.status).toBe(200)
+      const body = (await res.json()) as { counts: Record<number, number> }
+      expect(body.counts[DOC_ID]).toBe(1)
+      expect(body.counts[OTHER_DOC_ID]).toBeUndefined()
+    })
+
+    test('400s without a documentIds query param', async () => {
+      const res = await app.request('/api/items/counts', { headers: authHeaders() })
+      expect(res.status).toBe(400)
+    })
+  })
 })

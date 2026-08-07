@@ -6,7 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ReceiptEditDialog } from '@/components/receipts/receipt-edit-dialog'
-import { useBatchReprocess, useProcessingLogs } from '@/lib/queries'
+import {
+  useBatchReprocess,
+  useItemCounts,
+  useProcessingLogs,
+} from '@/lib/queries'
 
 export const Route = createFileRoute('/receipts')({
   component: ReceiptsPage,
@@ -23,6 +27,9 @@ function ReceiptsPage() {
   const processedReceipts = useMemo(
     () => (logs ?? []).filter((log) => log.status === 'completed'),
     [logs],
+  )
+  const { data: itemCounts } = useItemCounts(
+    processedReceipts.map((r) => r.documentId),
   )
 
   const allSelected =
@@ -102,6 +109,7 @@ function ReceiptsPage() {
                     <th className="py-2 pr-4">File</th>
                     <th className="py-2 pr-4">Vendor</th>
                     <th className="py-2 pr-4">Amount</th>
+                    <th className="py-2 pr-4">Items</th>
                     <th className="py-2 pr-4">Processed</th>
                   </tr>
                 </thead>
@@ -131,6 +139,18 @@ function ReceiptsPage() {
                         {receipt.amount !== undefined
                           ? `${(receipt.amount / 100).toFixed(2)} ${receipt.currency ?? ''}`.trim()
                           : '—'}
+                      </td>
+                      <td className="py-2 pr-4">
+                        {itemCounts?.[receipt.documentId] ? (
+                          itemCounts[receipt.documentId]
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-amber-600 border-amber-600"
+                          >
+                            0 - needs review
+                          </Badge>
+                        )}
                       </td>
                       <td className="py-2 pr-4">
                         <Badge variant="outline">{receipt.updatedAt}</Badge>

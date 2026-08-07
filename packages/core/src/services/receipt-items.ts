@@ -306,6 +306,46 @@ export async function recordReceiptItems(params: {
       tx.insert(schema.receiptItems).values(rows).run()
     }
   })
+
+  // `line_items` is optional in the extraction schema, so a bad/degraded
+  // AI response (e.g. the model collapsing a dense multi-item receipt down
+  // to just its first row) recording zero items is a *valid* result as far
+  // as the Zod schema is concerned - it would otherwise pass through
+  // completely silently, indistinguishable from "this receipt genuinely
+  // has no line items."
+  if (rows.length === 0) {
+    logger.warn(`Recorded zero line items for document ${documentId}`, {
+      documentId,
+      hadLineItemsField: Array.isArray(lineItems),
+    })
+  }
+}
+
+/**
+ * Number of recorded line items per document, for surfacing which
+ * processed receipts came back with zero items (see the warning above) -
+ * used by the batch-reprocess page to flag receipts worth a manual retry.
+ */
+export async function getItemCountsByDocument(
+  documentIds: Array<number>,
+): Promise<Record<number, number>> {
+  if (documentIds.length === 0) return {}
+
+  const rows = await db
+    .select({
+      documentId: schema.receiptItems.documentId,
+      count: sql<number>`count(*)`,
+    })
+    .from(schema.receiptItems)
+    .where(inArray(schema.receiptItems.documentId, documentIds))
+    .groupBy(schema.receiptItems.documentId)
+    .all()
+
+  const counts: Record<number, number> = {}
+  for (const row of rows) {
+    counts[row.documentId] = Number(row.count)
+  }
+  return counts
 }
 
 /** Autocomplete: distinct canonical product names seen so far, matching a search term. */

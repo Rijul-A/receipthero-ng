@@ -9,6 +9,7 @@ import {
   previewCanonicalRename,
   renameCanonicalGroup,
   getItemFrequencyReport,
+  getItemCountsByDocument,
   db,
   receiptItems,
 } from '@sm-rn/core'
@@ -39,6 +40,28 @@ items.get(
     const { limit, startDate, endDate } = c.req.valid('query')
     const rows = await getItemFrequencyReport(limit, { start: startDate, end: endDate })
     return c.json({ rows })
+  },
+)
+
+/**
+ * GET /api/items/counts?documentIds=1,2,3
+ *
+ * Number of recorded line items per document - used to flag processed
+ * receipts that came back with zero items (a valid-but-useless AI
+ * response, since line_items is optional in the extraction schema) so
+ * they're easy to spot and reprocess.
+ */
+items.get(
+  '/counts',
+  zValidator('query', z.object({ documentIds: z.string().min(1) })),
+  async (c) => {
+    const { documentIds } = c.req.valid('query')
+    const ids = documentIds
+      .split(',')
+      .map((id) => parseInt(id.trim(), 10))
+      .filter((id) => !Number.isNaN(id))
+    const counts = await getItemCountsByDocument(ids)
+    return c.json({ counts })
   },
 )
 

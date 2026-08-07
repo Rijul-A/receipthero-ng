@@ -73,6 +73,7 @@ export {
   previewRename,
   renameCanonicalGroup,
   getItemFrequencyReport,
+  getItemCounts,
   type ReceiptItemEntry,
   type ItemEdit,
   type ItemFrequency,

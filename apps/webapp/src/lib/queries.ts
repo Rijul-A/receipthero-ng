@@ -17,6 +17,7 @@ import {
   getDocumentLogs,
   getDocumentThumbnail,
   getHealthStatus,
+  getItemCounts as getItemCountsFn,
   getItemFrequencyReport as getItemFrequencyReportFn,
   getItemPriceHistory as getItemPriceHistoryFn,
   getProcessingLogs,
@@ -345,6 +346,19 @@ export function useItemFrequencyReport(limit = 50, dateRange?: DateRange) {
     queryKey: itemKeys.frequency(limit, dateRange),
     queryFn: () => getItemFrequencyReportFn({ data: { limit, ...dateRange } }),
     staleTime: 1000 * 60 * 5,
+  })
+}
+
+/**
+ * Number of recorded line items per document, keyed by documentId - flags
+ * processed receipts that came back with zero items (line_items is
+ * optional in the extraction schema, so this can happen silently).
+ */
+export function useItemCounts(documentIds: Array<number>) {
+  return useQuery({
+    queryKey: [...itemKeys.all, 'counts', documentIds] as const,
+    queryFn: () => getItemCountsFn({ data: { documentIds } }),
+    enabled: documentIds.length > 0,
   })
 }
 
