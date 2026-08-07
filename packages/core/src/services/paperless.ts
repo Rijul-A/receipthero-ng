@@ -379,6 +379,24 @@ export class PaperlessClient {
     return await res.json()
   }
 
+  /**
+   * Batched current titles for a set of documents, keyed by ID - one
+   * request instead of N, for callers (e.g. the receipts/processing list)
+   * that want to show Paperless's live title rather than whatever was
+   * cached locally at the time a document was last processed.
+   */
+  async getDocumentTitles(ids: number[]): Promise<Map<number, string>> {
+    const titles = new Map<number, string>()
+    if (ids.length === 0) return titles
+
+    const res = await this.fetchApi(`/documents/?id__in=${ids.join(',')}&page_size=${ids.length}`)
+    const data = (await res.json()) as { results?: { id: number; title: string }[] }
+    for (const doc of data.results || []) {
+      titles.set(doc.id, doc.title)
+    }
+    return titles
+  }
+
   async getDocumentFile(id: number): Promise<Buffer> {
     const res = await this.fetchApi(`/documents/${id}/download/`)
     const arrayBuffer = await res.arrayBuffer()

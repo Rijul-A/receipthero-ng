@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { broadcastHub } from '../lib/broadcast'
-import { db, schema, createLogger } from '@sm-rn/core'
+import { db, schema, createLogger, loadConfig, PaperlessClient } from '@sm-rn/core'
 import { eq, desc } from 'drizzle-orm'
 
 const logger = createLogger('api')
@@ -64,6 +64,33 @@ events.get('/', async (c) => {
       .orderBy(desc(schema.processingLogs.updatedAt))
       .limit(50)
       .all()
+
+    // fileName is a local cache of the document's title at the time it was
+    // last processed - it can drift from Paperless's actual current title
+    // (e.g. renamed after the fact, or from before this column started
+    // being kept up to date). Since these rows are already keyed by
+    // Paperless's own document ID, prefer the live title where available -
+    // one batched request, not one per row. Best-effort: if Paperless is
+    // unreachable, fall back to the cached fileName rather than failing
+    // the whole list.
+    try {
+      const config = loadConfig()
+      const client = new PaperlessClient({
+        host: config.paperless.host,
+        apiKey: config.paperless.apiKey,
+        processedTagName: config.processing.processedTag,
+      })
+      const liveTitles = await client.getDocumentTitles(logs.map((log) => log.documentId))
+      for (const log of logs) {
+        const liveTitle = liveTitles.get(log.documentId)
+        if (liveTitle) log.fileName = liveTitle
+      }
+    } catch (error) {
+      logger.warn('Failed to fetch live document titles from Paperless', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+
     return c.json(logs)
   } catch (error) {
     return c.json({ error: String(error) }, 500)
