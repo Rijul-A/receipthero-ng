@@ -118,11 +118,15 @@ export async function executeWorkflow(
 
       docLogger.debug(`Downloading file...`)
       let fileBuffer: Buffer
+      let fileSource: 'image' | 'raw'
       try {
         fileBuffer = await client.getDocumentImage(documentId)
+        fileSource = 'image'
       } catch {
         fileBuffer = await client.getDocumentFile(documentId)
+        fileSource = 'raw'
       }
+      docLogger.info(`Downloaded ${fileSource} file: ${(fileBuffer.length / 1024).toFixed(1)} KB`)
 
       const allTags = await client.getTags()
       const existingTagNames =
@@ -145,7 +149,9 @@ export async function executeWorkflow(
       )
 
       if (items.length === 0) {
-        docLogger.warn(`No data extracted`)
+        docLogger.warn(
+          `No data extracted from ${fileSource} file (${(fileBuffer.length / 1024).toFixed(1)} KB) - the AI returned zero results for this image`,
+        )
         if (workflow.skippedTag) {
           const tagId = await client.getOrCreateTag(workflow.skippedTag)
           const currentTags = doc.tags || []

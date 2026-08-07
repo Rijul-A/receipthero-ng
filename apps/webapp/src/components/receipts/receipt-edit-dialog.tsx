@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Loader2, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import type { ReceiptItemEntry } from '@/lib/server'
 import {
   Dialog,
@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { useClickToConfirm } from '@/hooks/use-click-to-confirm'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import {
+  useBatchReprocess,
   useCreateReceiptItem,
   useDeleteReceipt,
   useDeleteReceiptItem,
@@ -85,6 +86,7 @@ function ReceiptDetail({
   const { data: detail, isLoading } = useReceiptDetail(documentId)
   const updateReceipt = useUpdateReceipt()
   const deleteReceipt = useDeleteReceipt()
+  const reprocess = useBatchReprocess()
   // Must be called unconditionally, before the loading early-return below -
   // hooks can't be called after a conditional return without changing the
   // number of hooks run between renders (React error #310).
@@ -130,6 +132,13 @@ function ReceiptDetail({
 
   if (isLoading || !detail) {
     return <p className="text-xs text-muted-foreground">Loading...</p>
+  }
+
+  const handleReprocess = () => {
+    reprocess.mutate([documentId], {
+      onSuccess: () => toast.success('Reprocessing started'),
+      onError: (error) => toast.error(error.message),
+    })
   }
 
   const handleSaveReceipt = () => {
@@ -193,6 +202,22 @@ function ReceiptDetail({
               {deleteReceiptConfirm.confirming
                 ? 'Click again to delete'
                 : 'Delete receipt'}
+            </Button>
+          )}
+          {mode === 'view' && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleReprocess}
+              disabled={reprocess.isPending}
+              title="Force a fresh AI re-extraction for this receipt"
+            >
+              {reprocess.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Reprocess
             </Button>
           )}
           {mode === 'view' ? (
