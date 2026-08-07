@@ -1345,13 +1345,20 @@ async function runLegacyAutomation(
  *
  * Note: Concurrency control is handled by the caller via workerState.acquireLock()
  */
-export async function processDocumentsByIds(documentIds: number[]): Promise<{
+export async function processDocumentsByIds(
+  documentIds: number[],
+  // This same function backs both the Paperless webhook route and the UI's
+  // Reprocess button (via /api/processing/batch-reprocess) - the log
+  // messages need to say which one actually triggered it, since "webhook"
+  // wording on a manual reprocess is actively misleading when debugging.
+  source: 'webhook' | 'reprocess' = 'webhook',
+): Promise<{
   processed: number
   failed: number
   skipped: number
 }> {
   logger.info(
-    `Processing ${documentIds.length} webhook-queued document(s): [${documentIds.join(', ')}]`,
+    `Processing ${documentIds.length} ${source}-triggered document(s): [${documentIds.join(', ')}]`,
   )
 
   // Load configuration
@@ -1394,7 +1401,7 @@ export async function processDocumentsByIds(documentIds: number[]): Promise<{
       )
       processed++
     } catch (error: any) {
-      logger.error(`Failed to process webhook-queued document ${documentId}`, {
+      logger.error(`Failed to process ${source}-triggered document ${documentId}`, {
         error: error.message,
       })
       failed++
@@ -1402,7 +1409,7 @@ export async function processDocumentsByIds(documentIds: number[]): Promise<{
   }
 
   logger.info(
-    `Webhook-queued processing complete: ${processed} processed, ${failed} failed, ${skipped} skipped`,
+    `${source}-triggered processing complete: ${processed} processed, ${failed} failed, ${skipped} skipped`,
   )
   return { processed, failed, skipped }
 }

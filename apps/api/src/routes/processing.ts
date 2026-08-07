@@ -68,7 +68,7 @@ processing.post('/batch-reprocess', zValidator('json', BatchReprocessSchema), as
   // given IDs directly (reusing cached extraction data where the
   // workflow engine finds it, so this is cheap — it mainly exists to
   // backfill data like price-comparison line items for older receipts).
-  processDocumentsByIds(documentIds).catch((err) => {
+  processDocumentsByIds(documentIds, 'reprocess').catch((err) => {
     logger.error(`Background batch reprocess failed`, err)
   })
 
