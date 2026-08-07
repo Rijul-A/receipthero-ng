@@ -1,8 +1,8 @@
 import { createOpenaiChat } from '@tanstack/ai-openai'
 import { createOllamaChat } from '@tanstack/ai-ollama'
-import { chat } from '@tanstack/ai'
 import type { AnyTextAdapter } from '@tanstack/ai'
 import type { Config } from '@sm-rn/shared/schemas'
+import { resolveEndpoint } from './extract'
 
 const APP_NAME_HELICONE = 'receipthero'
 
@@ -35,63 +35,61 @@ export async function testAIConnection(
 ): Promise<TestAIConnectionResult> {
   const { provider, apiKey, baseURL, model } = options
 
+  if (
+    (provider === 'openai-compat' || provider === 'together-ai' || provider === 'openrouter') &&
+    !apiKey
+  ) {
+    return {
+      success: false,
+      error: `API key is required for ${provider} provider`,
+      provider,
+      model,
+    }
+  }
+
   try {
-    let adapter: AIAdapter
-    switch (provider) {
-      case 'openai-compat':
-      case 'together-ai': {
-        if (!apiKey) {
-          return {
-            success: false,
-            error: 'API key is required for openai-compat provider',
-            provider,
-            model,
-          }
-        }
-        adapter = createOpenaiChat(model as never, apiKey, {
-          baseURL: baseURL || 'https://api.together.xyz/v1',
-        }) as unknown as AIAdapter
-        break
+    // Deliberately a raw fetch, not the @tanstack/ai adapter's chat() - as
+    // of v0.5.0 that routes every call through client.responses.create()
+    // (OpenAI's Responses API), which Ollama and most OpenAI-compatible
+    // providers don't implement, surfacing as a bare "404 page not found"
+    // with no indication of what actually went wrong. Same reasoning as
+    // extractWithSchema in extract.ts.
+    const { baseURL: resolvedBaseURL, apiKey: resolvedApiKey } = resolveEndpoint({
+      ai: { provider, apiKey: apiKey || 'ollama', baseURL, model },
+    } as Config)
+
+    const res = await fetch(`${resolvedBaseURL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${resolvedApiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: 'Say hello in 5 words or less.' }],
+      }),
+    })
+
+    if (!res.ok) {
+      const errText = await res.text()
+      return {
+        success: false,
+        error: `Provider returned ${res.status}: ${errText.slice(0, 300)}`,
+        provider,
+        model,
       }
-      case 'ollama': {
-        adapter = createOllamaChat(
-          model as never,
-          baseURL || 'http://localhost:11434',
-        ) as unknown as AIAdapter
-        break
-      }
-      case 'openrouter': {
-        if (!apiKey) {
-          return {
-            success: false,
-            error: 'API key is required for openrouter provider',
-            provider,
-            model,
-          }
-        }
-        adapter = createOpenaiChat(model as never, apiKey, {
-          baseURL: baseURL || 'https://openrouter.ai/api/v1',
-        }) as unknown as AIAdapter
-        break
-      }
-      default:
-        return { success: false, error: `Unknown provider: ${provider}`, provider, model }
     }
 
-    const response = await chat({
-      adapter,
-      messages: [
-        {
-          role: 'user' as const,
-          content: 'Say hello in 5 words or less.',
-        },
-      ],
-      stream: false as const,
-    })
+    const json = (await res.json()) as { choices?: { message?: { content?: string } }[] }
+    const responseText = json.choices?.[0]?.message?.content
+
+    if (!responseText) {
+      return { success: false, error: 'Provider returned an empty response.', provider, model }
+    }
 
     return {
       success: true,
-      response: response as unknown as string,
+      response: responseText,
       provider,
       model,
     }
