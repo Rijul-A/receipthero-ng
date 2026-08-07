@@ -167,6 +167,25 @@ export function loadConfig(): Config {
         ['processing', 'maxRetries'],
         process.env.MAX_RETRIES ? parseInt(process.env.MAX_RETRIES, 10) : undefined,
       ),
+      retryStrategy: getConfigValue(
+        fileConfig,
+        ['processing', 'retryStrategy'],
+        process.env.RETRY_STRATEGY,
+      ) as 'full' | 'partial' | undefined,
+      useDocumentType: getConfigValueBoolean(
+        fileConfig,
+        ['processing', 'useDocumentType'],
+        process.env.USE_DOCUMENT_TYPE === 'true'
+          ? true
+          : process.env.USE_DOCUMENT_TYPE === 'false'
+            ? false
+            : undefined,
+      ),
+      documentTypeName: getConfigValue(
+        fileConfig,
+        ['processing', 'documentTypeName'],
+        process.env.DOCUMENT_TYPE_NAME,
+      ),
       updateContent: getConfigValueBoolean(
         fileConfig,
         ['processing', 'updateContent'],

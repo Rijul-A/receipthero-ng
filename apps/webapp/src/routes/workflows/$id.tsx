@@ -5,6 +5,7 @@ import {
   Brain,
   CheckCircle2,
   Code,
+  Copy,
   Loader2,
   Play,
   Plus,
@@ -696,8 +697,31 @@ function WorkflowEditorPage() {
 
             {testResult && (
               <div className="p-4 rounded-xl border border-border bg-card text-card-foreground text-sm space-y-3">
-                <div className="font-semibold text-primary">
-                  Extraction Result
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold text-primary">
+                    Extraction Result
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1.5 text-xs"
+                    onClick={() => {
+                      navigator.clipboard
+                        .writeText(
+                          JSON.stringify(
+                            testResult.items ?? testResult,
+                            null,
+                            2,
+                          ),
+                        )
+                        .then(() => toast.success('Copied to clipboard'))
+                        .catch(() => toast.error('Failed to copy to clipboard'))
+                    }}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    Copy
+                  </Button>
                 </div>
                 {testResult.ai && (
                   <div className="flex items-center gap-2 flex-wrap">
