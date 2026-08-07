@@ -62,8 +62,13 @@ describe('extractWithSchema', () => {
   it('omits the OCR text section when no ocrText is given (the default - opt-in per workflow)', async () => {
     const originalFetch = globalThis.fetch
     let requestBody: any
-    globalThis.fetch = (async (_url: string, init?: RequestInit) => {
-      requestBody = JSON.parse(init!.body as string)
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      // extractWithSchema's own logging fires its own background fetch
+      // (reporter -> /api/events) that this same global mock also
+      // intercepts - only capture the actual chat-completions request.
+      if (String(url).includes('/chat/completions')) {
+        requestBody = JSON.parse(init!.body as string)
+      }
       return new Response(
         JSON.stringify({ choices: [{ message: { content: JSON.stringify(mockResult) } }] }),
         { status: 200 },
@@ -83,8 +88,13 @@ describe('extractWithSchema', () => {
   it('includes the OCR text as reference (not authoritative) when ocrText is given', async () => {
     const originalFetch = globalThis.fetch
     let requestBody: any
-    globalThis.fetch = (async (_url: string, init?: RequestInit) => {
-      requestBody = JSON.parse(init!.body as string)
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      // extractWithSchema's own logging fires its own background fetch
+      // (reporter -> /api/events) that this same global mock also
+      // intercepts - only capture the actual chat-completions request.
+      if (String(url).includes('/chat/completions')) {
+        requestBody = JSON.parse(init!.body as string)
+      }
       return new Response(
         JSON.stringify({ choices: [{ message: { content: JSON.stringify(mockResult) } }] }),
         { status: 200 },

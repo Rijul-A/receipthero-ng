@@ -1,5 +1,8 @@
 import type { Config } from '@sm-rn/shared/schemas'
 import { normalizeImageForVision } from './image-format'
+import { createLogger } from './logger'
+
+const logger = createLogger('ocr')
 
 export interface ExtractionContext {
   existingTags?: string[]
@@ -9,6 +12,10 @@ export interface ExtractionContext {
   // in particular can OCR badly - so the model is told to treat it as
   // reference, not as an authority to blindly trust over the image.
   ocrText?: string
+  // When set, extraction logs (including the raw AI response) are tagged
+  // with this document so they show up in its own log view, not just
+  // stdout. Omitted for Test Extraction, which has no real document.
+  documentId?: number
 }
 
 /**
@@ -135,10 +142,9 @@ export async function extractWithSchema(
     .filter(Boolean)
     .join('\n')
 
+  const extractLogger = context?.documentId ? logger.withDocument(context.documentId) : logger
   const { baseURL, apiKey, model } = resolveEndpoint(config)
-  console.log(
-    `[extract] Running extraction with "${model}" from ${config.ai.provider} at ${baseURL}`,
-  )
+  extractLogger.info(`Running extraction with "${model}" from ${config.ai.provider} at ${baseURL}`)
   const responseSchema = buildResponseSchema(jsonSchema)
 
   const res = await fetch(`${baseURL}/chat/completions`, {
@@ -191,8 +197,8 @@ export async function extractWithSchema(
     throw new Error('AI provider returned an empty response.')
   }
 
-  console.log(
-    `[extract] Raw AI response (${rawContent.length} chars): ${rawContent.slice(0, 4000)}${rawContent.length > 4000 ? '…(truncated)' : ''}`,
+  extractLogger.debug(
+    `Raw AI response (${rawContent.length} chars): ${rawContent.slice(0, 4000)}${rawContent.length > 4000 ? '…(truncated)' : ''}`,
   )
 
   // The provider is expected to guarantee valid JSON matching the schema via

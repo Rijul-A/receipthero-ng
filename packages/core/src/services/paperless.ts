@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import { createLogger } from './logger'
+
+const logger = createLogger('paperless')
 
 export const PaperlessConfigSchema = z.object({
   host: z.string().url(),
@@ -62,7 +65,7 @@ export class PaperlessClient {
    * Loads all existing tags with pagination support.
    */
   private async refreshTagCache(): Promise<void> {
-    console.log('[DEBUG] Refreshing tag cache...')
+    logger.debug('Refreshing tag cache...')
     this.tagCache.clear()
     let nextUrl: string | null = '/tags/'
 
@@ -72,7 +75,7 @@ export class PaperlessClient {
 
       // Validate response structure
       if (!data?.results) {
-        console.error('[ERROR] Invalid response structure from API:', data)
+        logger.error('Invalid response structure from API', { data })
         break
       }
 
@@ -103,9 +106,9 @@ export class PaperlessClient {
           }
 
           nextUrl = relativePath + nextUrlObj.search
-          console.log('[DEBUG] Next page URL:', nextUrl)
+          logger.debug('Next page URL', { nextUrl })
         } catch (e: any) {
-          console.error('[ERROR] Failed to parse next URL:', e.message)
+          logger.error('Failed to parse next URL', { error: e.message })
           nextUrl = null
         }
       } else {
@@ -114,7 +117,7 @@ export class PaperlessClient {
     }
 
     this.lastTagRefresh = Date.now()
-    console.log(`[DEBUG] Tag cache refreshed. Found ${this.tagCache.size} tags.`)
+    logger.debug(`Tag cache refreshed. Found ${this.tagCache.size} tags.`)
   }
 
   /**
@@ -126,7 +129,7 @@ export class PaperlessClient {
     // 1. Check cache first
     const cachedTag = this.tagCache.get(normalizedName)
     if (cachedTag) {
-      console.log(`[DEBUG] Found tag "${tagName}" in cache with ID ${cachedTag.id}`)
+      logger.debug(`Found tag "${tagName}" in cache with ID ${cachedTag.id}`)
       return cachedTag
     }
 
@@ -139,12 +142,12 @@ export class PaperlessClient {
 
       if (data.results.length > 0) {
         const foundTag = data.results[0]
-        console.log(`[DEBUG] Found existing tag "${tagName}" via API with ID ${foundTag.id}`)
+        logger.debug(`Found existing tag "${tagName}" via API with ID ${foundTag.id}`)
         this.tagCache.set(normalizedName, foundTag)
         return foundTag
       }
     } catch (error: any) {
-      console.warn(`[ERROR] searching for tag "${tagName}":`, error.message)
+      logger.warn(`Error searching for tag "${tagName}"`, { error: error.message })
     }
 
     return null
@@ -163,7 +166,7 @@ export class PaperlessClient {
         body: JSON.stringify({ name: tagName, owner: null }),
       })
       const newTag = (await response.json()) as Tag
-      console.log(`[DEBUG] Successfully created tag "${tagName}" with ID ${newTag.id}`)
+      logger.debug(`Successfully created tag "${tagName}" with ID ${newTag.id}`)
       this.tagCache.set(normalizedName, newTag)
       return newTag
     } catch (error: any) {
@@ -220,7 +223,7 @@ export class PaperlessClient {
       typeof tagNames === 'string' ? [tagNames] : Array.isArray(tagNames) ? tagNames : []
 
     if (tagsArray.length === 0) {
-      console.warn('[DEBUG] No valid tags to process')
+      logger.warn('No valid tags to process')
       return { tagIds: [], errors: [] }
     }
 
@@ -228,13 +231,11 @@ export class PaperlessClient {
     const errors: Array<{ tagName: string; error: string }> = []
     const processedTags = new Set<string>() // Prevent duplicates
 
-    console.log(
-      `[DEBUG] Processing tags with restrictToExistingTags=${options.restrictToExistingTags}`,
-    )
+    logger.debug(`Processing tags with restrictToExistingTags=${options.restrictToExistingTags}`)
 
     for (const tagName of tagsArray) {
       if (!tagName || typeof tagName !== 'string') {
-        console.warn(`[DEBUG] Skipping invalid tag name: ${tagName}`)
+        logger.warn(`Skipping invalid tag name: ${tagName}`)
         errors.push({ tagName: String(tagName), error: 'Invalid tag name' })
         continue
       }
@@ -254,9 +255,7 @@ export class PaperlessClient {
         if (!tag && !options.restrictToExistingTags) {
           tag = await this.createTagSafely(tagName)
         } else if (!tag && options.restrictToExistingTags) {
-          console.log(
-            `[DEBUG] Tag "${tagName}" does not exist and restrictions are enabled, skipping`,
-          )
+          logger.debug(`Tag "${tagName}" does not exist and restrictions are enabled, skipping`)
           errors.push({ tagName, error: 'Tag does not exist and restrictions are enabled' })
           continue
         }
@@ -266,7 +265,7 @@ export class PaperlessClient {
           processedTags.add(normalizedName)
         }
       } catch (error: any) {
-        console.error(`[ERROR] processing tag "${tagName}":`, error.message)
+        logger.error(`Error processing tag "${tagName}"`, { error: error.message })
         errors.push({ tagName, error: error.message })
       }
     }
@@ -333,9 +332,9 @@ export class PaperlessClient {
       const docType = await this.findDocumentTypeByName(documentTypeName)
       if (docType) {
         queryParts.push(`document_type__id=${docType.id}`)
-        console.log(`[DEBUG] Filtering by document_type "${documentTypeName}" (ID: ${docType.id})`)
+        logger.debug(`Filtering by document_type "${documentTypeName}" (ID: ${docType.id})`)
       } else {
-        console.warn(`[WARN] Document type "${documentTypeName}" not found, returning no documents`)
+        logger.warn(`Document type "${documentTypeName}" not found, returning no documents`)
         return []
       }
     } else {
@@ -437,15 +436,16 @@ export class PaperlessClient {
    * Add a note to a document.
    */
   async addNote(documentId: number, note: string): Promise<void> {
-    console.log(`[DEBUG] Adding note to document ${documentId}, note length: ${note.length}`)
+    const docLogger = logger.withDocument(documentId)
+    docLogger.debug(`Adding note to document ${documentId}, note length: ${note.length}`)
     try {
       await this.fetchApi(`/documents/${documentId}/notes/`, {
         method: 'POST',
         body: JSON.stringify({ note }),
       })
-      console.log(`[DEBUG] Successfully added note to document ${documentId}`)
+      docLogger.debug(`Successfully added note to document ${documentId}`)
     } catch (error: any) {
-      console.error(`[ERROR] Failed to add note to document ${documentId}:`, error.message)
+      docLogger.error(`Failed to add note to document ${documentId}`, { error: error.message })
       throw error
     }
   }
@@ -503,7 +503,7 @@ export class PaperlessClient {
     }
 
     this.lastDocumentTypeRefresh = Date.now()
-    console.log(`[DEBUG] Document type cache refreshed. Found ${allTypes.length} types.`)
+    logger.debug(`Document type cache refreshed. Found ${allTypes.length} types.`)
     return allTypes
   }
 
@@ -576,7 +576,7 @@ export class PaperlessClient {
     }
 
     this.lastCustomFieldRefresh = Date.now()
-    console.log(`[DEBUG] Custom field cache refreshed. Found ${allFields.length} fields.`)
+    logger.debug(`Custom field cache refreshed. Found ${allFields.length} fields.`)
     return allFields
   }
 
@@ -607,7 +607,7 @@ export class PaperlessClient {
     name: string,
     dataType: string = 'longtext',
   ): Promise<{ id: number; name: string; data_type: string }> {
-    console.log(`[DEBUG] Creating custom field "${name}" with type "${dataType}"`)
+    logger.debug(`Creating custom field "${name}" with type "${dataType}"`)
     const response = await this.fetchApi('/custom_fields/', {
       method: 'POST',
       body: JSON.stringify({ name, data_type: dataType }),
@@ -615,7 +615,7 @@ export class PaperlessClient {
     const field = (await response.json()) as any
     const fieldEntry = { id: field.id, name: field.name, data_type: field.data_type }
     this.customFieldCache.set(name.toLowerCase(), fieldEntry)
-    console.log(`[DEBUG] Successfully created custom field "${name}" with ID ${field.id}`)
+    logger.debug(`Successfully created custom field "${name}" with ID ${field.id}`)
     return fieldEntry
   }
 

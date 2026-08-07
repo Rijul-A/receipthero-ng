@@ -145,6 +145,7 @@ export async function executeWorkflow(
           existingTags: existingTagNames,
           // Opt-in per workflow - see Workflow.includeOcrText.
           ocrText: workflow.includeOcrText ? doc.content || undefined : undefined,
+          documentId,
         },
       )
 
