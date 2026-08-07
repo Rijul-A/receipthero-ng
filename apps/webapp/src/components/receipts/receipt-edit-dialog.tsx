@@ -653,7 +653,6 @@ function ReceiptDetail({
                   <ItemEditRow
                     key={item.id}
                     item={item}
-                    currency={currency}
                     onChange={(patch) => handleItemFieldChange(item.id, patch)}
                     onDelete={() => handleDeleteItem(item)}
                     isDeleting={deleteItem.isPending}
@@ -664,7 +663,6 @@ function ReceiptDetail({
             {showAddItem ? (
               <NewItemRow
                 documentId={documentId}
-                currency={currency}
                 onAdded={handleItemAdded}
                 onCancel={() => setShowAddItem(false)}
               />
@@ -705,13 +703,11 @@ function ReceiptDetail({
 
 function ItemEditRow({
   item,
-  currency,
   onChange,
   onDelete,
   isDeleting,
 }: {
   item: EditableItem
-  currency: string
   onChange: (patch: Partial<EditableItem>) => void
   onDelete: () => void
   isDeleting: boolean
@@ -750,7 +746,7 @@ function ItemEditRow({
       style={style}
       className={`space-y-1 border-b pb-2 last:border-0 bg-background ${isDragging ? 'opacity-50 z-10 relative' : ''}`}
     >
-      <div className="grid grid-cols-[auto_minmax(6rem,1fr)_2.75rem_4.5rem_2.75rem_3.5rem_3.5rem_auto] gap-1.5 items-end">
+      <div className="grid grid-cols-[auto_minmax(5rem,1fr)_4rem_4.5rem_3.5rem_3.5rem_auto] gap-1.5 items-end">
         <button
           type="button"
           className="flex items-center justify-center h-8 w-5 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none"
@@ -787,12 +783,6 @@ function ItemEditRow({
             onChange={(e) => onChange({ totalPrice: e.target.value })}
             className="text-xs px-1.5 text-right"
           />
-        </div>
-        <div className="space-y-1 min-w-0 pb-1.5">
-          <Label className="text-[10px] text-muted-foreground">Cur.</Label>
-          <p className="text-xs text-muted-foreground truncate">
-            {currency || '—'}
-          </p>
         </div>
         <div className="space-y-1 min-w-0">
           <Label className="text-[10px] text-muted-foreground">Size</Label>
@@ -857,12 +847,10 @@ function ItemEditRow({
 
 function NewItemRow({
   documentId,
-  currency,
   onAdded,
   onCancel,
 }: {
   documentId: number
-  currency: string
   onAdded: (item: ReceiptItemEntry) => void
   onCancel: () => void
 }) {
@@ -932,7 +920,7 @@ function NewItemRow({
 
   return (
     <div className="space-y-2 border border-dashed p-2">
-      <div className="grid grid-cols-[minmax(6rem,1fr)_2.75rem_4.5rem_2.75rem_3.5rem_3.5rem] gap-1.5 items-end">
+      <div className="grid grid-cols-[minmax(5rem,1fr)_4rem_4.5rem_3.5rem_3.5rem] gap-1.5 items-end">
         <div className="space-y-1 min-w-0">
           <Label className="text-[10px] text-muted-foreground">Name</Label>
           <Input
@@ -962,12 +950,6 @@ function NewItemRow({
             onChange={(e) => setTotalPrice(e.target.value)}
             className="text-xs px-1.5 text-right"
           />
-        </div>
-        <div className="space-y-1 min-w-0 pb-1.5">
-          <Label className="text-[10px] text-muted-foreground">Cur.</Label>
-          <p className="text-xs text-muted-foreground truncate">
-            {currency || '—'}
-          </p>
         </div>
         <div className="space-y-1 min-w-0">
           <Label className="text-[10px] text-muted-foreground">Size</Label>
