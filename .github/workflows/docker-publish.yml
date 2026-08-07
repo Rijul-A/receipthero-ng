@@ -37,6 +37,18 @@ jobs:
       packages: write
     outputs:
       digest: ${{ steps.build.outputs.digest }}
+    strategy:
+      matrix:
+        include:
+          # Normal image: React's minified production bundle (errors show
+          # as numeric codes, see react.dev/errors/<code>).
+          - variant: ''
+            build_mode: production
+          # Debug image: React's unminified dev bundle, with full in-browser
+          # error messages/warnings - larger and slower, not for real
+          # traffic, but much easier to diagnose a reported error against.
+          - variant: '-debug'
+            build_mode: development
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -57,14 +69,19 @@ jobs:
       # Staged under a per-run tag (not a fixed :amd64) so concurrent runs
       # from different triggers (a PR build and a main push, say) can't
       # clobber each other's intermediate image before merge-manifests reads it.
-      - name: Build and push amd64
+      # Both matrix legs share one cache scope - everything before the final
+      # webapp build step is identical between them, so the debug leg reuses
+      # the production leg's cached deps/migration layers.
+      - name: Build and push amd64 (${{ matrix.build_mode }})
         id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging-${{ github.run_id }}
+          build-args: |
+            BUILD_MODE=${{ matrix.build_mode }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging-${{ github.run_id }}${{ matrix.variant }}
           cache-from: type=gha,scope=amd64
           cache-to: type=gha,mode=max,scope=amd64
 
@@ -109,6 +126,12 @@ jobs:
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix:
+        # Must mirror build-amd64's matrix - tags the debug image built
+        # there (see docker-publish.yml's BUILD_MODE comment) alongside the
+        # normal one, under the same tag names with a "-debug" suffix.
+        variant: ['', '-debug']
     steps:
       - name: Set lowercase image name
         run: echo "IMAGE_NAME=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
@@ -128,18 +151,18 @@ jobs:
         if: github.event_name == 'push' && github.ref_type == 'branch'
         run: |
           docker buildx imagetools create \
-            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging-${{ github.run_id }}
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}${{ matrix.variant }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}${{ matrix.variant }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging-${{ github.run_id }}${{ matrix.variant }}
 
       - name: Tag release
         if: github.event_name == 'push' && github.ref_type == 'tag'
         run: |
           docker buildx imagetools create \
-            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
-            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging-${{ github.run_id }}
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}${{ matrix.variant }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}${{ matrix.variant }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest${{ matrix.variant }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging-${{ github.run_id }}${{ matrix.variant }}
 
       # PR builds get a floating :pr-<number> tag (updates on every push to
       # the PR) plus the immutable sha, so a tester can pull a specific PR's
@@ -148,6 +171,6 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           docker buildx imagetools create \
-            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }} \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging-${{ github.run_id }}
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}${{ matrix.variant }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}${{ matrix.variant }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging-${{ github.run_id }}${{ matrix.variant }}
