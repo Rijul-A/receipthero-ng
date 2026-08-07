@@ -38,6 +38,14 @@ jobs:
     outputs:
       digest: ${{ steps.build.outputs.digest }}
     strategy:
+      # Matrix legs otherwise run in parallel, which defeats the shared
+      # cache scope below: the debug leg would start building before the
+      # production leg has finished writing anything to cache, so it'd
+      # redo the identical deps-install/migrations layers from scratch
+      # instead of hitting cache. max-parallel forces production (listed
+      # first) to finish and push its cache before debug starts, so debug
+      # only actually spends time on the one step that differs.
+      max-parallel: 1
       matrix:
         include:
           # Normal image: React's minified production bundle (errors show
