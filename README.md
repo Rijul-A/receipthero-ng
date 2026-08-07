@@ -177,6 +177,20 @@ open http://localhost:3000
 
 ---
 
+## ⚙️ Configuration: how the pieces fit together
+
+There are three ways to configure ReceiptHero, and it's worth knowing how they interact:
+
+1. **The Settings page** (`http://localhost:3000/settings`) — the recommended way for most options. Saving here writes straight to `config.json` on disk.
+2. **`config.json`** (at `CONFIG_PATH`, `/app/data/config.json` by default) — hand-edit this directly if you prefer config-as-code, or if you're bootstrapping a fresh deploy (see the Quick Start example above). A default template is created automatically on first run if the file doesn't exist yet.
+3. **Environment variables** (`PAPERLESS_HOST`, `AI_API_KEY`, `AI_MODEL`, `AI_TEMPERATURE`, `AI_MAX_TOKENS`, `SCAN_INTERVAL`, etc.) — useful for container-native deploys (e.g. injecting secrets via your orchestrator instead of a mounted file).
+
+**Precedence**: for any given setting, `config.json` wins if it has that key set; otherwise the environment variable is used; otherwise a built-in default. In other words, editing something in the Settings page (which writes to `config.json`) will always override an env var for that same field — so if a setting isn't updating the way you expect, check whether `config.json` already has an explicit value for it.
+
+**Workflows are separate from all of this.** The AI provider/model/temperature/token-limit settings above are global — they apply to every workflow's extraction call. What varies _per workflow_ (see [Workflows](#-workflows) below) is the trigger tag, the extraction schema, and the prompt instructions — not which model or provider is used.
+
+---
+
 ## 🐳 Docker Support
 
 - Health monitoring with auto-restart
@@ -184,6 +198,8 @@ open http://localhost:3000
 - Graceful shutdown handling
 - Single container for API + Worker + Webapp
 - Works out of the box with minimal configuration
+
+Every release also publishes a `:debug`-suffixed image (e.g. `ghcr.io/smashah/receipthero-ng:latest-debug`) alongside the normal one — same code, but unminified, for when a webapp error needs a readable stack trace instead of a minified one.
 
 ---
 
@@ -244,10 +260,12 @@ ReceiptHero supports multiple AI providers via [TanStack AI](https://tanstack.co
   "ai": {
     "provider": "ollama",
     "baseURL": "http://localhost:11434",
-    "model": "llava"
+    "model": "qwen2.5vl:7b"
   }
 }
 ```
+
+> **Local model tip**: extraction quality scales heavily with model size on dense/long receipts (many line items). A 7B-class model is a reasonable starting point, but if you're seeing missed or duplicated line items, a bigger model (VRAM permitting) or a document-OCR-focused model (e.g. `benhaotang/Nanonets-OCR-s`) is often a bigger lever than prompt tweaking.
 
 ### OpenRouter
 
@@ -275,6 +293,40 @@ ReceiptHero supports multiple AI providers via [TanStack AI](https://tanstack.co
 ```
 
 > **Note**: The model must support vision/image input for receipt extraction to work.
+
+### Advanced: Temperature & Max Output Tokens
+
+These apply globally, regardless of provider:
+
+```json
+{
+  "ai": {
+    "temperature": 0,
+    "maxTokens": 8192
+  }
+}
+```
+
+- **`temperature`** (default `0`): controls randomness. `0` gives the most consistent, repeatable extraction for the same image — there's rarely a good reason to raise this for structured data extraction.
+- **`maxTokens`** (default `8192`): the output length cap. If a dense receipt (lots of line items) gets cut off mid-response — visible in the logs as invalid/truncated JSON — raise this.
+
+---
+
+## 🧩 Workflows
+
+Workflows define _what_ gets extracted and _when_, separately from _which model_ does the extracting (that's the AI provider config above). A default "Receipt" workflow is seeded automatically on first run.
+
+Each workflow has:
+
+- **Trigger tag**: the Paperless-ngx tag that queues a document for this workflow (default: `receipt`)
+- **Zod schema**: the shape of the data to extract (vendor, amount, line items, etc.) — edited as Zod source in the workflow editor, converted to a JSON Schema for the AI's structured-output call
+- **Prompt instructions**: extra guidance appended to the extraction prompt (e.g. how to distinguish pre-tax vs. post-tax amounts, how to handle duplicate line items)
+- **Output mapping**: which extracted fields become the Paperless correspondent, document date, tags, and custom fields
+- **Include Paperless OCR text** (opt-in, off by default): sends Paperless's own OCR pass alongside the image as extra reference context. Can help on documents where Paperless's OCR is more reliable than the vision model's own reading — but also adds to the prompt length, so on a smaller/weaker local model it can push a dense receipt past `maxTokens` and cause truncation. Worth A/B testing rather than assuming it helps.
+
+Use **Test Extraction** in the workflow editor to try a schema/prompt change against an uploaded image without touching any real Paperless documents — it calls the same extraction code path as real processing, just without downloading from or writing back to Paperless.
+
+You can create additional workflows for other document types (e.g. invoices, warranties) triggered by different tags — each with its own schema and prompt, all still using the single globally-configured AI provider/model.
 
 ---
 
