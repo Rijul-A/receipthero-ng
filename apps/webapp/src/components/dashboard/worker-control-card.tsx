@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { Loader2, Pause, Play, RotateCcw, Trash2 } from 'lucide-react'
 import type { HealthStatus } from '@/lib/queries'
+import type { QueueItem } from '@/lib/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -7,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 interface WorkerControlCardProps {
   worker: HealthStatus['worker'] | undefined
   stats: HealthStatus['stats'] | undefined
+  queueItems: Array<QueueItem> | undefined
   onPause: () => void
   onResume: () => void
   onRetryAll: () => void
@@ -17,9 +20,23 @@ interface WorkerControlCardProps {
   isClearingQueue: boolean
 }
 
+// Renders as "ready" once nextRetryAt has passed, otherwise a compact
+// countdown (e.g. "2m 14s") - ticks via the caller re-rendering this every
+// second rather than computing once and going stale.
+function formatCountdown(nextRetryAt: string, now: number): string {
+  const remainingMs = new Date(nextRetryAt).getTime() - now
+  if (remainingMs <= 0) return 'ready'
+
+  const totalSeconds = Math.ceil(remainingMs / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`
+}
+
 export function WorkerControlCard({
   worker,
   stats,
+  queueItems,
   onPause,
   onResume,
   onRetryAll,
@@ -29,6 +46,13 @@ export function WorkerControlCard({
   isRetryingAll,
   isClearingQueue,
 }: WorkerControlCardProps) {
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (!queueItems?.length) return
+    const interval = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(interval)
+  }, [queueItems?.length])
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -110,6 +134,24 @@ export function WorkerControlCard({
             Clear Queue
           </Button>
         </div>
+
+        {queueItems && queueItems.length > 0 && (
+          <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+            {queueItems.map((item) => (
+              <li
+                key={item.documentId}
+                className="flex items-center justify-between gap-2"
+              >
+                <span className="truncate">
+                  Document {item.documentId} (attempt {item.attempts})
+                </span>
+                <Badge variant="outline" className="shrink-0 font-mono">
+                  {formatCountdown(item.nextRetryAt, now)}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
       </CardContent>
     </Card>
   )

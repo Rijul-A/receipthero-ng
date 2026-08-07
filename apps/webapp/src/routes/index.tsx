@@ -2,6 +2,7 @@ import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { AlertTriangle, Loader2, RefreshCw, Settings2 } from 'lucide-react'
 import { useDashboard } from '@/hooks/use-dashboard'
+import { useQueueStatus } from '@/lib/queries'
 import { ProcessingList } from '@/components/processing-list'
 import { DashboardHeader } from '@/components/dashboard/dashboard-header'
 import { StatusCards } from '@/components/dashboard/status-cards'
@@ -86,6 +87,8 @@ function DashboardPage() {
     actions,
   } = useDashboard()
 
+  const { data: queueStatus } = useQueueStatus()
+
   const {
     data: health,
     isLoading: isHealthLoading,
@@ -133,6 +136,7 @@ function DashboardPage() {
         <WorkerControlCard
           worker={health?.worker}
           stats={health?.stats}
+          queueItems={queueStatus?.queue.items}
           onPause={() => workerActions.pauseWorker.mutate(undefined)}
           onResume={() => workerActions.resumeWorker.mutate()}
           onRetryAll={() => workerActions.retryAllQueue.mutate()}
