@@ -137,7 +137,7 @@ export function Sidebar() {
       )}
 
       {/* Desktop persistent sidebar */}
-      <div className="hidden md:flex md:flex-col w-56 shrink-0 border-r bg-background">
+      <div className="hidden md:flex md:flex-col md:sticky md:top-0 md:h-screen md:overflow-y-auto w-56 shrink-0 border-r bg-background">
         {navContent}
       </div>
     </>
