@@ -47,6 +47,10 @@ export const workflows = sqliteTable('workflows', {
   jsonSchema: text('jsonSchema').notNull(), // JSON Schema string converted from Zod
   promptInstructions: text('promptInstructions'),
   titleTemplate: text('titleTemplate'),
+  // Opt-in: also send Paperless's own OCR'd text for the document to the AI
+  // alongside the image, as reference context (not authoritative - OCR can
+  // be wrong, especially on faded thermal receipts). See extract.ts.
+  includeOcrText: integer('includeOcrText', { mode: 'boolean' }).notNull().default(false),
   outputMapping: text('outputMapping').notNull(), // JSON string of output mapping config
   processedTag: text('processedTag').notNull(),
   failedTag: text('failedTag'),

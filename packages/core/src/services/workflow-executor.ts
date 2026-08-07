@@ -132,7 +132,11 @@ export async function executeWorkflow(
         jsonSchema,
         workflow.promptInstructions || undefined,
         config,
-        { existingTags: existingTagNames },
+        {
+          existingTags: existingTagNames,
+          // Opt-in per workflow - see Workflow.includeOcrText.
+          ocrText: workflow.includeOcrText ? doc.content || undefined : undefined,
+        },
       )
 
       if (items.length === 0) {

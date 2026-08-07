@@ -58,4 +58,50 @@ describe('extractWithSchema', () => {
       globalThis.fetch = originalFetch
     }
   })
+
+  it('omits the OCR text section when no ocrText is given (the default - opt-in per workflow)', async () => {
+    const originalFetch = globalThis.fetch
+    let requestBody: any
+    globalThis.fetch = (async (_url: string, init?: RequestInit) => {
+      requestBody = JSON.parse(init!.body as string)
+      return new Response(
+        JSON.stringify({ choices: [{ message: { content: JSON.stringify(mockResult) } }] }),
+        { status: 200 },
+      )
+    }) as unknown as typeof fetch
+
+    try {
+      await extractWithSchema(mockImageBuffer, mockJsonSchema, undefined, mockConfig)
+
+      const systemPrompt = requestBody.messages[0].content as string
+      expect(systemPrompt).not.toContain('PAPERLESS OCR TEXT')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('includes the OCR text as reference (not authoritative) when ocrText is given', async () => {
+    const originalFetch = globalThis.fetch
+    let requestBody: any
+    globalThis.fetch = (async (_url: string, init?: RequestInit) => {
+      requestBody = JSON.parse(init!.body as string)
+      return new Response(
+        JSON.stringify({ choices: [{ message: { content: JSON.stringify(mockResult) } }] }),
+        { status: 200 },
+      )
+    }) as unknown as typeof fetch
+
+    try {
+      await extractWithSchema(mockImageBuffer, mockJsonSchema, undefined, mockConfig, {
+        ocrText: 'WALMART\nPET TOY 1.97\nTOTAL 98.21',
+      })
+
+      const systemPrompt = requestBody.messages[0].content as string
+      expect(systemPrompt).toContain('PAPERLESS OCR TEXT')
+      expect(systemPrompt).toContain('for reference only')
+      expect(systemPrompt).toContain('WALMART\nPET TOY 1.97\nTOTAL 98.21')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
 })

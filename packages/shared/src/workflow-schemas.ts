@@ -23,6 +23,9 @@ const WorkflowBase = z.object({
   jsonSchema: z.string().min(1),
   promptInstructions: z.string().optional(),
   titleTemplate: z.string().optional(),
+  // Opt-in: also send Paperless's own OCR'd text for the document to the
+  // AI alongside the image, as reference context (not authoritative).
+  includeOcrText: z.boolean().default(false),
   outputMapping: WorkflowOutputMappingSchema,
   processedTag: z.string().min(1),
   failedTag: z.string().optional(),

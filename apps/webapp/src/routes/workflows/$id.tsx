@@ -58,6 +58,7 @@ interface WorkflowFormData {
   zodSource: string
   titleTemplate: string
   promptInstructions: string
+  includeOcrText: boolean
   processedTag: string
   outputMapping: WorkflowOutputMapping
 }
@@ -91,6 +92,7 @@ function WorkflowEditorPage() {
     zodSource: DEFAULT_ZOD_SOURCE,
     titleTemplate: '{vendor} - {amount} {currency}',
     promptInstructions: '',
+    includeOcrText: false,
     processedTag: 'ai-processed',
     outputMapping: DEFAULT_OUTPUT_MAPPING,
   })
@@ -435,6 +437,26 @@ function WorkflowEditorPage() {
               placeholder="e.g. Focus on extracting the usage period and total due amount. For 'vendor', use the utility company name."
               className="min-h-[120px]"
             />
+
+            <div className="flex items-center justify-between pt-2 border-t">
+              <div className="space-y-0.5">
+                <span className="text-sm font-medium">
+                  Include Paperless OCR text
+                </span>
+                <p className="text-xs text-muted-foreground max-w-md">
+                  Sends Paperless's own OCR'd text for the document alongside
+                  the image, as reference context - not authoritative, since OCR
+                  can be wrong (especially on faded thermal receipts). Worth A/B
+                  testing on your own documents rather than assuming it helps.
+                </p>
+              </div>
+              <Switch
+                checked={formData.includeOcrText}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, includeOcrText: checked })
+                }
+              />
+            </div>
           </section>
         </div>
 

@@ -1,0 +1,1 @@
+ALTER TABLE `workflows` ADD `includeOcrText` integer DEFAULT false NOT NULL;

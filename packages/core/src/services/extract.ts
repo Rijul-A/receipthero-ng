@@ -3,6 +3,12 @@ import { normalizeImageForVision } from './image-format'
 
 export interface ExtractionContext {
   existingTags?: string[]
+  // Paperless-NGX's own OCR'd text for this document (opt-in per workflow -
+  // see Workflow.includeOcrText), included as additional grounding
+  // alongside the image. Not necessarily correct - faded thermal receipts
+  // in particular can OCR badly - so the model is told to treat it as
+  // reference, not as an authority to blindly trust over the image.
+  ocrText?: string
 }
 
 /**
@@ -101,6 +107,13 @@ export async function extractWithSchema(
     ? `\n\nEXISTING DOCUMENT TAGS:\nThe document already has these tags: [${context.existingTags.join(', ')}]\nDo not repeat them; suggest complementary ones only.`
     : ''
 
+  // Opt-in per workflow (Workflow.includeOcrText) - Paperless's own OCR
+  // text isn't necessarily correct (faded thermal receipts OCR badly), so
+  // it's framed as a cross-reference, not ground truth to blindly defer to.
+  const ocrTextSection = context?.ocrText?.trim()
+    ? `\n\nPAPERLESS OCR TEXT (for reference only - this OCR pass can contain errors, especially on faded receipts; cross-reference it against the image rather than trusting it blindly, and prefer what you see in the image if they disagree):\n${context.ocrText.trim()}`
+    : ''
+
   const systemPrompt = [
     'You are a structured data extraction engine.',
     'Extract data from the provided image according to the JSON schema defined in the response format.',
@@ -109,6 +122,7 @@ export async function extractWithSchema(
     'If information is not visible, use reasonable defaults or omit optional fields.',
     promptInstructions ? `\nADDITIONAL INSTRUCTIONS:\n${promptInstructions}` : '',
     existingTagsSection,
+    ocrTextSection,
   ]
     .filter(Boolean)
     .join('\n')
