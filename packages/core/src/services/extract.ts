@@ -154,6 +154,13 @@ export async function extractWithSchema(
       // (usually ~0.7-0.8) is why identical input can non-deterministically
       // extract 0 items on one run and several on the next.
       temperature: 0,
+      // No cap was set previously, so this ran on whatever the provider's/
+      // model's own default output-length limit is - on a dense receipt
+      // (many line_items, doubly so with OCR text as extra context) that
+      // default can be too small, truncating the JSON mid-object with no
+      // way to tell "the model chose to stop early" apart from "it hit a
+      // hard ceiling it never got to finish within".
+      max_tokens: 8192,
       response_format: {
         type: 'json_schema',
         json_schema: {
