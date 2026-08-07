@@ -3,7 +3,6 @@ import { eq, desc } from 'drizzle-orm'
 import type { Workflow } from '../db/schema'
 import { z } from 'zod'
 import { loadConfig } from './config'
-import { ProcessedReceiptSchema } from '@sm-rn/shared/types'
 
 /**
  * Service for managing workflows.
@@ -128,7 +127,14 @@ export async function seedDefaultWorkflows() {
 
   const now = new Date().toISOString()
 
-  // The current receipt schema as a Zod source string
+  // The current receipt schema as a Zod source string. Kept in sync with
+  // receiptExtractionSchema below by hand - NOT derived from
+  // ProcessedReceiptSchema (packages/shared/src/types.ts), which is an
+  // internal storage schema with required thumbnail/base64/mimeType fields
+  // that have nothing to do with what's visible on a receipt image. Forcing
+  // the AI to invent values for those wasted output budget that should go
+  // to line_items, and on small local models could crowd line_items out
+  // of the response entirely.
   const receiptZodSource = `z.object({
   id: z.string(),
   fileName: z.string(),
@@ -150,6 +156,31 @@ export async function seedDefaultWorkflows() {
   suggested_tags: z.array(z.string()).optional(),
 })`
 
+  const receiptExtractionSchema = z.object({
+    id: z.string(),
+    fileName: z.string(),
+    date: z.string(),
+    vendor: z.string(),
+    category: z.string(),
+    paymentMethod: z.string(),
+    taxAmount: z.number(),
+    amount: z.number(),
+    currency: z.string().default('USD'),
+    title: z.string().optional(),
+    summary: z.string().optional(),
+    line_items: z
+      .array(
+        z.object({
+          name: z.string(),
+          quantity: z.number().optional(),
+          unitPrice: z.number().optional(),
+          totalPrice: z.number(),
+        }),
+      )
+      .optional(),
+    suggested_tags: z.array(z.string()).optional(),
+  })
+
   const outputMapping = {
     correspondentField: 'vendor',
     dateField: 'date',
@@ -168,7 +199,7 @@ export async function seedDefaultWorkflows() {
       priority: 100,
       triggerTag: config.processing.receiptTag,
       zodSource: receiptZodSource,
-      jsonSchema: JSON.stringify(z.toJSONSchema(ProcessedReceiptSchema)),
+      jsonSchema: JSON.stringify(z.toJSONSchema(receiptExtractionSchema)),
       promptInstructions: DEFAULT_RECEIPT_PROMPT_INSTRUCTIONS,
       titleTemplate: '{vendor} - {amount} {currency}',
       outputMapping: JSON.stringify(outputMapping),
