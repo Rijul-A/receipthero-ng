@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import {
-  ArrowDown,
-  ArrowUp,
+  GripVertical,
   Loader2,
   Pencil,
   Plus,
@@ -11,6 +10,15 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
+import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import type { DragEndEvent } from '@dnd-kit/core'
 import type { ReceiptItemEntry } from '@/lib/server'
 import {
   Dialog,
@@ -185,13 +193,23 @@ function ReceiptDetail({
     setMode('edit')
   }
 
-  const handleMoveItem = (index: number, direction: -1 | 1) => {
+  const dragSensors = useSensors(
+    useSensor(PointerSensor, {
+      // Requires a small drag before activating, so a plain click/tap on
+      // the handle (or an accidental touch-scroll) doesn't get mistaken
+      // for the start of a drag.
+      activationConstraint: { distance: 4 },
+    }),
+  )
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
     setEditableItems((prev) => {
-      const target = index + direction
-      if (target < 0 || target >= prev.length) return prev
-      const next = [...prev]
-      ;[next[index], next[target]] = [next[target], next[index]]
-      return next
+      const oldIndex = prev.findIndex((item) => item.id === active.id)
+      const newIndex = prev.findIndex((item) => item.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return prev
+      return arrayMove(prev, oldIndex, newIndex)
     })
   }
 
@@ -565,19 +583,31 @@ function ReceiptDetail({
                 delete the receipt if it's no longer relevant.
               </p>
             )}
-            {editableItems.map((item, index) => (
-              <ItemEditRow
-                key={item.id}
-                item={item}
-                onChange={(patch) => handleItemFieldChange(item.id, patch)}
-                onDelete={() => handleDeleteItem(item)}
-                onMoveUp={() => handleMoveItem(index, -1)}
-                onMoveDown={() => handleMoveItem(index, 1)}
-                canMoveUp={index > 0}
-                canMoveDown={index < editableItems.length - 1}
-                isDeleting={deleteItem.isPending}
-              />
-            ))}
+            {editableItems.length > 0 && (
+              <p className="text-[10px] text-muted-foreground">
+                <strong>Total size</strong> is the volume/weight for{' '}
+                <em>everything on that line</em> combined - already multiplied
+                by pack size and Qty, not the size of one item. E.g. a 6-pack of
+                330ml cans bought once (Qty 1) is total size 1980ml, not 330ml.
+                Drag <GripVertical className="inline h-3 w-3" /> to reorder.
+              </p>
+            )}
+            <DndContext sensors={dragSensors} onDragEnd={handleDragEnd}>
+              <SortableContext
+                items={editableItems.map((item) => item.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {editableItems.map((item) => (
+                  <ItemEditRow
+                    key={item.id}
+                    item={item}
+                    onChange={(patch) => handleItemFieldChange(item.id, patch)}
+                    onDelete={() => handleDeleteItem(item)}
+                    isDeleting={deleteItem.isPending}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
             {showAddItem ? (
               <NewItemRow
                 documentId={documentId}
@@ -623,19 +653,11 @@ function ItemEditRow({
   item,
   onChange,
   onDelete,
-  onMoveUp,
-  onMoveDown,
-  canMoveUp,
-  canMoveDown,
   isDeleting,
 }: {
   item: EditableItem
   onChange: (patch: Partial<EditableItem>) => void
   onDelete: () => void
-  onMoveUp: () => void
-  onMoveDown: () => void
-  canMoveUp: boolean
-  canMoveDown: boolean
   isDeleting: boolean
 }) {
   // Debounced so clearing "10" down to "" or a transient "0" while retyping
@@ -652,30 +674,37 @@ function ItemEditRow({
 
   const deleteConfirm = useClickToConfirm(onDelete)
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
   return (
-    <div className="space-y-1 border-b pb-2 last:border-0">
-      <div className="grid grid-cols-[auto_1fr_5rem_6rem_auto] gap-2 items-end">
-        <div className="flex gap-0.5 pb-1.5">
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            onClick={onMoveUp}
-            disabled={!canMoveUp}
-            aria-label={`Move ${item.name} up`}
-          >
-            <ArrowUp className="h-3 w-3" />
-          </Button>
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            onClick={onMoveDown}
-            disabled={!canMoveDown}
-            aria-label={`Move ${item.name} down`}
-          >
-            <ArrowDown className="h-3 w-3" />
-          </Button>
-        </div>
-        <div className="space-y-1">
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`space-y-1 border-b pb-2 last:border-0 bg-background ${isDragging ? 'opacity-50 z-10 relative' : ''}`}
+    >
+      <div className="grid grid-cols-[auto_1fr_4rem_5rem_auto] gap-2 items-end">
+        <button
+          type="button"
+          className="flex items-center justify-center h-8 w-6 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none"
+          aria-label={`Drag to reorder ${item.name}`}
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <div className="space-y-1 min-w-0">
           <Label className="text-[10px] text-muted-foreground">Name</Label>
           <Input
             value={item.name}
@@ -725,8 +754,8 @@ function ItemEditRow({
         </Button>
       </div>
 
-      <div className="grid grid-cols-[auto_6rem_6rem_1fr] gap-2 items-end">
-        <div className="w-7" />
+      <div className="grid grid-cols-[1.5rem_6rem_6rem] gap-2 items-end">
+        <div />
         <div className="space-y-1">
           <Label className="text-[10px] text-muted-foreground">
             Total size
@@ -758,16 +787,10 @@ function ItemEditRow({
             <option value="count">count</option>
           </select>
         </div>
-        <p className="text-[10px] text-muted-foreground pb-1.5">
-          Total size is the volume/weight for <em>everything on this line</em>{' '}
-          combined - already multiplied by pack size and Qty above, not the size
-          of one item. E.g. a 6-pack of 330ml cans bought once (Qty 1) is total
-          size 1980ml, not 330ml.
-        </p>
       </div>
 
       {showReviewWarning && (
-        <p className="text-[10px] text-amber-600">
+        <p className="text-[10px] text-amber-600 pl-8">
           Zero or negative price - a refund/free item you likely want to delete,
           or a discount to net into the main item and delete this line.
         </p>

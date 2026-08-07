@@ -18,6 +18,39 @@ import type {
   ReceiptDetail,
 } from '../lib/server/receipts.functions'
 import type { ReceiptItemEntry } from '../lib/server/items.functions'
+import type * as DndKitCoreModule from '@dnd-kit/core'
+import type { ReactNode } from 'react'
+
+vi.mock('@dnd-kit/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof DndKitCoreModule>()
+  return {
+    ...actual,
+    // jsdom can't simulate real pointer-drag sequences, so this test
+    // exposes a button that fires the same onDragEnd callback dnd-kit
+    // would call after a real drag, letting the reorder logic itself be
+    // exercised without faking pointer events.
+    DndContext: ({
+      children,
+      onDragEnd,
+    }: {
+      children: ReactNode
+      onDragEnd: (event: {
+        active: { id: number }
+        over: { id: number } | null
+      }) => void
+    }) => (
+      <div>
+        <button
+          type="button"
+          onClick={() => onDragEnd({ active: { id: 101 }, over: { id: 102 } })}
+        >
+          simulate drag almond milk over refund item
+        </button>
+        {children}
+      </div>
+    ),
+  }
+})
 
 vi.mock('../lib/queries', async (importOriginal) => {
   const actual = await importOriginal<typeof QueriesModule>()
@@ -356,12 +389,14 @@ describe('ReceiptEditDialog', () => {
     expect(payload.edits.sizeUnit).toBeNull()
   })
 
-  it('swapping two items with the move buttons sends updated sortOrder for both on save', async () => {
+  it('dragging an item to a new position sends updated sortOrder for both on save', async () => {
     renderDialog()
     await enterEditMode()
 
     await userEvent.click(
-      screen.getByRole('button', { name: /move almond milk down/i }),
+      screen.getByRole('button', {
+        name: /simulate drag almond milk over refund item/i,
+      }),
     )
     await clickSave()
 
