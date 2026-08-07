@@ -269,12 +269,24 @@ export async function recordReceiptItems(params: {
   // transactions run their callback synchronously to completion, so an
   // async network call can't live inside one anyway, and there's no
   // atomicity requirement between "ask the AI" and "write the DB".
+  //
+  // This is a SECOND full AI round-trip after the main extraction call -
+  // using the same configured (often large/vision) model for what's really
+  // a text-only canonicalization task. Logged explicitly since otherwise
+  // it's silent and looks like the workflow is stuck on a plain DB write.
+  const docLogger = logger.withDocument(documentId)
+  if (parsed.length > 0) {
+    docLogger.info(`Canonicalizing ${parsed.length} line item(s) for price comparison...`)
+  }
   const [annotations, nameOverrides] = await Promise.all([
     parsed.length > 0
       ? annotateLineItems(parsed, config)
       : Promise.resolve<Record<string, ItemAnnotation>>({}),
     getNameOverrides(parsed.map((p) => p.name)),
   ])
+  if (parsed.length > 0) {
+    docLogger.info(`✓ Canonicalization complete`)
+  }
 
   const rows: schema.NewReceiptItemEntry[] = parsed.map((item) => {
     const annotation = annotations[item.name]

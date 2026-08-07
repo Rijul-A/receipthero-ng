@@ -319,6 +319,11 @@ export async function executeWorkflow(
       storeLocation:
         typeof extractedData.storeLocation === 'string' ? extractedData.storeLocation : undefined,
       receiptData: JSON.stringify(extractedData),
+      // The dashboard/receipts list read this column for display - without
+      // it, they showed whatever title was captured on first detection
+      // (or nothing) instead of the current one, even after a
+      // titleTemplate/AI-derived title was just applied to the document.
+      fileName: updates.title || doc.title,
     })
 
     docLogger.info(`✓ Workflow completed successfully: ${workflow.name}`)
