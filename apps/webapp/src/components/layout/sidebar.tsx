@@ -102,9 +102,7 @@ export function Sidebar() {
     <>
       {/* Mobile top bar */}
       <div className="md:hidden flex items-center justify-between border-b px-4 py-3 bg-background">
-        <span className="text-base font-bold tracking-tight">
-          ReceiptHero
-        </span>
+        <span className="text-base font-bold tracking-tight">ReceiptHero</span>
         <Button
           variant="ghost"
           size="icon-sm"
