@@ -197,8 +197,14 @@ const NewSightingSchema = z.object({
   quantity: z.number().positive().optional(),
   totalSize: z.number().positive().nullable().optional(),
   sizeUnit: z.enum(['ml', 'g', 'count']).nullable().optional(),
-  purchaseDate: z.string().min(1),
-  purchaseTime: z.string().nullable().optional(),
+  purchaseDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'purchaseDate must be in YYYY-MM-DD format'),
+  purchaseTime: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/, 'purchaseTime must be in HH:MM format')
+    .nullable()
+    .optional(),
 })
 
 /**
@@ -225,8 +231,15 @@ const ItemEditSchema = z.object({
   sizeUnit: z.enum(['ml', 'g', 'count']).nullable().optional(),
   storeLocation: z.string().optional(),
   sortOrder: z.number().int().optional(),
-  purchaseDate: z.string().min(1).optional(),
-  purchaseTime: z.string().nullable().optional(),
+  purchaseDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'purchaseDate must be in YYYY-MM-DD format')
+    .optional(),
+  purchaseTime: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/, 'purchaseTime must be in HH:MM format')
+    .nullable()
+    .optional(),
 })
 
 /**

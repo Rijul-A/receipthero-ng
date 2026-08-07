@@ -65,8 +65,15 @@ const ReceiptEditSchema = z.object({
   vendor: z.string().min(1).optional(),
   amount: z.number().optional(),
   currency: z.string().min(1).optional(),
-  date: z.string().min(1).optional(),
-  time: z.string().optional(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be in YYYY-MM-DD format')
+    .optional(),
+  // '' clears it (the edit dialog's Time field can be blanked out) -
+  // distinct from omitting the field entirely, which leaves it untouched.
+  time: z
+    .union([z.literal(''), z.string().regex(/^\d{2}:\d{2}$/, 'time must be in HH:MM format')])
+    .optional(),
   category: z.string().min(1).optional(),
   storeLocation: z.string().optional(),
   taxAmount: z.number().nullable().optional(),
