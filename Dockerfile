@@ -49,13 +49,22 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 FROM base AS runner
 WORKDIR /app
 
-# "production" (default) builds React's minified production bundle, where
-# error messages are just numeric codes (see react.dev/errors/<code>).
-# Passing --build-arg BUILD_MODE=development instead builds React's
-# unminified dev bundle, with full in-browser error messages and warnings -
-# used for the debug image variant published alongside the normal one (see
-# .github/workflows/docker-publish.yml). Not meant for production traffic:
-# it's slower and much larger.
+# "production" (default) builds the normal minified bundle. Passing
+# --build-arg BUILD_MODE=debug instead skips minification, for a build
+# whose stack traces/component names are actually readable - used for the
+# debug image variant published alongside the normal one (see
+# .github/workflows/docker-publish.yml).
+#
+# This intentionally does NOT switch React itself to its development
+# build (which would still show full in-browser error messages instead of
+# numeric codes, and was the original goal) - tried that first, and it
+# hard-crashes SSR on every route: `vite build --mode development` sets
+# NODE_ENV=development for the client bundle, but Nitro's server bundle
+# doesn't consistently inherit it, so the server ends up importing React's
+# jsx-dev-runtime *production* stub (which intentionally sets
+# jsxDEV = undefined) while the compiled server code still calls jsxDEV(),
+# throwing "jsxDevRuntimeExports.jsxDEV is not a function" on every
+# request. Confirmed by actually booting that build, not just building it.
 ARG BUILD_MODE=production
 
 # Set database path - critical for migrations and runtime
@@ -82,10 +91,7 @@ COPY . .
 RUN cd packages/core && bun run db:generate
 
 # Build webapp (required for vite preview) - see BUILD_MODE comment above.
-# NODE_ENV must be set explicitly alongside --mode: `vite build` always
-# forces NODE_ENV=production internally otherwise, regardless of --mode,
-# which would silently keep bundling React's production (minified) build.
-RUN cd apps/webapp && NODE_ENV="$BUILD_MODE" pnpm exec vite build --mode "$BUILD_MODE"
+RUN cd apps/webapp && pnpm exec vite build $( [ "$BUILD_MODE" = "debug" ] && echo --minify false )
 
 # Expose webapp port only - API (3001) and Worker are internal
 EXPOSE 3000

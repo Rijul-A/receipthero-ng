@@ -48,15 +48,17 @@ jobs:
       max-parallel: 1
       matrix:
         include:
-          # Normal image: React's minified production bundle (errors show
-          # as numeric codes, see react.dev/errors/<code>).
+          # Normal image: minified bundle.
           - variant: ''
             build_mode: production
-          # Debug image: React's unminified dev bundle, with full in-browser
-          # error messages/warnings - larger and slower, not for real
-          # traffic, but much easier to diagnose a reported error against.
+          # Debug image: unminified bundle (readable stack traces/component
+          # names) - larger and slower, not for real traffic. React error
+          # messages still show as numeric codes (see react.dev/errors/
+          # <code>): switching React itself to its dev build was tried
+          # first and hard-crashes SSR on every route, see BUILD_MODE
+          # comment in the Dockerfile for why.
           - variant: '-debug'
-            build_mode: development
+            build_mode: debug
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
