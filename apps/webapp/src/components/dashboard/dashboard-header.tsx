@@ -1,19 +1,8 @@
-import {
-  BarChart3,
-  Download,
-  ListChecks,
-  LogOut,
-  PieChart,
-  RefreshCw,
-  Settings,
-  TrendingDown,
-  Workflow,
-} from 'lucide-react'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Download, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { useExportReceiptsCsv, useLogout } from '@/lib/queries'
+import { useExportReceiptsCsv } from '@/lib/queries'
 
 interface DashboardHeaderProps {
   lastRefresh: Date | null
@@ -28,19 +17,10 @@ export function DashboardHeader({
   isRefreshing,
   isTriggeringScan,
 }: DashboardHeaderProps) {
-  const navigate = useNavigate()
   const exportReceiptsCsv = useExportReceiptsCsv()
-  const logout = useLogout()
 
   const handleExport = () => {
     exportReceiptsCsv.mutate(undefined, {
-      onError: (error) => toast.error(error.message),
-    })
-  }
-
-  const handleLogout = () => {
-    logout.mutate(undefined, {
-      onSuccess: () => void navigate({ to: '/login' }),
       onError: (error) => toast.error(error.message),
     })
   }
@@ -107,51 +87,6 @@ export function DashboardHeader({
         >
           <Download className="h-4 w-4 mr-2" />
           Export CSV
-        </Button>
-        <Link to="/workflows">
-          <Button variant="outline" size="sm">
-            <Workflow className="h-4 w-4 mr-2" />
-            Workflows
-          </Button>
-        </Link>
-        <Link to="/receipts">
-          <Button variant="outline" size="sm">
-            <ListChecks className="h-4 w-4 mr-2" />
-            Receipts
-          </Button>
-        </Link>
-        <Link to="/prices">
-          <Button variant="outline" size="sm">
-            <TrendingDown className="h-4 w-4 mr-2" />
-            Prices
-          </Button>
-        </Link>
-        <Link to="/reports">
-          <Button variant="outline" size="sm">
-            <BarChart3 className="h-4 w-4 mr-2" />
-            Reports
-          </Button>
-        </Link>
-        <Link to="/analytics">
-          <Button variant="outline" size="sm">
-            <PieChart className="h-4 w-4 mr-2" />
-            Analytics
-          </Button>
-        </Link>
-        <Link to="/settings">
-          <Button>
-            <Settings className="h-4 w-4 mr-2" />
-            Configure
-          </Button>
-        </Link>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleLogout}
-          disabled={logout.isPending}
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          Log out
         </Button>
       </div>
     </div>

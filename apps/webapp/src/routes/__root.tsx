@@ -3,6 +3,7 @@ import {
   Scripts,
   createRootRoute,
   redirect,
+  useLocation,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
@@ -11,6 +12,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { Toaster } from 'sonner'
 import appCss from '../styles.css?url'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { Sidebar } from '@/components/layout/sidebar'
 import { checkSession } from '@/lib/server'
 
 // Create a client outside component to avoid re-creation on renders
@@ -71,7 +73,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <QueryClientProvider client={queryClient}>
-          <TooltipProvider>{children}</TooltipProvider>
+          <TooltipProvider>
+            <AppShell>{children}</AppShell>
+          </TooltipProvider>
           <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>
         <Toaster richColors position="top-right" />
@@ -89,5 +93,22 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <Scripts />
       </body>
     </html>
+  )
+}
+
+function AppShell({ children }: { children: React.ReactNode }) {
+  const location = useLocation()
+
+  // /login has no nav - it's the only page reachable before a session
+  // exists, so there's nowhere else to navigate to yet.
+  if (location.pathname === '/login') {
+    return <>{children}</>
+  }
+
+  return (
+    <div className="flex min-h-screen">
+      <Sidebar />
+      <div className="flex-1 min-w-0">{children}</div>
+    </div>
   )
 }
