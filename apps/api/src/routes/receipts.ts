@@ -69,6 +69,7 @@ const ReceiptEditSchema = z.object({
   time: z.string().optional(),
   category: z.string().min(1).optional(),
   storeLocation: z.string().optional(),
+  taxAmount: z.number().nullable().optional(),
 })
 
 /**

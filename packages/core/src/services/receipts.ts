@@ -34,12 +34,16 @@ export interface ReceiptEdit {
   time?: string // HH:MM, display/edit only - not used by any date-bucketing logic
   category?: string
   storeLocation?: string
+  // Major units, like amount. null explicitly clears it (receipt's line
+  // items are tax-inclusive, or the tax portion just isn't known) -
+  // undefined leaves whatever's already stored untouched.
+  taxAmount?: number | null
 }
 
 /**
  * Applies manual corrections to a receipt's extracted data. `date`, `time`,
- * and `category` only ever live inside the `receiptData` JSON blob (no
- * dedicated columns), so they're merged into that JSON; `vendor`, `amount`,
+ * `category`, and `taxAmount` only ever live inside the `receiptData` JSON
+ * blob (no dedicated columns), so they're merged into that JSON; `vendor`, `amount`,
  * `currency`, and `storeLocation` also have their own columns (read by
  * currency-totals/spending-report/CSV export) and are kept in sync with the
  * same values.
@@ -82,6 +86,7 @@ export async function updateReceipt(
   if (edits.time !== undefined) parsed.time = edits.time
   if (edits.category !== undefined) parsed.category = edits.category
   if (edits.storeLocation !== undefined) parsed.storeLocation = edits.storeLocation
+  if (edits.taxAmount !== undefined) parsed.taxAmount = edits.taxAmount
 
   const updates: Partial<schema.NewProcessingLogEntry> = {
     receiptData: JSON.stringify(parsed),

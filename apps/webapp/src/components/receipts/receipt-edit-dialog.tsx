@@ -152,6 +152,7 @@ function ReceiptDetail({
   const [time, setTime] = useState('')
   const [currency, setCurrency] = useState('')
   const [category, setCategory] = useState('')
+  const [taxAmount, setTaxAmount] = useState('')
   const [initializedFor, setInitializedFor] = useState<number | null>(null)
   const [showAddItem, setShowAddItem] = useState(false)
   const [editableItems, setEditableItems] = useState<Array<EditableItem>>([])
@@ -181,6 +182,9 @@ function ReceiptDetail({
     setTime(typeof parsed.time === 'string' ? parsed.time : '')
     setCurrency(detail.log.currency ?? '')
     setCategory(typeof parsed.category === 'string' ? parsed.category : '')
+    setTaxAmount(
+      typeof parsed.taxAmount === 'number' ? String(parsed.taxAmount) : '',
+    )
     setInitializedFor(documentId)
     setMode('view')
     setShowAddItem(false)
@@ -253,6 +257,16 @@ function ReceiptDetail({
     }
     if (!currency.trim()) {
       toast.error('Currency cannot be empty')
+      return
+    }
+    // Blank is valid - it means the receipt's line items are tax-inclusive
+    // (or the tax portion just isn't known), not that tax is zero.
+    const parsedTaxAmount = taxAmount.trim() === '' ? null : Number(taxAmount)
+    if (
+      parsedTaxAmount !== null &&
+      (!Number.isFinite(parsedTaxAmount) || parsedTaxAmount < 0)
+    ) {
+      toast.error('Tax must be a non-negative number, or left blank')
       return
     }
 
@@ -351,7 +365,15 @@ function ReceiptDetail({
     try {
       await updateReceipt.mutateAsync({
         documentId,
-        edits: { vendor, storeLocation, date, time, currency, category },
+        edits: {
+          vendor,
+          storeLocation,
+          date,
+          time,
+          currency,
+          category,
+          taxAmount: parsedTaxAmount,
+        },
       })
       await Promise.all([
         ...itemUpdates.map((update) => updateItem.mutateAsync(update)),
@@ -376,6 +398,12 @@ function ReceiptDetail({
     ['Time', time || '—'],
     ['Currency', currency || '—'],
     ['Category', category || '—'],
+    [
+      'Tax',
+      taxAmount.trim() !== ''
+        ? `${taxAmount} ${currency}`
+        : 'Not tracked separately (tax-inclusive or unknown)',
+    ],
   ]
 
   return (
@@ -516,6 +544,18 @@ function ReceiptDetail({
               id="category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="taxAmount">Tax</Label>
+            <Input
+              id="taxAmount"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="Leave blank if tax-inclusive or unknown"
+              value={taxAmount}
+              onChange={(e) => setTaxAmount(e.target.value)}
             />
           </div>
         </div>

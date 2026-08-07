@@ -78,11 +78,31 @@ function ReceiptsPage() {
     })
   }
 
-  const needsReview = (documentId: number, amount: number | undefined) => {
+  const needsReview = (
+    documentId: number,
+    amount: number | undefined,
+    receiptData: string | undefined,
+  ) => {
     const status = reviewStatus?.[documentId]
     if (!status) return false
+    // Items are typically extracted pre-tax, so a taxed receipt's item sum
+    // is expected to fall short of the tax-inclusive total by exactly the
+    // tax amount - fold it back in before comparing, when known. Left
+    // blank (tax-inclusive line items, or unknown), this is a no-op.
+    let taxCents = 0
+    if (receiptData) {
+      try {
+        const parsed = JSON.parse(receiptData)
+        if (typeof parsed.taxAmount === 'number') {
+          taxCents = Math.round(parsed.taxAmount * 100)
+        }
+      } catch {
+        // ignore malformed receiptData
+      }
+    }
     const mismatch =
-      Math.abs(status.itemsTotal - (amount ?? 0)) > MISMATCH_TOLERANCE_CENTS
+      Math.abs(status.itemsTotal + taxCents - (amount ?? 0)) >
+      MISMATCH_TOLERANCE_CENTS
     return status.hasReviewItem || mismatch
   }
 
@@ -204,7 +224,11 @@ function ReceiptsPage() {
                               0 - needs review
                             </Badge>
                           )}
-                          {needsReview(receipt.documentId, receipt.amount) && (
+                          {needsReview(
+                            receipt.documentId,
+                            receipt.amount,
+                            receipt.receiptData ?? receipt.extractedData,
+                          ) && (
                             <Badge
                               variant="outline"
                               className="text-amber-600 border-amber-600"

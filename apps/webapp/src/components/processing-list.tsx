@@ -137,8 +137,17 @@ function ProcessingDetailsDialog({
   // publicUrl falls back to host, since most self-hosted setups reach
   // Paperless at the same address the backend does - it only needs to
   // differ when that address (e.g. an internal Docker hostname) isn't
-  // reachable from the browser this link opens in.
-  const paperlessBaseUrl = config?.paperless.publicUrl || config?.paperless.host
+  // reachable from the browser this link opens in. `host` is often a bare
+  // internal address without a scheme (e.g. "webserver:8000"); without one
+  // the browser treats the link as relative to the current page instead of
+  // an absolute URL, so default to http:// if neither value supplies one.
+  const paperlessBaseUrlRaw =
+    config?.paperless.publicUrl || config?.paperless.host
+  const paperlessBaseUrl = paperlessBaseUrlRaw
+    ? /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(paperlessBaseUrlRaw)
+      ? paperlessBaseUrlRaw
+      : `http://${paperlessBaseUrlRaw}`
+    : undefined
   const paperlessDocumentUrl = paperlessBaseUrl
     ? `${paperlessBaseUrl.replace(/\/+$/, '')}/documents/${log.documentId}/details`
     : undefined

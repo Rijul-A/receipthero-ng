@@ -203,7 +203,7 @@ export async function seedDefaultWorkflows() {
       zodSource: receiptZodSource,
       jsonSchema: JSON.stringify(z.toJSONSchema(receiptExtractionSchema)),
       promptInstructions: DEFAULT_RECEIPT_PROMPT_INSTRUCTIONS,
-      titleTemplate: '{vendor} - {amount} {currency}',
+      titleTemplate: '{vendor} - {date} - {amount} {currency}',
       outputMapping: JSON.stringify(outputMapping),
       processedTag: config.processing.processedTag,
       failedTag: config.processing.failedTag,

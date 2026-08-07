@@ -91,7 +91,7 @@ function WorkflowEditorPage() {
     priority: 0,
     enabled: true,
     zodSource: DEFAULT_ZOD_SOURCE,
-    titleTemplate: '{vendor} - {amount} {currency}',
+    titleTemplate: '{vendor} - {date} - {amount} {currency}',
     promptInstructions: '',
     includeOcrText: false,
     processedTag: 'ai-processed',
@@ -505,7 +505,7 @@ function WorkflowEditorPage() {
                 onChange={(e) =>
                   setFormData({ ...formData, titleTemplate: e.target.value })
                 }
-                placeholder="{vendor} - {amount}"
+                placeholder="{vendor} - {date} - {amount} {currency}"
                 className="text-sm"
               />
             </div>

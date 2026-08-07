@@ -265,6 +265,7 @@ describe('ReceiptEditDialog', () => {
         time: '14:30',
         currency: 'AED',
         category: 'groceries',
+        taxAmount: null,
       },
     })
     expect(mockUseUpdateReceiptItem().mutateAsync).not.toHaveBeenCalled()

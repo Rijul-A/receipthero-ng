@@ -42,6 +42,7 @@ export interface ReceiptEdit {
   time?: string
   category?: string
   storeLocation?: string
+  taxAmount?: number | null
 }
 
 /**
