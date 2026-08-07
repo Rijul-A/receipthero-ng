@@ -17,6 +17,7 @@ import Editor from '@monaco-editor/react'
 import { toast } from 'sonner'
 import {
   useCreateWorkflow,
+  useTestWorkflow,
   useUpdateWorkflow,
   useValidateSchema,
   useWorkflow,
@@ -79,6 +80,7 @@ function WorkflowEditorPage() {
   const createMutation = useCreateWorkflow()
   const updateMutation = useUpdateWorkflow()
   const validateMutation = useValidateSchema()
+  const testWorkflowMutation = useTestWorkflow()
 
   const [formData, setFormData] = useState<WorkflowFormData>({
     name: '',
@@ -179,7 +181,7 @@ function WorkflowEditorPage() {
     fileInputRef.current?.click()
   }
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -192,32 +194,30 @@ function WorkflowEditorPage() {
     setTestResult(null)
 
     const reader = new FileReader()
-    reader.onload = async () => {
-      try {
-        const base64 = (reader.result as string).split(',')[1]
+    reader.onload = () => {
+      const base64 = (reader.result as string).split(',')[1]
 
-        // Using fetch directly as this specific test endpoint might not be in the shared hooks yet
-        // or to ensure we have full control over the request
-        const res = await fetch(`/api/workflows/${id}/test`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: base64 }),
-        })
-
-        if (!res.ok) {
-          throw new Error('Extraction failed')
-        }
-
-        const data = await res.json()
-        setTestResult(data)
-        toast.success('Extraction test completed')
-      } catch (err: any) {
-        toast.error(err.message || 'Failed to test extraction')
-      } finally {
-        setIsTestingExtraction(false)
-        // Reset file input
-        if (fileInputRef.current) fileInputRef.current.value = ''
-      }
+      // Goes through the shared server-function proxy (useTestWorkflow),
+      // not a raw fetch - a relative fetch('/api/...') resolves against
+      // the browser's own origin (the webapp), not the internal API,
+      // which 404s in any deployment where only the webapp's port is
+      // exposed (the default docker-compose setup).
+      testWorkflowMutation.mutate(
+        { id: parseInt(id, 10), image: base64 },
+        {
+          onSuccess: (data) => {
+            setTestResult(data)
+            toast.success('Extraction test completed')
+          },
+          onError: (err) =>
+            toast.error(err.message || 'Failed to test extraction'),
+          onSettled: () => {
+            setIsTestingExtraction(false)
+            // Reset file input
+            if (fileInputRef.current) fileInputRef.current.value = ''
+          },
+        },
+      )
     }
     reader.onerror = () => {
       toast.error('Failed to read file')

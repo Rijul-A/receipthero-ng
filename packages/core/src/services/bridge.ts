@@ -11,6 +11,7 @@ import { recalculateReceiptTotal } from './receipts'
 import { executeWorkflow } from './workflow-executor'
 import { getWorkflowForTag } from './workflow'
 import { normalizeDateForPaperless } from './date-format'
+import { buildDocumentContent } from './document-content'
 
 import { db, schema } from '../db'
 import { eq, desc } from 'drizzle-orm'
@@ -557,10 +558,7 @@ export async function processPaperlessDocument(
     let newContentLegacy: string | undefined = undefined
     if (config.processing.updateContent) {
       const formattedContentLegacy = receiptToMarkdown(receipt)
-      const existingContentLegacy = updateDoc.content || ''
-      newContentLegacy = existingContentLegacy
-        ? `${formattedContentLegacy}\n\n---\n\n### Raw OCR Text\n\n${existingContentLegacy}`
-        : formattedContentLegacy
+      newContentLegacy = buildDocumentContent(formattedContentLegacy, updateDoc.content || '')
     } else {
       docLogger.debug(` Skipping content update (updateContent disabled)`)
     }
@@ -1044,10 +1042,7 @@ export async function processPaperlessDocument(
     let newContent: string | undefined = undefined
     if (config.processing.updateContent) {
       const formattedContent = receiptToMarkdown(receipt)
-      const existingContent = doc.content || ''
-      newContent = existingContent
-        ? `${formattedContent}\n\n---\n\n### Raw OCR Text\n\n${existingContent}`
-        : formattedContent
+      newContent = buildDocumentContent(formattedContent, doc.content || '')
     } else {
       docLogger.debug(` Skipping content update (updateContent disabled)`)
     }

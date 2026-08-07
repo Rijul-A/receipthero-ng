@@ -7,6 +7,7 @@ import { createLogger } from './logger'
 import { skippedDocuments } from './skipped-documents'
 import { recordReceiptItems } from './receipt-items'
 import { normalizeDateForPaperless } from './date-format'
+import { buildDocumentContent } from './document-content'
 import { db, schema } from '../db'
 import { eq, desc } from 'drizzle-orm'
 import type { Workflow } from '../db/schema'
@@ -248,7 +249,7 @@ export async function executeWorkflow(
     // 6. Content
     if (config.processing.updateContent) {
       const markdown = dataToMarkdown(extractedData, workflow.name)
-      updates.content = doc.content ? `${markdown}\n\n---\n\n${doc.content}` : markdown
+      updates.content = buildDocumentContent(markdown, doc.content || '')
     }
 
     // Record line items for cross-vendor price comparison (best-effort)
