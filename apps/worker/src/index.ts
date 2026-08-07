@@ -6,6 +6,7 @@ import {
   seedDefaultWorkflows,
   webhookQueueService,
   processDocumentsByIds,
+  recoverOrphanedProcessingLogs,
 } from '@sm-rn/core'
 
 const logger = createLogger('worker')
@@ -20,6 +21,11 @@ async function workerLoop() {
 
   // Initialize worker state on startup
   await workerState.initialize()
+
+  // Clean up any documents left stuck "processing" by an ungraceful
+  // shutdown of the previous instance - there's nothing to resume across
+  // a restart, so leaving them as-is would show them stuck forever.
+  await recoverOrphanedProcessingLogs()
 
   // Seed default workflows on first run
   await seedDefaultWorkflows()

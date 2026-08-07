@@ -1,5 +1,8 @@
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { db, schema } from '../db'
+import { createLogger } from './logger'
+
+const logger = createLogger('worker')
 
 /**
  * Service to manage worker state (pause/resume).
@@ -9,7 +12,11 @@ export class WorkerStateService {
   private static readonly STATE_ID = 1
 
   /**
-   * Ensure the state row exists (called on startup).
+   * Ensure the state row exists (called on startup). Also clears a stale
+   * isRunning lock left behind by an ungraceful shutdown (crash, restart,
+   * redeploy mid-cycle) - a fresh process boot can never have a
+   * legitimately-still-running previous instance, so a lock that's still
+   * set at this point is definitely stale, not actually held.
    */
   async initialize(): Promise<void> {
     const existing = await db
@@ -26,6 +33,12 @@ export class WorkerStateService {
           isPaused: false,
           updatedAt: new Date().toISOString(),
         })
+        .run()
+    } else if (existing.isRunning) {
+      await db
+        .update(schema.workerStateSchema)
+        .set({ isRunning: false, updatedAt: new Date().toISOString() })
+        .where(eq(schema.workerStateSchema.id, WorkerStateService.STATE_ID))
         .run()
     }
   }
@@ -327,6 +340,39 @@ export class WorkerStateService {
 
     return state?.isRunning ?? false
   }
+}
+
+/**
+ * Marks any processingLogs row still showing 'processing'/'retrying' as
+ * failed, on process startup. There's no checkpointing across a restart -
+ * a document that was mid-flight when the process was killed (crash,
+ * manual restart, redeploy) never gets a final workflow:success/failed
+ * event, so without this its row (and the dashboard card built from it)
+ * stays stuck at "processing" indefinitely, forever, even though nothing
+ * is actually working on it anymore.
+ */
+export async function recoverOrphanedProcessingLogs(): Promise<void> {
+  const orphaned = await db
+    .select({ documentId: schema.processingLogs.documentId })
+    .from(schema.processingLogs)
+    .where(inArray(schema.processingLogs.status, ['processing', 'retrying']))
+    .all()
+
+  if (orphaned.length === 0) return
+
+  await db
+    .update(schema.processingLogs)
+    .set({
+      status: 'failed',
+      message: 'Interrupted by a service restart - please reprocess.',
+      updatedAt: new Date().toISOString(),
+    })
+    .where(inArray(schema.processingLogs.status, ['processing', 'retrying']))
+    .run()
+
+  logger.warn(`Marked ${orphaned.length} orphaned processing log(s) as failed after restart`, {
+    documentIds: orphaned.map((o) => o.documentId),
+  })
 }
 
 // Singleton instance
