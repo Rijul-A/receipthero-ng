@@ -179,7 +179,24 @@ export async function extractWithSchema(
     throw new Error('AI provider returned an empty response.')
   }
 
-  // The provider guarantees this is valid JSON matching the schema — no cleaning needed.
-  const parsed = JSON.parse(rawContent) as { items: Record<string, unknown>[] }
+  console.log(
+    `[extract] Raw AI response (${rawContent.length} chars): ${rawContent.slice(0, 4000)}${rawContent.length > 4000 ? '…(truncated)' : ''}`,
+  )
+
+  // The provider is expected to guarantee valid JSON matching the schema via
+  // response_format, but a struggling/overloaded small local model can still
+  // emit truncated or malformed output (e.g. hitting its own output token
+  // limit mid-object) - surface the raw text on failure instead of just the
+  // generic SyntaxError, since that's the only way to tell "cut off" apart
+  // from "genuinely empty".
+  let parsed: { items: Record<string, unknown>[] }
+  try {
+    parsed = JSON.parse(rawContent) as { items: Record<string, unknown>[] }
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err)
+    throw new Error(
+      `AI provider returned invalid JSON (${reason}). Raw response (${rawContent.length} chars): ${rawContent.slice(0, 2000)}`,
+    )
+  }
   return Array.isArray(parsed.items) ? parsed.items : []
 }
