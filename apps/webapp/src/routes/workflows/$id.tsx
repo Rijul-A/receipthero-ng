@@ -445,10 +445,10 @@ function WorkflowEditorPage() {
                   Include Paperless OCR text
                 </span>
                 <p className="text-xs text-muted-foreground max-w-md">
-                  Sends Paperless's own OCR'd text for the document alongside
-                  the image, as reference context - not authoritative, since OCR
-                  can be wrong (especially on faded thermal receipts). Worth A/B
-                  testing on your own documents rather than assuming it helps.
+                  Includes Paperless's own scanned text alongside the image as
+                  extra context. Useful when Paperless reads a receipt more
+                  clearly than the AI does on its own - try it on a few receipts
+                  to see if it improves your results.
                 </p>
               </div>
               <Switch

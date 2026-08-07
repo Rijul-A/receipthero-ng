@@ -92,11 +92,10 @@ function ReceiptsPage() {
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Batch Reprocess</h1>
           <p className="text-muted-foreground">
-            Re-run already-processed receipts — useful after changing a
-            workflow's extraction schema, or to backfill data (like
-            price-comparison line items) that older receipts predate. Documents
-            currently being processed are also listed below for visibility, but
-            can't be selected.
+            Select receipts to re-run them through AI extraction — useful if an
+            earlier result looks wrong, or you've since changed how your
+            workflow reads receipts. Receipts still being processed are shown
+            below too, but can't be selected until they finish.
           </p>
         </div>
         <Button

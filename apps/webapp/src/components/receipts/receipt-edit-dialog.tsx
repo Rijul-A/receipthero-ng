@@ -389,7 +389,7 @@ function ReceiptDetail({
               variant="outline"
               onClick={handleReprocess}
               disabled={reprocess.isPending}
-              title="Force a fresh AI re-extraction for this receipt"
+              title="Reprocess this receipt from scratch"
             >
               {reprocess.isPending ? (
                 <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />

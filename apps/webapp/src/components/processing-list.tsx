@@ -183,7 +183,7 @@ function ProcessingDetailsDialog({
                   variant="outline"
                   onClick={() => handleRetry('full')}
                   disabled={retryMutation.isPending}
-                  title="Reprocess this document (force re-extraction)"
+                  title="Reprocess this document from scratch"
                 >
                   {retryMutation.isPending ? (
                     <Loader2 className="h-3 w-3 animate-spin mr-1" />
@@ -213,7 +213,7 @@ function ProcessingDetailsDialog({
                     variant="ghost"
                     onClick={() => handleRetry('full')}
                     disabled={retryMutation.isPending}
-                    title="Full retry (re-extract from image)"
+                    title="Retry with a fresh AI extraction"
                   >
                     Full
                   </Button>
