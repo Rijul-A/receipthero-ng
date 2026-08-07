@@ -78,6 +78,21 @@ export async function executeWorkflow(
   const docLogger = logger.withDocument(documentId)
 
   docLogger.info(`Starting workflow: ${workflow.name} (attempt ${attemptNum}/${maxRetries})`)
+
+  // Fetch the document's *current* title up front (best-effort) so a
+  // reprocess immediately shows what's actually on the document right now,
+  // not whatever title was captured back at first ingestion - and set an
+  // explicit message here, since otherwise the events route falls back to
+  // whatever message the *previous* run left behind (e.g. "Processed
+  // successfully" persisting through a fresh run's early 5% progress).
+  let startingTitle: string | undefined
+  try {
+    startingTitle = (await client.getDocument(documentId)).title
+  } catch {
+    // Best-effort - the main pipeline below will surface a real error if
+    // the document is genuinely unreachable.
+  }
+
   await reporter.report('workflow:processing', {
     documentId,
     workflowId: workflow.id,
@@ -85,6 +100,8 @@ export async function executeWorkflow(
     attempts: attemptNum,
     progress: 5,
     status: 'processing',
+    message: 'Starting workflow...',
+    fileName: startingTitle,
   })
 
   try {
@@ -268,12 +285,24 @@ export async function executeWorkflow(
       updates.content = buildDocumentContent(markdown, doc.content || '')
     }
 
-    // Record line items for cross-vendor price comparison (best-effort)
+    // Record line items for cross-vendor price comparison (best-effort).
+    // This fires a second full AI call (canonicalization) - report progress
+    // for it explicitly, or the UI just keeps showing "AI extraction
+    // complete" the whole time it's actually doing something else.
     try {
       const vendorValue = mapping.correspondentField
         ? extractedData[mapping.correspondentField]
         : undefined
       const dateValue = mapping.dateField ? extractedData[mapping.dateField] : undefined
+      const hasLineItems =
+        Array.isArray(extractedData.line_items) && extractedData.line_items.length > 0
+      if (hasLineItems) {
+        await reporter.report('workflow:processing', {
+          documentId,
+          progress: 70,
+          message: 'Canonicalizing line items for price comparison...',
+        })
+      }
       await recordReceiptItems({
         documentId,
         vendor: typeof vendorValue === 'string' ? vendorValue : undefined,
@@ -285,6 +314,12 @@ export async function executeWorkflow(
     } catch {
       docLogger.warn(`Failed to record line items for price comparison`)
     }
+
+    await reporter.report('workflow:processing', {
+      documentId,
+      progress: 85,
+      message: 'Updating Paperless document...',
+    })
 
     // Apply updates
     await client.updateDocument(documentId, updates)
