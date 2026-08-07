@@ -155,6 +155,7 @@ function ReceiptDetail({
   const [initializedFor, setInitializedFor] = useState<number | null>(null)
   const [showAddItem, setShowAddItem] = useState(false)
   const [editableItems, setEditableItems] = useState<Array<EditableItem>>([])
+  const [deletedItemIds, setDeletedItemIds] = useState<Array<number>>([])
   const [isSaving, setIsSaving] = useState(false)
 
   // Must also be called unconditionally, before the loading early-return
@@ -184,6 +185,7 @@ function ReceiptDetail({
     setMode('view')
     setShowAddItem(false)
     setEditableItems(detail.items.map(toEditableItem))
+    setDeletedItemIds([])
   }, [detail, documentId, initializedFor])
 
   if (isLoading || !detail) {
@@ -201,6 +203,7 @@ function ReceiptDetail({
     // Re-sync from the latest server data rather than whatever the last
     // edit session left behind, so editing always starts from current truth.
     setEditableItems(detail.items.map(toEditableItem))
+    setDeletedItemIds([])
     setMode('edit')
   }
 
@@ -221,17 +224,12 @@ function ReceiptDetail({
     )
   }
 
+  // Local-only until Save is clicked - the item just disappears from this
+  // list and its id is queued for deletion, matching how field edits and
+  // reordering already stay unsaved until the receipt-level Save.
   const handleDeleteItem = (item: EditableItem) => {
-    deleteItem.mutate(
-      { id: item.id },
-      {
-        onSuccess: () => {
-          toast.success('Item deleted')
-          setEditableItems((prev) => prev.filter((i) => i.id !== item.id))
-        },
-        onError: (error) => toast.error(error.message),
-      },
-    )
+    setEditableItems((prev) => prev.filter((i) => i.id !== item.id))
+    setDeletedItemIds((prev) => [...prev, item.id])
   }
 
   const handleItemAdded = (item: ReceiptItemEntry) => {
@@ -355,9 +353,11 @@ function ReceiptDetail({
         documentId,
         edits: { vendor, storeLocation, date, time, currency, category },
       })
-      await Promise.all(
-        itemUpdates.map((update) => updateItem.mutateAsync(update)),
-      )
+      await Promise.all([
+        ...itemUpdates.map((update) => updateItem.mutateAsync(update)),
+        ...deletedItemIds.map((id) => deleteItem.mutateAsync({ id })),
+      ])
+      setDeletedItemIds([])
       toast.success('Receipt updated')
       setMode('view')
     } catch (error) {
@@ -429,7 +429,13 @@ function ReceiptDetail({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => setMode('view')}
+                onClick={() => {
+                  // Discard unsaved edits, including any pending deletions -
+                  // nothing has touched the server yet.
+                  setEditableItems(detail.items.map(toEditableItem))
+                  setDeletedItemIds([])
+                  setMode('view')
+                }}
                 disabled={isSaving}
               >
                 <X className="h-3.5 w-3.5 mr-1.5" />

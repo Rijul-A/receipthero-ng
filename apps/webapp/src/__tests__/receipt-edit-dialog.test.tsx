@@ -152,6 +152,7 @@ function setupDefaultMocks() {
   })
   mockUseDeleteReceiptItem.mockReturnValue({
     mutate: vi.fn((_vars, opts) => opts?.onSuccess?.()),
+    mutateAsync: vi.fn().mockResolvedValue(undefined),
     isPending: false,
   })
 }
@@ -411,7 +412,7 @@ describe('ReceiptEditDialog', () => {
     expect(refundItemCall?.[0].edits.sortOrder).toBe(0)
   })
 
-  it('arms then deletes a single line item on a second click', async () => {
+  it('arms then removes a single line item from the list on a second click, without saving to the server yet', async () => {
     renderDialog()
     await enterEditMode()
 
@@ -419,16 +420,33 @@ describe('ReceiptEditDialog', () => {
       name: 'Delete Almond Milk',
     })
     await userEvent.click(deleteButton)
-    expect(mockUseDeleteReceiptItem().mutate).not.toHaveBeenCalled()
+    expect(mockUseDeleteReceiptItem().mutateAsync).not.toHaveBeenCalled()
 
     await userEvent.click(
       screen.getByRole('button', { name: 'Click again to delete Almond Milk' }),
     )
 
-    expect(mockUseDeleteReceiptItem().mutate).toHaveBeenCalledWith(
-      { id: goodItem.id },
-      expect.anything(),
+    expect(screen.queryByDisplayValue('Almond Milk')).not.toBeInTheDocument()
+    expect(mockUseDeleteReceiptItem().mutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('only deletes a removed line item from the server once Save is clicked', async () => {
+    renderDialog()
+    await enterEditMode()
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Delete Almond Milk' }),
     )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Click again to delete Almond Milk' }),
+    )
+    expect(mockUseDeleteReceiptItem().mutateAsync).not.toHaveBeenCalled()
+
+    await clickSave()
+
+    expect(mockUseDeleteReceiptItem().mutateAsync).toHaveBeenCalledWith({
+      id: goodItem.id,
+    })
   })
 
   it('shows a debounced review warning once the user pauses on a non-positive price', async () => {
