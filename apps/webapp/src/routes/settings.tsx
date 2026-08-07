@@ -80,6 +80,8 @@ function SettingsPage() {
       apiKey: '',
       baseURL: '',
       model: 'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8',
+      temperature: 0,
+      maxTokens: 8192,
     },
     togetherAi: { apiKey: '' },
     processing: {
@@ -145,7 +147,10 @@ function SettingsPage() {
     ollama: 'http://localhost:11434/v1',
   }
 
-  const handleAiChange = (field: keyof Config['ai'], value: string) => {
+  const handleAiChange = (
+    field: keyof Config['ai'],
+    value: string | number,
+  ) => {
     if (field === 'provider') {
       // Auto-reset baseURL to the correct default for the new provider
       setLocalConfig((prev) => ({
@@ -664,6 +669,57 @@ function SettingsPage() {
                   The model to use for receipt extraction. Must support
                   vision/image input.
                 </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="ai-temperature">Temperature</Label>
+                  <Input
+                    id="ai-temperature"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="2"
+                    value={localConfig.ai.temperature}
+                    onChange={(e) =>
+                      handleAiChange(
+                        'temperature',
+                        parseFloat(e.target.value) || 0,
+                      )
+                    }
+                    className={
+                      errors['ai.temperature'] ? 'border-destructive' : ''
+                    }
+                  />
+                  <ErrorMessage path="ai.temperature" />
+                  <p className="text-xs text-muted-foreground">
+                    0 for consistent, repeatable extraction. Higher values add
+                    randomness - not recommended here.
+                  </p>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="ai-max-tokens">Max Output Tokens</Label>
+                  <Input
+                    id="ai-max-tokens"
+                    type="number"
+                    min="1"
+                    value={localConfig.ai.maxTokens}
+                    onChange={(e) =>
+                      handleAiChange(
+                        'maxTokens',
+                        parseInt(e.target.value, 10) || 1,
+                      )
+                    }
+                    className={
+                      errors['ai.maxTokens'] ? 'border-destructive' : ''
+                    }
+                  />
+                  <ErrorMessage path="ai.maxTokens" />
+                  <p className="text-xs text-muted-foreground">
+                    Raise this if dense receipts (many line items) get cut off
+                    mid-response.
+                  </p>
+                </div>
               </div>
             </div>
 

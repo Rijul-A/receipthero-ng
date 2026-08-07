@@ -138,6 +138,16 @@ export function loadConfig(): Config {
       apiKey: getConfigValue(fileConfig, ['ai', 'apiKey'], process.env.AI_API_KEY),
       baseURL: getConfigValue(fileConfig, ['ai', 'baseURL'], process.env.AI_BASE_URL),
       model: getConfigValue(fileConfig, ['ai', 'model'], process.env.AI_MODEL),
+      temperature: getConfigValueNumber(
+        fileConfig,
+        ['ai', 'temperature'],
+        process.env.AI_TEMPERATURE ? parseFloat(process.env.AI_TEMPERATURE) : undefined,
+      ),
+      maxTokens: getConfigValueNumber(
+        fileConfig,
+        ['ai', 'maxTokens'],
+        process.env.AI_MAX_TOKENS ? parseInt(process.env.AI_MAX_TOKENS, 10) : undefined,
+      ),
     },
     togetherAi: getConfigValue(fileConfig, ['togetherAi', 'apiKey'], process.env.TOGETHER_API_KEY)
       ? {

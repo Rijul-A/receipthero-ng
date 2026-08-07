@@ -20,6 +20,13 @@ export const ConfigSchema = z.object({
       .transform((v) => (v === '' ? undefined : v))
       .pipe(z.string().url().optional()),
     model: z.string().default('meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8'),
+    // Structured extraction wants the same answer every time for the same
+    // image, not creative variation - 0 is the right default for nearly
+    // every use case, but exposed here in case a provider behaves oddly at 0.
+    temperature: z.number().min(0).max(2).default(0),
+    // No cap risks running on the provider's own default output limit,
+    // which can be too small to finish a dense receipt's JSON.
+    maxTokens: z.number().int().positive().default(8192),
   }),
   // Kept for backward compatibility — resolved in config.ts
   togetherAi: z
@@ -100,6 +107,8 @@ export const PartialConfigSchema = z.object({
         .transform((v) => (v === '' ? undefined : v))
         .pipe(z.string().url().optional()),
       model: z.string().optional(),
+      temperature: z.number().min(0).max(2).optional(),
+      maxTokens: z.number().int().positive().optional(),
     })
     .optional(),
   togetherAi: z
