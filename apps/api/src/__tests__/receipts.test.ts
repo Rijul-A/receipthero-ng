@@ -2,6 +2,7 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test'
 import { eq } from 'drizzle-orm'
 import { db, schema } from '@sm-rn/core'
 import { app } from '../index'
+import { authHeaders } from './setup'
 
 const DOC_ID = 9_600_001
 const OTHER_DOC_ID = 9_600_002
@@ -69,7 +70,7 @@ describe('receipts routes', () => {
       await seedLog(DOC_ID)
       await seedItem(DOC_ID)
 
-      const res = await app.request(`/api/receipts/${DOC_ID}`)
+      const res = await app.request(`/api/receipts/${DOC_ID}`, { headers: authHeaders() })
       expect(res.status).toBe(200)
       const body = (await res.json()) as { log: { vendor: string }; items: Array<unknown> }
       expect(body.log.vendor).toBe('Carrefour')
@@ -77,13 +78,18 @@ describe('receipts routes', () => {
     })
 
     test('404s for an unknown document', async () => {
-      const res = await app.request('/api/receipts/999999999')
+      const res = await app.request('/api/receipts/999999999', { headers: authHeaders() })
       expect(res.status).toBe(404)
     })
 
     test('400s for a non-numeric documentId', async () => {
-      const res = await app.request('/api/receipts/not-a-number')
+      const res = await app.request('/api/receipts/not-a-number', { headers: authHeaders() })
       expect(res.status).toBe(400)
+    })
+
+    test('401s without a valid session', async () => {
+      const res = await app.request(`/api/receipts/${DOC_ID}`)
+      expect(res.status).toBe(401)
     })
   })
 
@@ -94,7 +100,7 @@ describe('receipts routes', () => {
 
       const res = await app.request(`/api/receipts/${DOC_ID}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ vendor: 'Lulu', storeLocation: 'Deira City Centre' }),
       })
       expect(res.status).toBe(200)
@@ -111,7 +117,7 @@ describe('receipts routes', () => {
     test('404s for an unknown document', async () => {
       const res = await app.request('/api/receipts/999999999', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ vendor: 'Lulu' }),
       })
       expect(res.status).toBe(404)
@@ -122,7 +128,7 @@ describe('receipts routes', () => {
 
       const res = await app.request(`/api/receipts/${DOC_ID}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ vendor: '' }),
       })
       expect(res.status).toBe(400)
@@ -134,7 +140,10 @@ describe('receipts routes', () => {
       await seedLog(DOC_ID)
       await seedItem(DOC_ID)
 
-      const res = await app.request(`/api/receipts/${DOC_ID}`, { method: 'DELETE' })
+      const res = await app.request(`/api/receipts/${DOC_ID}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      })
       expect(res.status).toBe(200)
 
       const log = await db
@@ -153,7 +162,10 @@ describe('receipts routes', () => {
     })
 
     test('404s for an unknown document', async () => {
-      const res = await app.request('/api/receipts/999999999', { method: 'DELETE' })
+      const res = await app.request('/api/receipts/999999999', {
+        method: 'DELETE',
+        headers: authHeaders(),
+      })
       expect(res.status).toBe(404)
     })
   })
@@ -164,6 +176,7 @@ describe('receipts routes', () => {
 
       const res = await app.request(
         `/api/receipts/vendor-rename-preview?from=${encodeURIComponent('Carrefour')}`,
+        { headers: authHeaders() },
       )
       expect(res.status).toBe(200)
       const body = (await res.json()) as { rows: Array<{ documentId: number }> }
@@ -171,7 +184,9 @@ describe('receipts routes', () => {
     })
 
     test('requires a non-empty from, and is not swallowed by the /:documentId route', async () => {
-      const res = await app.request('/api/receipts/vendor-rename-preview')
+      const res = await app.request('/api/receipts/vendor-rename-preview', {
+        headers: authHeaders(),
+      })
       expect(res.status).toBe(400)
     })
   })
@@ -184,7 +199,7 @@ describe('receipts routes', () => {
 
       const res = await app.request('/api/receipts/vendor-rename', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ from: 'Carrefour', to: 'Carrefour Market' }),
       })
       expect(res.status).toBe(200)
@@ -214,7 +229,7 @@ describe('receipts routes', () => {
     test('400s when "to" is missing', async () => {
       const res = await app.request('/api/receipts/vendor-rename', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ from: 'Carrefour' }),
       })
       expect(res.status).toBe(400)

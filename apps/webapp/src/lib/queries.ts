@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   batchReprocessDocuments,
+  checkSession as checkSessionFn,
   clearQueue as clearQueueFn,
   clearSkippedDocuments,
   deleteReceipt as deleteReceiptFn,
@@ -21,9 +22,12 @@ import {
   getProcessingLogs,
   getQueueStatus as getQueueStatusFn,
   getReceiptDetail as getReceiptDetailFn,
+  getSocketToken as getSocketTokenFn,
   getSpendingReport as getSpendingReportFn,
   getVendorSpendReport as getVendorSpendReportFn,
   getWebhookStatus as getWebhookStatusFn,
+  login as loginFn,
+  logout as logoutFn,
   pauseWorker as pauseWorkerFn,
   previewRename as previewRenameFn,
   previewVendorRename as previewVendorRenameFn,
@@ -708,5 +712,62 @@ export function useRenameVendor() {
       queryClient.invalidateQueries({ queryKey: ['processing-logs'] })
       queryClient.invalidateQueries({ queryKey: statsKeys.all })
     },
+  })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auth Queries
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const authKeys = {
+  all: ['auth'] as const,
+  session: () => [...authKeys.all, 'session'] as const,
+}
+
+/**
+ * Logs in with Paperless-NGX credentials, setting the session cookie on
+ * success.
+ */
+export function useLogin() {
+  return useMutation({
+    mutationFn: (params: { username: string; password: string }) =>
+      loginFn({ data: params }),
+  })
+}
+
+/**
+ * Ends the session and clears the cookie.
+ */
+export function useLogout() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => logoutFn(),
+    onSuccess: () => {
+      queryClient.clear()
+    },
+  })
+}
+
+/**
+ * Whether the current session cookie is still accepted by Paperless.
+ */
+export function useSession() {
+  return useQuery({
+    queryKey: authKeys.session(),
+    queryFn: () => checkSessionFn(),
+    retry: false,
+    staleTime: 0,
+  })
+}
+
+/**
+ * The raw session token, for the one client-side use case that can't ride
+ * the httpOnly cookie: authenticating the live-events WebSocket connection.
+ */
+export function useSocketToken() {
+  return useQuery({
+    queryKey: [...authKeys.all, 'socket-token'] as const,
+    queryFn: () => getSocketTokenFn(),
+    staleTime: Infinity,
   })
 }

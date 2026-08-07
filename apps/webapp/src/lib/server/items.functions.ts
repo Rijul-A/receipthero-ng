@@ -5,17 +5,8 @@
  */
 
 import { createServerFn } from '@tanstack/react-start'
+import { apiCall, authorizedFetch } from './api-client'
 import type { DateRange } from './stats.functions'
-
-const API_URL = process.env.API_URL || 'http://localhost:3001'
-
-async function apiCall<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, init)
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status} ${response.statusText}`)
-  }
-  return response.json() as T
-}
 
 export interface ReceiptItemEntry {
   id: number
@@ -71,7 +62,7 @@ export const getItemPriceHistory = createServerFn({ method: 'GET' })
  */
 export const exportItemsCsv = createServerFn({ method: 'GET' }).handler(
   async () => {
-    const response = await fetch(`${API_URL}/api/items/export`)
+    const response = await authorizedFetch('/api/items/export')
     if (!response.ok) {
       throw new Error(`API error: ${response.status} ${response.statusText}`)
     }

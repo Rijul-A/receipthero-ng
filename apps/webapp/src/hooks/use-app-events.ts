@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { AppEvent, LogEntry, ProcessingLog } from '@/lib/api'
 import { WS_BASE_URL } from '@/lib/api'
 import { useAppLogs, useProcessingLogs } from '@/lib/queries'
+import { getSocketToken } from '@/lib/server'
 
 export function useAppEvents() {
   const queryClient = useQueryClient()
@@ -31,9 +32,27 @@ export function useAppEvents() {
   useEffect(() => {
     let socket: WebSocket | null = null
     let reconnectTimeout: any = null
+    let cancelled = false
+    // The API's WS endpoint runs on a different origin/port than the
+    // webapp, so it can't ride the httpOnly session cookie the way every
+    // other (server-function-proxied) request does - the token rides as a
+    // query param instead, fetched once and reused across reconnects.
+    let socketToken: string | null = null
 
-    const connect = () => {
-      socket = new WebSocket(`${WS_BASE_URL}/ws`)
+    const connect = async () => {
+      if (socketToken === null) {
+        try {
+          socketToken = (await getSocketToken()).token
+        } catch {
+          socketToken = null
+        }
+      }
+      if (cancelled) return
+
+      const url = socketToken
+        ? `${WS_BASE_URL}/ws?token=${encodeURIComponent(socketToken)}`
+        : `${WS_BASE_URL}/ws`
+      socket = new WebSocket(url)
 
       socket.onopen = () => {
         console.log('Connected to app events')
@@ -107,9 +126,10 @@ export function useAppEvents() {
       }
     }
 
-    connect()
+    void connect()
 
     return () => {
+      cancelled = true
       if (socket) {
         socket.onclose = null
         socket.close()

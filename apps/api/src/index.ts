@@ -15,10 +15,12 @@ import stats from './routes/stats'
 import items from './routes/items'
 import receipts from './routes/receipts'
 import webhooks from './routes/webhooks'
+import auth from './routes/auth'
 import ws from './routes/ws'
 import { websocket } from 'hono/bun'
 import { createLogger, seedDefaultWorkflows } from '@sm-rn/core'
 import { logger as honoLogger } from 'hono/logger'
+import { requireAuth } from './middleware/require-auth'
 
 const logger = createLogger('api')
 const app = new Hono()
@@ -26,12 +28,26 @@ const app = new Hono()
 // Enable CORS for webapp communication
 app.use('/*', cors())
 
+// Paths reachable without a session: health checks, the worker's own
+// progress-reporting callback (no browser session exists there), external
+// Paperless webhooks (gated by their own secret instead), and login itself.
+const PUBLIC_API_PATHS = ['/api/health', '/api/events', '/api/webhooks', '/api/auth']
+
+app.use('/api/*', async (c, next) => {
+  const isPublic = PUBLIC_API_PATHS.some(
+    (path) => c.req.path === path || c.req.path.startsWith(`${path}/`),
+  )
+  if (isPublic) return next()
+  return requireAuth(c, next)
+})
+
 // Root route
 app.get('/', (c) => c.text('ReceiptHero API'))
 
 // Mount routes
 app.route('/api/health', health)
 app.route('/api/events', events)
+app.route('/api/auth', auth)
 app.route('/ws', ws)
 app.use(honoLogger())
 app.route('/api/config', config)

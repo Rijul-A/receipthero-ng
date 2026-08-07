@@ -1,7 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-
-// API base URL - in production this would be internal, in dev it's localhost
-const API_BASE_URL = process.env.API_URL || 'http://localhost:3001'
+import { authorizedFetch } from './api-client'
 
 export interface HealthStatus {
   status: 'healthy' | 'unhealthy'
@@ -36,10 +34,7 @@ export interface HealthStatus {
  */
 export const getHealthStatus = createServerFn({ method: 'GET' }).handler(
   async (): Promise<HealthStatus> => {
-    const url = `${API_BASE_URL}/api/health`
-    const response = await fetch(url, {
-      headers: { 'Content-Type': 'application/json' },
-    })
+    const response = await authorizedFetch('/api/health')
 
     // Parse JSON for both 200 and 503 responses
     const data = (await response.json()) as HealthStatus

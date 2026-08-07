@@ -1,4 +1,9 @@
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
+import {
+  HeadContent,
+  Scripts,
+  createRootRoute,
+  redirect,
+} from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -6,6 +11,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { Toaster } from 'sonner'
 import appCss from '../styles.css?url'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { checkSession } from '@/lib/server'
 
 // Create a client outside component to avoid re-creation on renders
 const queryClient = new QueryClient({
@@ -22,6 +28,17 @@ const queryClient = new QueryClient({
 })
 
 export const Route = createRootRoute({
+  beforeLoad: async ({ location }) => {
+    const isLoginPage = location.pathname === '/login'
+    const { valid } = await checkSession()
+
+    if (!valid && !isLoginPage) {
+      throw redirect({ to: '/login' })
+    }
+    if (valid && isLoginPage) {
+      throw redirect({ to: '/' })
+    }
+  },
   head: () => ({
     meta: [
       {

@@ -6,6 +6,7 @@ export * from './services/fawazahmed0' // Primary currency API (fawazahmed0)
 // export * from './services/ecb'; // Backup ECB implementation available
 export { extractReceiptData } from './services/ocr'
 export * from './services/paperless'
+export * from './services/paperless-auth'
 export * from './services/retry-queue'
 export * from './services/ai-client'
 export * from './services/reporter'

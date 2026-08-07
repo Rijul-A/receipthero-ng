@@ -1,11 +1,12 @@
 import { describe, test, expect } from 'bun:test'
 import { app } from '../index'
+import { authHeaders } from './setup'
 
 describe('OCR Route', () => {
   test('POST /api/ocr requires base64Image', async () => {
     const res = await app.request('/api/ocr', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({}),
     })
 
@@ -15,11 +16,21 @@ describe('OCR Route', () => {
   test('POST /api/ocr accepts base64Image', async () => {
     const res = await app.request('/api/ocr', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ base64Image: 'test' }),
     })
 
     // Should either succeed or fail with server error (not validation error)
     expect(res.status).toBeOneOf([200, 429, 500])
+  })
+
+  test('401s without a valid session', async () => {
+    const res = await app.request('/api/ocr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base64Image: 'test' }),
+    })
+
+    expect(res.status).toBe(401)
   })
 })

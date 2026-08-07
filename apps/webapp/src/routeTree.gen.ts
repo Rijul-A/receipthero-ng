@@ -13,6 +13,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as ReceiptsRouteImport } from './routes/receipts'
 import { Route as PricesRouteImport } from './routes/prices'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkflowsIndexRouteImport } from './routes/workflows/index'
@@ -37,6 +38,11 @@ const ReceiptsRoute = ReceiptsRouteImport.update({
 const PricesRoute = PricesRouteImport.update({
   id: '/prices',
   path: '/prices',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnalyticsRoute = AnalyticsRouteImport.update({
@@ -68,6 +74,7 @@ const WorkflowsIdRoute = WorkflowsIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/login': typeof LoginRoute
   '/prices': typeof PricesRoute
   '/receipts': typeof ReceiptsRoute
   '/reports': typeof ReportsRoute
@@ -79,6 +86,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/login': typeof LoginRoute
   '/prices': typeof PricesRoute
   '/receipts': typeof ReceiptsRoute
   '/reports': typeof ReportsRoute
@@ -91,6 +99,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/login': typeof LoginRoute
   '/prices': typeof PricesRoute
   '/receipts': typeof ReceiptsRoute
   '/reports': typeof ReportsRoute
@@ -104,6 +113,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/analytics'
+    | '/login'
     | '/prices'
     | '/receipts'
     | '/reports'
@@ -115,6 +125,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/analytics'
+    | '/login'
     | '/prices'
     | '/receipts'
     | '/reports'
@@ -126,6 +137,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/analytics'
+    | '/login'
     | '/prices'
     | '/receipts'
     | '/reports'
@@ -138,6 +150,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
+  LoginRoute: typeof LoginRoute
   PricesRoute: typeof PricesRoute
   ReceiptsRoute: typeof ReceiptsRoute
   ReportsRoute: typeof ReportsRoute
@@ -175,6 +188,13 @@ declare module '@tanstack/react-router' {
       path: '/prices'
       fullPath: '/prices'
       preLoaderRoute: typeof PricesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/analytics': {
@@ -218,6 +238,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
+  LoginRoute: LoginRoute,
   PricesRoute: PricesRoute,
   ReceiptsRoute: ReceiptsRoute,
   ReportsRoute: ReportsRoute,

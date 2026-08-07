@@ -5,17 +5,7 @@
  */
 
 import { createServerFn } from '@tanstack/react-start'
-
-const API_URL = process.env.API_URL || 'http://localhost:3001'
-
-async function apiCall<T>(endpoint: string): Promise<T> {
-  const url = `${API_URL}${endpoint}`
-  const response = await fetch(url)
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status} ${response.statusText}`)
-  }
-  return response.json() as T
-}
+import { apiCall, authorizedFetch } from './api-client'
 
 export interface DateRange {
   startDate?: string
@@ -57,7 +47,7 @@ export const getCurrencyTotals = createServerFn({ method: 'GET' }).handler(
  */
 export const exportReceiptsCsv = createServerFn({ method: 'GET' }).handler(
   async () => {
-    const response = await fetch(`${API_URL}/api/stats/export/receipts`)
+    const response = await authorizedFetch('/api/stats/export/receipts')
     if (!response.ok) {
       throw new Error(`API error: ${response.status} ${response.statusText}`)
     }
@@ -101,8 +91,8 @@ export const exportSpendingReportCsv = createServerFn({ method: 'GET' })
   .handler(async (ctx) => {
     const params = new URLSearchParams({ groupBy: ctx.data.groupBy })
     addDateRangeParams(params, ctx.data)
-    const response = await fetch(
-      `${API_URL}/api/stats/spending/export?${params.toString()}`,
+    const response = await authorizedFetch(
+      `/api/stats/spending/export?${params.toString()}`,
     )
     if (!response.ok) {
       throw new Error(`API error: ${response.status} ${response.statusText}`)

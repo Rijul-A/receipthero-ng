@@ -3,17 +3,8 @@
  */
 
 import { createServerFn } from '@tanstack/react-start'
+import { apiCall } from './api-client'
 import type { ReceiptItemEntry } from './items.functions'
-
-const API_URL = process.env.API_URL || 'http://localhost:3001'
-
-async function apiCall<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, init)
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status} ${response.statusText}`)
-  }
-  return response.json() as T
-}
 
 export interface ProcessingLogEntry {
   id: number

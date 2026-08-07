@@ -88,3 +88,4 @@ export {
   type ReceiptEdit,
   type VendorRenamePreviewRow,
 } from './receipts.functions'
+export { login, logout, checkSession, getSocketToken } from './auth.functions'

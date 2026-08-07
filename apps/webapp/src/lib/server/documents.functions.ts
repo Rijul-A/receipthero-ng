@@ -1,7 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-
-// API base URL - in production this would be internal, in dev it's localhost
-const API_BASE_URL = process.env.API_URL || 'http://localhost:3001'
+import { authorizedFetch } from './api-client'
 
 export interface DocumentImageResponse {
   base64: string
@@ -21,8 +19,8 @@ export const getDocumentThumbnail = createServerFn({ method: 'POST' })
     }: {
       data: { documentId: number }
     }): Promise<DocumentImageResponse> => {
-      const response = await fetch(
-        `${API_BASE_URL}/api/documents/${data.documentId}/thumbnail`,
+      const response = await authorizedFetch(
+        `/api/documents/${data.documentId}/thumbnail`,
       )
 
       if (!response.ok) {
@@ -50,8 +48,8 @@ export const getDocumentImage = createServerFn({ method: 'POST' })
     }: {
       data: { documentId: number }
     }): Promise<DocumentImageResponse> => {
-      const response = await fetch(
-        `${API_BASE_URL}/api/documents/${data.documentId}/image`,
+      const response = await authorizedFetch(
+        `/api/documents/${data.documentId}/image`,
       )
 
       if (!response.ok) {

@@ -2,6 +2,7 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test'
 import { eq } from 'drizzle-orm'
 import { db, schema } from '@sm-rn/core'
 import { app } from '../index'
+import { authHeaders } from './setup'
 
 const DOC_ID = 9_500_001
 const OTHER_DOC_ID = 9_500_002
@@ -62,20 +63,25 @@ describe('items routes', () => {
       await seedLog(DOC_ID)
       await seedItem()
 
-      const res = await app.request('/api/items/frequency')
+      const res = await app.request('/api/items/frequency', { headers: authHeaders() })
       expect(res.status).toBe(200)
       const body = (await res.json()) as { rows: Array<{ name: string; purchaseCount: number }> }
       expect(body.rows.some((r) => r.name === 'Almond Milk')).toBe(true)
     })
 
     test('rejects a limit of zero', async () => {
-      const res = await app.request('/api/items/frequency?limit=0')
+      const res = await app.request('/api/items/frequency?limit=0', { headers: authHeaders() })
       expect(res.status).toBe(400)
     })
 
     test('rejects a non-numeric limit', async () => {
-      const res = await app.request('/api/items/frequency?limit=abc')
+      const res = await app.request('/api/items/frequency?limit=abc', { headers: authHeaders() })
       expect(res.status).toBe(400)
+    })
+
+    test('401s without a valid session', async () => {
+      const res = await app.request('/api/items/frequency')
+      expect(res.status).toBe(401)
     })
   })
 
@@ -84,14 +90,14 @@ describe('items routes', () => {
       await seedLog(DOC_ID)
       await seedItem()
 
-      const res = await app.request('/api/items/search?q=Almond')
+      const res = await app.request('/api/items/search?q=Almond', { headers: authHeaders() })
       expect(res.status).toBe(200)
       const body = (await res.json()) as { names: Array<string> }
       expect(body.names).toContain('Almond Milk')
     })
 
     test('requires a non-empty q', async () => {
-      const res = await app.request('/api/items/search?q=')
+      const res = await app.request('/api/items/search?q=', { headers: authHeaders() })
       expect(res.status).toBe(400)
     })
   })
@@ -101,7 +107,10 @@ describe('items routes', () => {
       await seedLog(DOC_ID)
       await seedItem()
 
-      const res = await app.request(`/api/items/history?names=${encodeURIComponent('Almond Milk')}`)
+      const res = await app.request(
+        `/api/items/history?names=${encodeURIComponent('Almond Milk')}`,
+        { headers: authHeaders() },
+      )
       expect(res.status).toBe(200)
       const body = (await res.json()) as { history: Array<{ canonicalName: string | null }> }
       expect(body.history).toHaveLength(1)
@@ -115,7 +124,7 @@ describe('items routes', () => {
 
       const res = await app.request(`/api/items/${item.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ totalPrice: 7, quantity: 2 }),
       })
       expect(res.status).toBe(200)
@@ -128,7 +137,7 @@ describe('items routes', () => {
     test('404s for an unknown item id', async () => {
       const res = await app.request('/api/items/999999999', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ totalPrice: 700 }),
       })
       expect(res.status).toBe(404)
@@ -137,7 +146,7 @@ describe('items routes', () => {
     test('400s for a non-numeric item id', async () => {
       const res = await app.request('/api/items/not-a-number', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ totalPrice: 700 }),
       })
       expect(res.status).toBe(400)
@@ -149,7 +158,7 @@ describe('items routes', () => {
 
       const res = await app.request(`/api/items/${item.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ quantity: -1 }),
       })
       expect(res.status).toBe(400)
@@ -161,7 +170,10 @@ describe('items routes', () => {
       await seedLog(DOC_ID)
       const item = await seedItem()
 
-      const res = await app.request(`/api/items/${item.id}`, { method: 'DELETE' })
+      const res = await app.request(`/api/items/${item.id}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      })
       expect(res.status).toBe(200)
 
       const remaining = await db
@@ -173,7 +185,10 @@ describe('items routes', () => {
     })
 
     test('404s for an unknown item id', async () => {
-      const res = await app.request('/api/items/999999999', { method: 'DELETE' })
+      const res = await app.request('/api/items/999999999', {
+        method: 'DELETE',
+        headers: authHeaders(),
+      })
       expect(res.status).toBe(404)
     })
   })
@@ -185,6 +200,7 @@ describe('items routes', () => {
 
       const res = await app.request(
         `/api/items/rename-preview?from=${encodeURIComponent('Almond Milk')}`,
+        { headers: authHeaders() },
       )
       expect(res.status).toBe(200)
       const body = (await res.json()) as { rows: Array<unknown> }
@@ -192,7 +208,7 @@ describe('items routes', () => {
     })
 
     test('requires a non-empty from', async () => {
-      const res = await app.request('/api/items/rename-preview')
+      const res = await app.request('/api/items/rename-preview', { headers: authHeaders() })
       expect(res.status).toBe(400)
     })
   })
@@ -204,7 +220,7 @@ describe('items routes', () => {
 
       const res = await app.request('/api/items/rename', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ from: 'Almond Milk', to: 'Oat Milk' }),
       })
       expect(res.status).toBe(200)
@@ -220,7 +236,7 @@ describe('items routes', () => {
     test('400s when "to" is missing', async () => {
       const res = await app.request('/api/items/rename', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ from: 'Almond Milk' }),
       })
       expect(res.status).toBe(400)

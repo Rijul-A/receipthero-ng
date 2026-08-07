@@ -20,3 +20,15 @@ const { db } = await import('@sm-rn/core')
 migrate(db, {
   migrationsFolder: path.resolve(import.meta.dirname, '../../../../packages/core/drizzle'),
 })
+
+// Every route except a short exemption list now sits behind requireAuth
+// (see apps/api/src/middleware/require-auth.ts). Pre-caching a fixed token
+// here lets every existing route test attach a valid Authorization header
+// without hitting a real Paperless server.
+const { cacheToken } = await import('../lib/auth-cache')
+export const TEST_AUTH_TOKEN = 'test-session-token'
+cacheToken(TEST_AUTH_TOKEN)
+
+export function authHeaders(): Record<string, string> {
+  return { Authorization: `Token ${TEST_AUTH_TOKEN}` }
+}
