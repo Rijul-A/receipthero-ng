@@ -66,6 +66,11 @@ export async function executeWorkflow(
   documentId: number,
   workflow: Workflow,
   retryQueue?: RetryQueue,
+  // 'full' forces a fresh AI extraction even if a previous run already
+  // cached extractedData - used by explicit user-triggered reprocessing,
+  // so stale/incomplete data from an old prompt or a bad run doesn't get
+  // silently re-served forever.
+  forceRetryStrategy?: 'full' | 'partial',
 ) {
   const config = loadConfig()
   const attemptNum = retryQueue ? (await retryQueue.getAttempts(documentId)) + 1 : 1
@@ -93,7 +98,7 @@ export async function executeWorkflow(
       .orderBy(desc(schema.processingLogs.id))
       .get()
 
-    if (existing?.extractedData) {
+    if (existing?.extractedData && forceRetryStrategy !== 'full') {
       try {
         extractedData = JSON.parse(existing.extractedData)
         docLogger.info(`✓ Reusing existing data for ${workflow.name}`)

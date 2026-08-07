@@ -138,7 +138,7 @@ export async function processPaperlessDocument(
     }
 
     if (workflow) {
-      return await executeWorkflow(client, documentId, workflow, retryQueue)
+      return await executeWorkflow(client, documentId, workflow, retryQueue, retryStrategy)
     }
 
     // Legacy fallback logic
@@ -1381,12 +1381,16 @@ export async function processDocumentsByIds(documentIds: number[]): Promise<{
   for (const documentId of documentIds) {
     try {
       await reporter.report('receipt:detected', { documentId, status: 'detected', progress: 0 })
+      // Explicit user-triggered reprocess - always re-run extraction rather
+      // than silently re-serving whatever got cached from an earlier
+      // (possibly stale/incomplete) attempt.
       await processPaperlessDocument(
         client,
         documentId,
         adapter,
         retryQueue,
         config.processing.failedTag,
+        'full',
       )
       processed++
     } catch (error: any) {
