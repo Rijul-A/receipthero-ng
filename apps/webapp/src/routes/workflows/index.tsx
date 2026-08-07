@@ -48,7 +48,7 @@ function WorkflowsPage() {
               Playground
             </Button>
           </Link>
-          <Link to="/workflows/new">
+          <Link to="/workflows/$id" params={{ id: 'new' }}>
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
               Create Workflow
@@ -94,7 +94,10 @@ function WorkflowsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Link to={`/workflows/${workflow.id as any}`}>
+                  <Link
+                    to="/workflows/$id"
+                    params={{ id: String(workflow.id) }}
+                  >
                     <Button
                       variant="ghost"
                       size="icon"
@@ -178,7 +181,7 @@ function WorkflowsPage() {
                   Create your first document extraction workflow to get started.
                 </p>
               </div>
-              <Link to="/workflows/new">
+              <Link to="/workflows/$id" params={{ id: 'new' }}>
                 <Button variant="outline" className="rounded-full px-6">
                   Create Workflow
                 </Button>

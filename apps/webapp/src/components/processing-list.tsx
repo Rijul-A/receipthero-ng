@@ -12,6 +12,7 @@ import {
 import { useState } from 'react'
 import { JsonViewer } from './devtools/json-viewer'
 import { CliOutput } from './ui/cli-output'
+import type { CliOutputLine } from './ui/cli-output'
 import type { ProcessingLog } from '@/lib/api'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
@@ -149,7 +150,7 @@ function ProcessingDetailsDialog({
   }
 
   // Format logs for CliOutput component
-  const formattedLogs = documentLogs?.length
+  const formattedLogs: Array<CliOutputLine> = documentLogs?.length
     ? documentLogs
         .slice()
         .reverse()

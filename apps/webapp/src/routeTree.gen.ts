@@ -9,40 +9,20 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as ReportsRouteImport } from './routes/reports'
-import { Route as ReceiptsRouteImport } from './routes/receipts'
-import { Route as PricesRouteImport } from './routes/prices'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AnalyticsRouteImport } from './routes/analytics'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as PricesRouteImport } from './routes/prices'
+import { Route as ReceiptsRouteImport } from './routes/receipts'
+import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as WorkflowsIndexRouteImport } from './routes/workflows/index'
-import { Route as WorkflowsPlaygroundRouteImport } from './routes/workflows/playground'
 import { Route as WorkflowsIdRouteImport } from './routes/workflows/$id'
+import { Route as WorkflowsPlaygroundRouteImport } from './routes/workflows/playground'
 
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReportsRoute = ReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReceiptsRoute = ReceiptsRouteImport.update({
-  id: '/receipts',
-  path: '/receipts',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PricesRoute = PricesRouteImport.update({
-  id: '/prices',
-  path: '/prices',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnalyticsRoute = AnalyticsRouteImport.update({
@@ -50,9 +30,29 @@ const AnalyticsRoute = AnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PricesRoute = PricesRouteImport.update({
+  id: '/prices',
+  path: '/prices',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReceiptsRoute = ReceiptsRouteImport.update({
+  id: '/receipts',
+  path: '/receipts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WorkflowsIndexRoute = WorkflowsIndexRouteImport.update({
@@ -60,14 +60,14 @@ const WorkflowsIndexRoute = WorkflowsIndexRouteImport.update({
   path: '/workflows/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WorkflowsPlaygroundRoute = WorkflowsPlaygroundRouteImport.update({
-  id: '/workflows/playground',
-  path: '/workflows/playground',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const WorkflowsIdRoute = WorkflowsIdRouteImport.update({
   id: '/workflows/$id',
   path: '/workflows/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkflowsPlaygroundRoute = WorkflowsPlaygroundRouteImport.update({
+  id: '/workflows/playground',
+  path: '/workflows/playground',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -162,39 +162,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reports': {
-      id: '/reports'
-      path: '/reports'
-      fullPath: '/reports'
-      preLoaderRoute: typeof ReportsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/receipts': {
-      id: '/receipts'
-      path: '/receipts'
-      fullPath: '/receipts'
-      preLoaderRoute: typeof ReceiptsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/prices': {
-      id: '/prices'
-      path: '/prices'
-      fullPath: '/prices'
-      preLoaderRoute: typeof PricesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/analytics': {
@@ -204,11 +176,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prices': {
+      id: '/prices'
+      path: '/prices'
+      fullPath: '/prices'
+      preLoaderRoute: typeof PricesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/receipts': {
+      id: '/receipts'
+      path: '/receipts'
+      fullPath: '/receipts'
+      preLoaderRoute: typeof ReceiptsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/workflows/': {
@@ -218,18 +218,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkflowsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/workflows/playground': {
-      id: '/workflows/playground'
-      path: '/workflows/playground'
-      fullPath: '/workflows/playground'
-      preLoaderRoute: typeof WorkflowsPlaygroundRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/workflows/$id': {
       id: '/workflows/$id'
       path: '/workflows/$id'
       fullPath: '/workflows/$id'
       preLoaderRoute: typeof WorkflowsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workflows/playground': {
+      id: '/workflows/playground'
+      path: '/workflows/playground'
+      fullPath: '/workflows/playground'
+      preLoaderRoute: typeof WorkflowsPlaygroundRouteImport
       parentRoute: typeof rootRouteImport
     }
   }

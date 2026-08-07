@@ -25,7 +25,6 @@ import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import { Textarea } from '../../components/ui/textarea'
-import { Badge } from '../../components/ui/badge'
 import { Switch } from '../../components/ui/switch'
 import zodDts from '../../lib/zod-safe.d.ts?raw'
 import type { Monaco } from '@monaco-editor/react'
@@ -103,6 +102,12 @@ function WorkflowEditorPage() {
     if (workflow) {
       setFormData({
         ...workflow,
+        // description/promptInstructions/titleTemplate are optional on
+        // Workflow; the form fields are controlled inputs and need defined
+        // strings, not undefined.
+        description: workflow.description ?? '',
+        promptInstructions: workflow.promptInstructions ?? '',
+        titleTemplate: workflow.titleTemplate ?? '',
         outputMapping:
           typeof workflow.outputMapping === 'string'
             ? JSON.parse(workflow.outputMapping)
