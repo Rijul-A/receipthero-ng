@@ -20,6 +20,7 @@ export async function getReceiptDetail(documentId: number): Promise<ReceiptDetai
     .select()
     .from(schema.receiptItems)
     .where(eq(schema.receiptItems.documentId, documentId))
+    .orderBy(schema.receiptItems.sortOrder, schema.receiptItems.id)
     .all()
 
   return { log, items }

@@ -288,7 +288,7 @@ export async function recordReceiptItems(params: {
     docLogger.info(`✓ Canonicalization complete`)
   }
 
-  const rows: schema.NewReceiptItemEntry[] = parsed.map((item) => {
+  const rows: schema.NewReceiptItemEntry[] = parsed.map((item, index) => {
     const annotation = annotations[item.name]
     const override = nameOverrides.get(normalizeRawItemName(item.name))
     return {
@@ -304,6 +304,9 @@ export async function recordReceiptItems(params: {
       currency,
       purchaseDate,
       storeLocation,
+      // Default to extraction order - a user can re-sequence from there if
+      // the scanner skipped a row and everything reads out of alignment.
+      sortOrder: index,
       createdAt: now,
     }
   })
@@ -398,6 +401,7 @@ export interface ReceiptItemEdit {
   totalSize?: number | null
   sizeUnit?: 'ml' | 'g' | 'count' | null
   storeLocation?: string
+  sortOrder?: number
 }
 
 /**
@@ -438,6 +442,7 @@ export async function updateReceiptItem(
   if (edits.storeLocation !== undefined) updates.storeLocation = edits.storeLocation
   if (edits.totalSize !== undefined) updates.totalSize = edits.totalSize
   if (edits.sizeUnit !== undefined) updates.sizeUnit = edits.sizeUnit
+  if (edits.sortOrder !== undefined) updates.sortOrder = edits.sortOrder
 
   // unitPrice is comparablePriceOf's preferred per-pack fallback (ahead of
   // computing totalPrice/quantity on the fly), so leaving it untouched after
@@ -530,6 +535,14 @@ export async function createReceiptItem(
     }
   }
 
+  const existingItems = await db
+    .select({ sortOrder: schema.receiptItems.sortOrder })
+    .from(schema.receiptItems)
+    .where(eq(schema.receiptItems.documentId, input.documentId))
+    .all()
+  const nextSortOrder =
+    existingItems.length > 0 ? Math.max(...existingItems.map((i) => i.sortOrder)) + 1 : 0
+
   const quantity = input.quantity && input.quantity > 0 ? Math.round(input.quantity) : 1
   const totalPrice =
     input.totalPrice === undefined || input.totalPrice === null
@@ -553,6 +566,7 @@ export async function createReceiptItem(
       currency,
       purchaseDate,
       storeLocation,
+      sortOrder: nextSortOrder,
       createdAt: now,
     })
     .returning()

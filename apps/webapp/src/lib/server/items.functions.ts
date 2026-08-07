@@ -27,6 +27,9 @@ export interface ReceiptItemEntry {
   // Branch/address distinguishing this store location from other locations
   // of the same vendor. Null if not extracted/set.
   storeLocation: string | null
+  // Display order within the receipt, user-editable independent of
+  // insertion order.
+  sortOrder: number
   createdAt: string
 }
 
@@ -94,6 +97,7 @@ export interface ItemEdit {
   totalSize?: number | null
   sizeUnit?: 'ml' | 'g' | 'count' | null
   storeLocation?: string
+  sortOrder?: number
 }
 
 export interface NewItem {

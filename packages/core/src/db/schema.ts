@@ -145,6 +145,11 @@ export const receiptItems = sqliteTable('receipt_items', {
   // comparison can distinguish two locations of the same vendor without a
   // join back to processingLogs.
   storeLocation: text('storeLocation'),
+  // Display order within the receipt, editable independent of insertion
+  // order - lets a user re-sequence items to match the physical receipt
+  // (e.g. after adding one the scanner skipped, which would otherwise only
+  // ever append at the end).
+  sortOrder: integer('sortOrder').notNull().default(0),
   createdAt: text('createdAt').notNull(),
 })
 

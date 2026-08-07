@@ -74,6 +74,7 @@ const goodItem: ReceiptItemEntry = {
   currency: 'AED',
   purchaseDate: '2026-01-05',
   storeLocation: 'Mall of the Emirates',
+  sortOrder: 0,
   createdAt: '2026-01-05T14:30:00.000Z',
 }
 
@@ -91,6 +92,7 @@ const refundItem: ReceiptItemEntry = {
   currency: 'AED',
   purchaseDate: '2026-01-05',
   storeLocation: 'Mall of the Emirates',
+  sortOrder: 1,
   createdAt: '2026-01-05T14:30:00.000Z',
 }
 
@@ -103,6 +105,7 @@ function setupDefaultMocks() {
   mockUseReceiptDetail.mockReturnValue({ data: mockDetail, isLoading: false })
   mockUseUpdateReceipt.mockReturnValue({
     mutate: vi.fn((_vars, opts) => opts?.onSuccess?.()),
+    mutateAsync: vi.fn().mockResolvedValue(undefined),
     isPending: false,
   })
   mockUseDeleteReceipt.mockReturnValue({
@@ -111,6 +114,7 @@ function setupDefaultMocks() {
   })
   mockUseUpdateReceiptItem.mockReturnValue({
     mutate: vi.fn((_vars, opts) => opts?.onSuccess?.()),
+    mutateAsync: vi.fn().mockResolvedValue(undefined),
     isPending: false,
   })
   mockUseDeleteReceiptItem.mockReturnValue({
@@ -130,6 +134,10 @@ function renderDialog(onOpenChange: (open: boolean) => void = vi.fn()) {
 
 async function enterEditMode() {
   await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+}
+
+async function clickSave() {
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }))
 }
 
 describe('ReceiptEditDialog', () => {
@@ -158,6 +166,14 @@ describe('ReceiptEditDialog', () => {
     expect(screen.getByDisplayValue('10.00')).toBeInTheDocument()
   })
 
+  it('shows Cancel and a single Save button (not one per item) while editing', async () => {
+    renderDialog()
+    await enterEditMode()
+
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Save' })).toHaveLength(1)
+  })
+
   it('rejects saving the receipt with an empty store name', async () => {
     renderDialog()
     await enterEditMode()
@@ -165,10 +181,10 @@ describe('ReceiptEditDialog', () => {
     fireEvent.change(screen.getByDisplayValue('Carrefour'), {
       target: { value: '' },
     })
-    await userEvent.click(screen.getAllByRole('button', { name: 'Save' })[0])
+    await clickSave()
 
     expect(toast.error).toHaveBeenCalledWith('Store name cannot be empty')
-    expect(mockUseUpdateReceipt().mutate).not.toHaveBeenCalled()
+    expect(mockUseUpdateReceipt().mutateAsync).not.toHaveBeenCalled()
   })
 
   it('rejects saving the receipt with an empty date', async () => {
@@ -178,10 +194,10 @@ describe('ReceiptEditDialog', () => {
     fireEvent.change(screen.getByDisplayValue('2026-01-05'), {
       target: { value: '' },
     })
-    await userEvent.click(screen.getAllByRole('button', { name: 'Save' })[0])
+    await clickSave()
 
     expect(toast.error).toHaveBeenCalledWith('Date cannot be empty')
-    expect(mockUseUpdateReceipt().mutate).not.toHaveBeenCalled()
+    expect(mockUseUpdateReceipt().mutateAsync).not.toHaveBeenCalled()
   })
 
   it('rejects saving the receipt with an empty currency', async () => {
@@ -191,35 +207,33 @@ describe('ReceiptEditDialog', () => {
     fireEvent.change(screen.getByDisplayValue('AED'), {
       target: { value: '' },
     })
-    await userEvent.click(screen.getAllByRole('button', { name: 'Save' })[0])
+    await clickSave()
 
     expect(toast.error).toHaveBeenCalledWith('Currency cannot be empty')
-    expect(mockUseUpdateReceipt().mutate).not.toHaveBeenCalled()
+    expect(mockUseUpdateReceipt().mutateAsync).not.toHaveBeenCalled()
   })
 
-  it('saves valid receipt edits with the exact edited field values', async () => {
+  it('saves valid receipt edits with the exact edited field values, without touching unchanged items', async () => {
     renderDialog()
     await enterEditMode()
 
     fireEvent.change(screen.getByDisplayValue('Mall of the Emirates'), {
       target: { value: 'Downtown Branch' },
     })
-    await userEvent.click(screen.getAllByRole('button', { name: 'Save' })[0])
+    await clickSave()
 
-    expect(mockUseUpdateReceipt().mutate).toHaveBeenCalledWith(
-      {
-        documentId: DOCUMENT_ID,
-        edits: {
-          vendor: 'Carrefour',
-          storeLocation: 'Downtown Branch',
-          date: '2026-01-05',
-          time: '14:30',
-          currency: 'AED',
-          category: 'groceries',
-        },
+    expect(mockUseUpdateReceipt().mutateAsync).toHaveBeenCalledWith({
+      documentId: DOCUMENT_ID,
+      edits: {
+        vendor: 'Carrefour',
+        storeLocation: 'Downtown Branch',
+        date: '2026-01-05',
+        time: '14:30',
+        currency: 'AED',
+        category: 'groceries',
       },
-      expect.anything(),
-    )
+    })
+    expect(mockUseUpdateReceiptItem().mutateAsync).not.toHaveBeenCalled()
     await waitFor(() =>
       expect(toast.success).toHaveBeenCalledWith('Receipt updated'),
     )
@@ -248,61 +262,65 @@ describe('ReceiptEditDialog', () => {
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
   })
 
-  it('rejects saving an item with an empty name', async () => {
+  it('rejects saving when an item name is cleared', async () => {
     renderDialog()
     await enterEditMode()
 
     fireEvent.change(screen.getByDisplayValue('Almond Milk'), {
       target: { value: '' },
     })
-    await userEvent.click(screen.getAllByRole('button', { name: 'Save' })[1])
+    await clickSave()
 
-    expect(toast.error).toHaveBeenCalledWith('Name cannot be empty')
-    expect(mockUseUpdateReceiptItem().mutate).not.toHaveBeenCalled()
+    expect(toast.error).toHaveBeenCalledWith(
+      'Item name cannot be empty (row 1)',
+    )
+    expect(mockUseUpdateReceiptItem().mutateAsync).not.toHaveBeenCalled()
+    expect(mockUseUpdateReceipt().mutateAsync).not.toHaveBeenCalled()
   })
 
-  it('rejects saving an item with a zero quantity', async () => {
+  it('rejects saving when an item quantity is zero', async () => {
     renderDialog()
     await enterEditMode()
 
     fireEvent.change(screen.getByDisplayValue('2'), {
       target: { value: '0' },
     })
-    await userEvent.click(screen.getAllByRole('button', { name: 'Save' })[1])
+    await clickSave()
 
     expect(toast.error).toHaveBeenCalledWith(
-      'Quantity must be a positive number',
+      '"Almond Milk": quantity must be a positive number',
     )
-    expect(mockUseUpdateReceiptItem().mutate).not.toHaveBeenCalled()
+    expect(mockUseUpdateReceiptItem().mutateAsync).not.toHaveBeenCalled()
   })
 
-  it('saves a blank price as null instead of rejecting it as invalid', async () => {
+  it('saves a blank item price as null instead of rejecting it as invalid', async () => {
     renderDialog()
     await enterEditMode()
 
     fireEvent.change(screen.getByDisplayValue('10.00'), {
       target: { value: '' },
     })
-    await userEvent.click(screen.getAllByRole('button', { name: 'Save' })[1])
+    await clickSave()
 
     expect(toast.error).not.toHaveBeenCalled()
-    expect(mockUseUpdateReceiptItem().mutate).toHaveBeenCalledWith(
-      {
-        id: goodItem.id,
-        edits: expect.objectContaining({ totalPrice: null }),
-      },
-      expect.anything(),
-    )
+    expect(mockUseUpdateReceiptItem().mutateAsync).toHaveBeenCalledWith({
+      id: goodItem.id,
+      edits: expect.objectContaining({ totalPrice: null }),
+    })
   })
 
-  it('only sends canonicalName when the item name actually changed', async () => {
+  it('omits canonicalName from the item update when only another field changed', async () => {
     renderDialog()
     await enterEditMode()
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Save' })[1])
+    fireEvent.change(screen.getByDisplayValue('2'), {
+      target: { value: '3' },
+    })
+    await clickSave()
 
-    const [payload] = mockUseUpdateReceiptItem().mutate.mock.calls[0]
+    const [payload] = mockUseUpdateReceiptItem().mutateAsync.mock.calls[0]
     expect(payload.edits).not.toHaveProperty('canonicalName')
+    expect(payload.edits.quantity).toBe(3)
   })
 
   it('sends canonicalName once the item name is edited', async () => {
@@ -312,9 +330,9 @@ describe('ReceiptEditDialog', () => {
     fireEvent.change(screen.getByDisplayValue('Almond Milk'), {
       target: { value: 'Oat Milk' },
     })
-    await userEvent.click(screen.getAllByRole('button', { name: 'Save' })[1])
+    await clickSave()
 
-    const [payload] = mockUseUpdateReceiptItem().mutate.mock.calls[0]
+    const [payload] = mockUseUpdateReceiptItem().mutateAsync.mock.calls[0]
     expect(payload.edits.canonicalName).toBe('Oat Milk')
   })
 
@@ -324,18 +342,38 @@ describe('ReceiptEditDialog', () => {
 
     const sizeInput = screen.getByDisplayValue('2000')
     fireEvent.change(sizeInput, { target: { value: '0' } })
-    await userEvent.click(screen.getAllByRole('button', { name: 'Save' })[1])
+    await clickSave()
     expect(toast.error).toHaveBeenCalledWith(
-      'Total size must be a positive number, or left blank',
+      '"Almond Milk": total size must be a positive number, or left blank',
     )
-    expect(mockUseUpdateReceiptItem().mutate).not.toHaveBeenCalled()
+    expect(mockUseUpdateReceiptItem().mutateAsync).not.toHaveBeenCalled()
 
     fireEvent.change(sizeInput, { target: { value: '' } })
-    await userEvent.click(screen.getAllByRole('button', { name: 'Save' })[1])
+    await clickSave()
 
-    const [payload] = mockUseUpdateReceiptItem().mutate.mock.calls[0]
+    const [payload] = mockUseUpdateReceiptItem().mutateAsync.mock.calls[0]
     expect(payload.edits.totalSize).toBeNull()
     expect(payload.edits.sizeUnit).toBeNull()
+  })
+
+  it('swapping two items with the move buttons sends updated sortOrder for both on save', async () => {
+    renderDialog()
+    await enterEditMode()
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /move almond milk down/i }),
+    )
+    await clickSave()
+
+    const calls = mockUseUpdateReceiptItem().mutateAsync.mock.calls
+    const goodItemCall = calls.find(
+      ([payload]: [any]) => payload.id === goodItem.id,
+    )
+    const refundItemCall = calls.find(
+      ([payload]: [any]) => payload.id === refundItem.id,
+    )
+    expect(goodItemCall?.[0].edits.sortOrder).toBe(1)
+    expect(refundItemCall?.[0].edits.sortOrder).toBe(0)
   })
 
   it('arms then deletes a single line item on a second click', async () => {

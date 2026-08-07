@@ -57,6 +57,13 @@
       "when": 1786073884041,
       "tag": "0007_condemned_chameleon",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1786129879209,
+      "tag": "0008_careful_jocasta",
+      "breakpoints": true
     }
   ]
 }

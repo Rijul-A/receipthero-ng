@@ -169,6 +169,7 @@ const ItemEditSchema = z.object({
   totalSize: z.number().positive().nullable().optional(),
   sizeUnit: z.enum(['ml', 'g', 'count']).nullable().optional(),
   storeLocation: z.string().optional(),
+  sortOrder: z.number().int().optional(),
 })
 
 /**

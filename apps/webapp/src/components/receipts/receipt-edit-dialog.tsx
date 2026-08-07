@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Loader2, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import {
+  ArrowDown,
+  ArrowUp,
+  Loader2,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Save,
+  Trash2,
+  X,
+} from 'lucide-react'
 import type { ReceiptItemEntry } from '@/lib/server'
 import {
   Dialog,
@@ -76,6 +86,28 @@ function formatTotalSize(
   return sizeUnit === 'count' ? `${totalSize}` : `${totalSize}${sizeUnit}`
 }
 
+interface EditableItem {
+  id: number
+  original: ReceiptItemEntry
+  name: string
+  quantity: string
+  totalPrice: string
+  totalSize: string
+  sizeUnit: 'ml' | 'g' | 'count' | ''
+}
+
+function toEditableItem(item: ReceiptItemEntry): EditableItem {
+  return {
+    id: item.id,
+    original: item,
+    name: item.canonicalName ?? item.itemName,
+    quantity: String(item.quantity),
+    totalPrice: formatMajorUnits(item.totalPrice),
+    totalSize: item.totalSize !== null ? String(item.totalSize) : '',
+    sizeUnit: item.sizeUnit ?? '',
+  }
+}
+
 function ReceiptDetail({
   documentId,
   onDeleted,
@@ -85,6 +117,8 @@ function ReceiptDetail({
 }) {
   const { data: detail, isLoading } = useReceiptDetail(documentId)
   const updateReceipt = useUpdateReceipt()
+  const updateItem = useUpdateReceiptItem()
+  const deleteItem = useDeleteReceiptItem()
   const deleteReceipt = useDeleteReceipt()
   const reprocess = useBatchReprocess()
   // Must be called unconditionally, before the loading early-return below -
@@ -112,6 +146,8 @@ function ReceiptDetail({
   const [category, setCategory] = useState('')
   const [initializedFor, setInitializedFor] = useState<number | null>(null)
   const [showAddItem, setShowAddItem] = useState(false)
+  const [editableItems, setEditableItems] = useState<Array<EditableItem>>([])
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     // Re-syncs whenever this dialog is opened for a (possibly different)
@@ -128,6 +164,7 @@ function ReceiptDetail({
     setInitializedFor(documentId)
     setMode('view')
     setShowAddItem(false)
+    setEditableItems(detail.items.map(toEditableItem))
   }, [detail, documentId, initializedFor])
 
   if (isLoading || !detail) {
@@ -141,10 +178,53 @@ function ReceiptDetail({
     })
   }
 
-  const handleSaveReceipt = () => {
-    // vendor/currency also cascade to every recorded line item (see
-    // updateReceipt), so an accidental blank here wouldn't just clear the
-    // receipt header - it'd wipe those fields off every item too.
+  const handleEnterEdit = () => {
+    // Re-sync from the latest server data rather than whatever the last
+    // edit session left behind, so editing always starts from current truth.
+    setEditableItems(detail.items.map(toEditableItem))
+    setMode('edit')
+  }
+
+  const handleMoveItem = (index: number, direction: -1 | 1) => {
+    setEditableItems((prev) => {
+      const target = index + direction
+      if (target < 0 || target >= prev.length) return prev
+      const next = [...prev]
+      ;[next[index], next[target]] = [next[target], next[index]]
+      return next
+    })
+  }
+
+  const handleItemFieldChange = (id: number, patch: Partial<EditableItem>) => {
+    setEditableItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    )
+  }
+
+  const handleDeleteItem = (item: EditableItem) => {
+    deleteItem.mutate(
+      { id: item.id },
+      {
+        onSuccess: () => {
+          toast.success('Item deleted')
+          setEditableItems((prev) => prev.filter((i) => i.id !== item.id))
+        },
+        onError: (error) => toast.error(error.message),
+      },
+    )
+  }
+
+  const handleItemAdded = (item: ReceiptItemEntry) => {
+    setEditableItems((prev) => [...prev, toEditableItem(item)])
+    setShowAddItem(false)
+  }
+
+  // Everything (receipt fields, item field edits, and reordering) commits
+  // together as one Save, rather than each item racing its own independent
+  // save - validates every item up front and aborts the whole save with a
+  // specific error rather than applying some edits and silently skipping
+  // others.
+  const handleSaveAll = async () => {
     if (!vendor.trim()) {
       toast.error('Store name cannot be empty')
       return
@@ -158,16 +238,115 @@ function ReceiptDetail({
       return
     }
 
-    updateReceipt.mutate(
-      {
+    type ItemUpdate = {
+      id: number
+      edits: {
+        canonicalName?: string
+        quantity: number
+        totalPrice: number | null
+        totalSize: number | null
+        sizeUnit: 'ml' | 'g' | 'count' | null
+        sortOrder: number
+      }
+    }
+    const itemUpdates: Array<ItemUpdate> = []
+
+    for (const [index, item] of editableItems.entries()) {
+      if (!item.name.trim()) {
+        toast.error(`Item name cannot be empty (row ${index + 1})`)
+        return
+      }
+
+      const parsedQuantity = Number(item.quantity)
+      if (
+        item.quantity.trim() === '' ||
+        !Number.isFinite(parsedQuantity) ||
+        parsedQuantity <= 0
+      ) {
+        toast.error(`"${item.name}": quantity must be a positive number`)
+        return
+      }
+
+      const nextTotalPrice =
+        item.totalPrice.trim() === '' ? null : Number(item.totalPrice)
+      if (nextTotalPrice !== null && !Number.isFinite(nextTotalPrice)) {
+        toast.error(
+          `"${item.name}": price must be a number, or left blank if unknown`,
+        )
+        return
+      }
+
+      let sizeEdits: {
+        totalSize: number | null
+        sizeUnit: 'ml' | 'g' | 'count' | null
+      }
+      if (item.totalSize.trim() === '') {
+        sizeEdits = { totalSize: null, sizeUnit: null }
+      } else {
+        const parsedTotalSize = Number(item.totalSize)
+        if (!Number.isFinite(parsedTotalSize) || parsedTotalSize <= 0) {
+          toast.error(
+            `"${item.name}": total size must be a positive number, or left blank`,
+          )
+          return
+        }
+        sizeEdits = {
+          totalSize: parsedTotalSize,
+          sizeUnit: item.sizeUnit || null,
+        }
+      }
+
+      const originalName = item.original.canonicalName ?? item.original.itemName
+      const nameChanged = item.name.trim() !== originalName
+      const quantityChanged = parsedQuantity !== item.original.quantity
+      const priceChanged =
+        nextTotalPrice !==
+        (item.original.totalPrice === null
+          ? null
+          : item.original.totalPrice / 100)
+      const sizeChanged =
+        sizeEdits.totalSize !== item.original.totalSize ||
+        sizeEdits.sizeUnit !== item.original.sizeUnit
+      const orderChanged = index !== item.original.sortOrder
+
+      if (
+        nameChanged ||
+        quantityChanged ||
+        priceChanged ||
+        sizeChanged ||
+        orderChanged
+      ) {
+        itemUpdates.push({
+          id: item.id,
+          edits: {
+            ...(nameChanged ? { canonicalName: item.name.trim() } : {}),
+            quantity: parsedQuantity,
+            totalPrice: nextTotalPrice,
+            ...sizeEdits,
+            sortOrder: index,
+          },
+        })
+      }
+    }
+
+    setIsSaving(true)
+    try {
+      await updateReceipt.mutateAsync({
         documentId,
         edits: { vendor, storeLocation, date, time, currency, category },
-      },
-      {
-        onSuccess: () => toast.success('Receipt updated'),
-        onError: (error) => toast.error(error.message),
-      },
-    )
+      })
+      await Promise.all(
+        itemUpdates.map((update) => updateItem.mutateAsync(update)),
+      )
+      toast.success('Receipt updated')
+      setMode('view')
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to save changes',
+      )
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const fields: Array<[label: string, value: string]> = [
@@ -221,14 +400,30 @@ function ReceiptDetail({
             </Button>
           )}
           {mode === 'view' ? (
-            <Button size="sm" variant="outline" onClick={() => setMode('edit')}>
+            <Button size="sm" variant="outline" onClick={handleEnterEdit}>
               <Pencil className="h-3.5 w-3.5 mr-1.5" />
               Edit
             </Button>
           ) : (
-            <Button size="sm" variant="outline" onClick={() => setMode('view')}>
-              Done
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setMode('view')}
+                disabled={isSaving}
+              >
+                <X className="h-3.5 w-3.5 mr-1.5" />
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleSaveAll} disabled={isSaving}>
+                {isSaving ? (
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Save className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                Save
+              </Button>
+            </>
           )}
         </div>
       </DialogHeader>
@@ -300,18 +495,6 @@ function ReceiptDetail({
         </div>
       )}
 
-      {mode === 'edit' && (
-        <div className="flex justify-end">
-          <Button
-            size="sm"
-            onClick={handleSaveReceipt}
-            disabled={updateReceipt.isPending}
-          >
-            Save
-          </Button>
-        </div>
-      )}
-
       <div className="flex items-center justify-between border-t pt-3">
         <div className="text-xs">
           <span className="text-muted-foreground">
@@ -376,19 +559,30 @@ function ReceiptDetail({
           )
         ) : (
           <div className="space-y-2">
-            {detail.items.length === 0 && (
+            {editableItems.length === 0 && (
               <p className="text-xs text-muted-foreground">
                 No line items recorded for this receipt yet. Add one below, or
                 delete the receipt if it's no longer relevant.
               </p>
             )}
-            {detail.items.map((item) => (
-              <ItemEditRow key={item.id} item={item} />
+            {editableItems.map((item, index) => (
+              <ItemEditRow
+                key={item.id}
+                item={item}
+                onChange={(patch) => handleItemFieldChange(item.id, patch)}
+                onDelete={() => handleDeleteItem(item)}
+                onMoveUp={() => handleMoveItem(index, -1)}
+                onMoveDown={() => handleMoveItem(index, 1)}
+                canMoveUp={index > 0}
+                canMoveDown={index < editableItems.length - 1}
+                isDeleting={deleteItem.isPending}
+              />
             ))}
             {showAddItem ? (
               <NewItemRow
                 documentId={documentId}
-                onDone={() => setShowAddItem(false)}
+                onAdded={handleItemAdded}
+                onCancel={() => setShowAddItem(false)}
               />
             ) : (
               <Button
@@ -400,7 +594,7 @@ function ReceiptDetail({
                 Add item
               </Button>
             )}
-            {detail.items.length === 0 && (
+            {editableItems.length === 0 && (
               <Button
                 size="sm"
                 variant={
@@ -425,28 +619,29 @@ function ReceiptDetail({
   )
 }
 
-function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
-  const updateItem = useUpdateReceiptItem()
-  const deleteItem = useDeleteReceiptItem()
-
-  const [name, setName] = useState(item.canonicalName ?? item.itemName)
-  const [quantity, setQuantity] = useState(String(item.quantity))
-  const [totalPrice, setTotalPrice] = useState(
-    formatMajorUnits(item.totalPrice),
-  )
-  const [totalSize, setTotalSize] = useState(
-    item.totalSize !== null ? String(item.totalSize) : '',
-  )
-  const [sizeUnit, setSizeUnit] = useState<'ml' | 'g' | 'count' | ''>(
-    item.sizeUnit ?? '',
-  )
-
-  const parsedTotalPrice = Number(totalPrice)
-
+function ItemEditRow({
+  item,
+  onChange,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
+  isDeleting,
+}: {
+  item: EditableItem
+  onChange: (patch: Partial<EditableItem>) => void
+  onDelete: () => void
+  onMoveUp: () => void
+  onMoveDown: () => void
+  canMoveUp: boolean
+  canMoveDown: boolean
+  isDeleting: boolean
+}) {
   // Debounced so clearing "10" down to "" or a transient "0" while retyping
   // (e.g. correcting to "12") doesn't flash the warning mid-edit - only a
   // value the user has actually paused on gets flagged.
-  const debouncedTotalPrice = useDebouncedValue(totalPrice, 400)
+  const debouncedTotalPrice = useDebouncedValue(item.totalPrice, 400)
   const parsedDebouncedTotalPrice = Number(debouncedTotalPrice)
   // An empty field (Number('') === 0) isn't the same as an actual zero
   // price - don't flag it before the user has entered anything.
@@ -455,96 +650,36 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
     Number.isFinite(parsedDebouncedTotalPrice) &&
     parsedDebouncedTotalPrice <= 0
 
-  // Validates every field up front and either submits a complete edit or
-  // aborts with a specific error - never a partial save (some fields
-  // silently dropped, others silently coerced) under a blanket "success".
-  const handleSave = () => {
-    if (!name.trim()) {
-      toast.error('Name cannot be empty')
-      return
-    }
-
-    const parsedQuantity = Number(quantity)
-    if (
-      quantity.trim() === '' ||
-      !Number.isFinite(parsedQuantity) ||
-      parsedQuantity <= 0
-    ) {
-      toast.error('Quantity must be a positive number')
-      return
-    }
-
-    // totalPrice may legitimately be zero or negative (free item, refund/
-    // discount line), and blank means "price unknown" - the state items
-    // land in when the AI couldn't read a price at all, which must stay
-    // saveable so the name/quantity/size on those items can still be
-    // corrected. Only an unparseable non-empty value is invalid.
-    const nextTotalPrice = totalPrice.trim() === '' ? null : parsedTotalPrice
-    if (nextTotalPrice !== null && !Number.isFinite(nextTotalPrice)) {
-      toast.error('Price must be a number, or left blank if unknown')
-      return
-    }
-
-    // Clearing the size field clears both size and unit together - a size
-    // without a unit (or vice versa) isn't a meaningful state.
-    let sizeEdits: {
-      totalSize: number | null
-      sizeUnit: 'ml' | 'g' | 'count' | null
-    }
-    if (totalSize.trim() === '') {
-      sizeEdits = { totalSize: null, sizeUnit: null }
-    } else {
-      const parsedTotalSize = Number(totalSize)
-      if (!Number.isFinite(parsedTotalSize) || parsedTotalSize <= 0) {
-        toast.error('Total size must be a positive number, or left blank')
-        return
-      }
-      sizeEdits = { totalSize: parsedTotalSize, sizeUnit: sizeUnit || null }
-    }
-
-    // Only send canonicalName when it actually changed. Sending it
-    // unconditionally would record a raw-name -> canonical-name override on
-    // every save (see updateReceiptItem), permanently freezing the AI's
-    // current guess for that raw text - a side effect nobody asked for when
-    // they were just fixing a price.
-    const originalName = item.canonicalName ?? item.itemName
-    const nameChanged = name.trim() !== originalName
-
-    updateItem.mutate(
-      {
-        id: item.id,
-        edits: {
-          ...(nameChanged ? { canonicalName: name.trim() } : {}),
-          quantity: parsedQuantity,
-          totalPrice: nextTotalPrice,
-          ...sizeEdits,
-        },
-      },
-      {
-        onSuccess: () => toast.success('Item updated'),
-        onError: (error) => toast.error(error.message),
-      },
-    )
-  }
-
-  const deleteConfirm = useClickToConfirm(() => {
-    deleteItem.mutate(
-      { id: item.id },
-      {
-        onSuccess: () => toast.success('Item deleted'),
-        onError: (error) => toast.error(error.message),
-      },
-    )
-  })
+  const deleteConfirm = useClickToConfirm(onDelete)
 
   return (
     <div className="space-y-1 border-b pb-2 last:border-0">
-      <div className="grid grid-cols-[1fr_5rem_6rem_auto_auto] gap-2 items-end">
+      <div className="grid grid-cols-[auto_1fr_5rem_6rem_auto] gap-2 items-end">
+        <div className="flex gap-0.5 pb-1.5">
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            onClick={onMoveUp}
+            disabled={!canMoveUp}
+            aria-label={`Move ${item.name} up`}
+          >
+            <ArrowUp className="h-3 w-3" />
+          </Button>
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            onClick={onMoveDown}
+            disabled={!canMoveDown}
+            aria-label={`Move ${item.name} down`}
+          >
+            <ArrowDown className="h-3 w-3" />
+          </Button>
+        </div>
         <div className="space-y-1">
           <Label className="text-[10px] text-muted-foreground">Name</Label>
           <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={item.name}
+            onChange={(e) => onChange({ name: e.target.value })}
             className="text-xs"
           />
         </div>
@@ -553,8 +688,8 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
           <Input
             type="number"
             min="1"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
+            value={item.quantity}
+            onChange={(e) => onChange({ quantity: e.target.value })}
             className="text-xs"
           />
         </div>
@@ -563,28 +698,20 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
           <Input
             type="number"
             step="0.01"
-            value={totalPrice}
-            onChange={(e) => setTotalPrice(e.target.value)}
+            value={item.totalPrice}
+            onChange={(e) => onChange({ totalPrice: e.target.value })}
             className="text-xs"
           />
         </div>
         <Button
-          size="sm"
-          variant="outline"
-          onClick={handleSave}
-          disabled={updateItem.isPending}
-        >
-          Save
-        </Button>
-        <Button
           size={deleteConfirm.confirming ? 'sm' : 'icon-sm'}
           variant={deleteConfirm.confirming ? 'destructive' : 'ghost'}
           onClick={deleteConfirm.handleClick}
-          disabled={deleteItem.isPending}
+          disabled={isDeleting}
           aria-label={
             deleteConfirm.confirming
-              ? `Click again to delete ${name}`
-              : `Delete ${name}`
+              ? `Click again to delete ${item.name}`
+              : `Delete ${item.name}`
           }
         >
           <Trash2
@@ -598,7 +725,8 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
         </Button>
       </div>
 
-      <div className="grid grid-cols-[6rem_6rem_1fr] gap-2 items-end">
+      <div className="grid grid-cols-[auto_6rem_6rem_1fr] gap-2 items-end">
+        <div className="w-7" />
         <div className="space-y-1">
           <Label className="text-[10px] text-muted-foreground">
             Total size
@@ -608,17 +736,19 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
             step="any"
             min="0"
             placeholder="e.g. 1980"
-            value={totalSize}
-            onChange={(e) => setTotalSize(e.target.value)}
+            value={item.totalSize}
+            onChange={(e) => onChange({ totalSize: e.target.value })}
             className="text-xs"
           />
         </div>
         <div className="space-y-1">
           <Label className="text-[10px] text-muted-foreground">Unit</Label>
           <select
-            value={sizeUnit}
+            value={item.sizeUnit}
             onChange={(e) =>
-              setSizeUnit(e.target.value as 'ml' | 'g' | 'count' | '')
+              onChange({
+                sizeUnit: e.target.value as 'ml' | 'g' | 'count' | '',
+              })
             }
             className="h-8 w-full rounded-none border border-input bg-transparent px-2.5 text-xs"
           >
@@ -648,10 +778,12 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
 
 function NewItemRow({
   documentId,
-  onDone,
+  onAdded,
+  onCancel,
 }: {
   documentId: number
-  onDone: () => void
+  onAdded: (item: ReceiptItemEntry) => void
+  onCancel: () => void
 }) {
   const createItem = useCreateReceiptItem()
 
@@ -708,9 +840,9 @@ function NewItemRow({
         ...sizeFields,
       },
       {
-        onSuccess: () => {
+        onSuccess: (item) => {
           toast.success('Item added')
-          onDone()
+          onAdded(item)
         },
         onError: (error) => toast.error(error.message),
       },
@@ -753,7 +885,7 @@ function NewItemRow({
         <Button size="sm" onClick={handleAdd} disabled={createItem.isPending}>
           Add
         </Button>
-        <Button size="sm" variant="ghost" onClick={onDone}>
+        <Button size="sm" variant="ghost" onClick={onCancel}>
           Cancel
         </Button>
       </div>

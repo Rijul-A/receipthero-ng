@@ -1,0 +1,1 @@
+ALTER TABLE `receipt_items` ADD `sortOrder` integer DEFAULT 0 NOT NULL;
