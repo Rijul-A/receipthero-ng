@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { RenameProductDialog } from '@/components/prices/rename-product-dialog'
+import { AddSightingForm } from '@/components/prices/add-sighting-form'
 import { LineChart } from '@/components/charts/line-chart'
 import {
   useExportItemsCsv,
@@ -414,6 +415,8 @@ function PricesPage() {
               here.
             </p>
           )}
+
+          <AddSightingForm onAdded={addItem} />
         </CardContent>
       </Card>
 
@@ -526,7 +529,14 @@ function PricesPage() {
                       return (
                         <tr key={row.id} className="border-b last:border-0">
                           <td className="py-2 pr-4">{row.itemName}</td>
-                          <td className="py-2 pr-4">{formatStoreLabel(row)}</td>
+                          <td className="py-2 pr-4">
+                            {formatStoreLabel(row)}
+                            {row.isSighting && (
+                              <Badge variant="outline" className="ml-2">
+                                Sighting
+                              </Badge>
+                            )}
+                          </td>
                           <td className="py-2 pr-4">
                             {row.purchaseDate ?? '—'}
                           </td>

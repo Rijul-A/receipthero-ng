@@ -241,11 +241,21 @@ export async function recordReceiptItems(params: {
   vendor?: string
   currency?: string
   purchaseDate?: string
+  purchaseTime?: string
   storeLocation?: string
   lineItems: unknown
   config: Config
 }): Promise<void> {
-  const { documentId, vendor, currency, purchaseDate, storeLocation, lineItems, config } = params
+  const {
+    documentId,
+    vendor,
+    currency,
+    purchaseDate,
+    purchaseTime,
+    storeLocation,
+    lineItems,
+    config,
+  } = params
 
   const now = new Date().toISOString()
   const parsed: ParsedLineItem[] = []
@@ -303,6 +313,7 @@ export async function recordReceiptItems(params: {
       totalPrice: item.totalPrice,
       currency,
       purchaseDate,
+      purchaseTime,
       storeLocation,
       // Default to extraction order - a user can re-sequence from there if
       // the scanner skipped a row and everything reads out of alignment.
@@ -358,7 +369,10 @@ export async function getItemCountsByDocument(
 
   const counts: Record<number, number> = {}
   for (const row of rows) {
-    counts[row.documentId] = Number(row.count)
+    // documentId is only nullable for price sightings, which can never
+    // match the inArray(documentIds) filter above (documentIds is always a
+    // list of real ids) - never actually null here.
+    counts[row.documentId as number] = Number(row.count)
   }
   return counts
 }
@@ -385,10 +399,13 @@ export async function getItemReviewStatusByDocument(
 
   const result: Record<number, { itemsTotal: number; hasReviewItem: boolean }> = {}
   for (const row of rows) {
-    const entry = result[row.documentId] ?? { itemsTotal: 0, hasReviewItem: false }
+    // Same reasoning as getItemCountsByDocument above - never actually null
+    // here, since documentIds is always a list of real ids.
+    const documentId = row.documentId as number
+    const entry = result[documentId] ?? { itemsTotal: 0, hasReviewItem: false }
     entry.itemsTotal += row.totalPrice ?? 0
     if (row.totalPrice !== null && row.totalPrice <= 0) entry.hasReviewItem = true
-    result[row.documentId] = entry
+    result[documentId] = entry
   }
   return result
 }
@@ -432,6 +449,8 @@ export interface ReceiptItemEdit {
   sizeUnit?: 'ml' | 'g' | 'count' | null
   storeLocation?: string
   sortOrder?: number
+  purchaseDate?: string
+  purchaseTime?: string | null
 }
 
 /**
@@ -473,6 +492,8 @@ export async function updateReceiptItem(
   if (edits.totalSize !== undefined) updates.totalSize = edits.totalSize
   if (edits.sizeUnit !== undefined) updates.sizeUnit = edits.sizeUnit
   if (edits.sortOrder !== undefined) updates.sortOrder = edits.sortOrder
+  if (edits.purchaseDate !== undefined) updates.purchaseDate = edits.purchaseDate
+  if (edits.purchaseTime !== undefined) updates.purchaseTime = edits.purchaseTime
 
   // unitPrice is comparablePriceOf's preferred per-pack fallback (ahead of
   // computing totalPrice/quantity on the fly), so leaving it untouched after
@@ -499,15 +520,20 @@ export async function updateReceiptItem(
     await upsertItemNameOverride(nextItemName, edits.canonicalName)
   }
 
-  // The receipt's total is derived from its items, never directly editable,
-  // so any change to a line's total price has to flow back up.
-  // recalculateReceiptTotal calls updateReceipt internally, which already
-  // triggers a Paperless resync - only sync explicitly here when that
-  // path wasn't taken, so a plain totalPrice edit doesn't double-sync.
-  if (edits.totalPrice !== undefined) {
-    await recalculateReceiptTotal(existing.documentId)
-  } else if (Object.keys(updates).length > 0) {
-    await syncReceiptToPaperless(existing.documentId)
+  // A price sighting (documentId null) has no underlying receipt to
+  // recalculate a total for or Paperless document to sync - it's a
+  // standalone row, done once the update above lands.
+  if (existing.documentId !== null) {
+    // The receipt's total is derived from its items, never directly
+    // editable, so any change to a line's total price has to flow back up.
+    // recalculateReceiptTotal calls updateReceipt internally, which already
+    // triggers a Paperless resync - only sync explicitly here when that
+    // path wasn't taken, so a plain totalPrice edit doesn't double-sync.
+    if (edits.totalPrice !== undefined) {
+      await recalculateReceiptTotal(existing.documentId)
+    } else if (Object.keys(updates).length > 0) {
+      await syncReceiptToPaperless(existing.documentId)
+    }
   }
 
   return (
@@ -618,6 +644,69 @@ export async function createReceiptItem(
   return row
 }
 
+export interface NewPriceSightingInput {
+  itemName: string
+  vendor: string
+  storeLocation?: string
+  currency: string
+  totalPrice?: number | null // major units; null means "price unknown"
+  quantity?: number
+  totalSize?: number | null
+  sizeUnit?: 'ml' | 'g' | 'count' | null
+  purchaseDate: string // YYYY-MM-DD - defaults to today, but user-editable
+  purchaseTime?: string | null // HH:MM, display/edit only
+}
+
+/**
+ * Records a price *seen* but not purchased - no receipt, no Paperless
+ * document, nothing to reprocess or resync. Unlike createReceiptItem
+ * (which inherits vendor/currency/date from the receipt it's attached to),
+ * every field here is user-supplied directly, since there's no sibling row
+ * or processingLogs entry to inherit from. Participates in price
+ * comparison/history exactly like a scanned item - those queries key off
+ * product identity (canonicalName/itemName), not documentId.
+ */
+export async function createPriceSighting(
+  input: NewPriceSightingInput,
+): Promise<schema.ReceiptItemEntry | null> {
+  const itemName = input.itemName.trim()
+  const vendor = input.vendor.trim()
+  const currency = input.currency.trim()
+  if (!itemName || !vendor || !currency) return null
+
+  const quantity = input.quantity && input.quantity > 0 ? Math.round(input.quantity) : 1
+  const totalPrice =
+    input.totalPrice === undefined || input.totalPrice === null
+      ? null
+      : Math.round(input.totalPrice * 100)
+  const unitPrice = totalPrice !== null ? Math.round(totalPrice / quantity) : null
+
+  const now = new Date().toISOString()
+  const [row] = await db
+    .insert(schema.receiptItems)
+    .values({
+      documentId: null,
+      isSighting: true,
+      vendor,
+      itemName,
+      canonicalName: itemName,
+      quantity,
+      unitPrice,
+      totalPrice,
+      totalSize: input.totalSize ?? null,
+      sizeUnit: input.sizeUnit ?? null,
+      currency,
+      purchaseDate: input.purchaseDate,
+      purchaseTime: input.purchaseTime ?? null,
+      storeLocation: input.storeLocation?.trim() || null,
+      sortOrder: 0,
+      createdAt: now,
+    })
+    .returning()
+
+  return row
+}
+
 /**
  * Removes a single line item - for refund/discount/free lines the user
  * wants off the receipt entirely rather than corrected (e.g. netting a
@@ -633,9 +722,13 @@ export async function deleteReceiptItem(id: number): Promise<boolean> {
   if (!existing) return false
 
   await db.delete(schema.receiptItems).where(eq(schema.receiptItems.id, id)).run()
-  // Always runs (force: true), so it already triggers a Paperless resync
-  // via updateReceipt - no separate sync call needed here.
-  await recalculateReceiptTotal(existing.documentId, { force: true })
+  // A price sighting (documentId null) has no receipt total to recalculate
+  // or Paperless document to sync - deleting the row is the whole operation.
+  if (existing.documentId !== null) {
+    // Always runs (force: true), so it already triggers a Paperless resync
+    // via updateReceipt - no separate sync call needed here.
+    await recalculateReceiptTotal(existing.documentId, { force: true })
+  }
 
   return true
 }

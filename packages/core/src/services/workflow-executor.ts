@@ -315,6 +315,7 @@ export async function executeWorkflow(
         vendor: typeof vendorValue === 'string' ? vendorValue : undefined,
         currency: typeof extractedData.currency === 'string' ? extractedData.currency : undefined,
         purchaseDate: typeof dateValue === 'string' ? dateValue : undefined,
+        purchaseTime: typeof extractedData.time === 'string' ? extractedData.time : undefined,
         lineItems: extractedData.line_items,
         config,
       })

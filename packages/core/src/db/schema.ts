@@ -121,7 +121,13 @@ export type NewWebhookQueueEntry = typeof webhookQueue.$inferInsert
 // Individual line items extracted from receipts, for cross-vendor price comparison
 export const receiptItems = sqliteTable('receipt_items', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  documentId: integer('documentId').notNull(),
+  // Null for a manually-recorded "price sighting" - a price seen but not
+  // purchased, so there's no underlying Paperless document at all. Every
+  // other lookup/query in this table is already keyed by product identity
+  // or an explicit documentId list, not an assumption that documentId is
+  // always present - see createPriceSighting/syncReceiptToPaperless for the
+  // functions that specifically guard against this.
+  documentId: integer('documentId'),
   vendor: text('vendor'),
   itemName: text('itemName').notNull(),
   // AI-assigned canonical product name, so "Almarai Milk 1L" and "Al Marai
@@ -140,7 +146,18 @@ export const receiptItems = sqliteTable('receipt_items', {
   // the AI at extraction time so 'l'/'kg' never need separate handling here.
   sizeUnit: text('sizeUnit'),
   currency: text('currency'),
-  purchaseDate: text('purchaseDate'), // ISO date string, from the receipt itself
+  purchaseDate: text('purchaseDate'), // ISO date string (YYYY-MM-DD), from the receipt itself
+  // Wall-clock time as printed/entered (HH:MM), display/edit only - never
+  // compared or bucketed by (see analytics.ts's date-range filtering, which
+  // stays purchaseDate-only on purpose). Deliberately a separate column
+  // instead of folding into purchaseDate, so every existing bare-date
+  // comparison/sort/display of purchaseDate keeps working untouched.
+  purchaseTime: text('purchaseTime'),
+  // True for a manually-recorded price sighting (documentId is null);
+  // false/0 for a normally-scanned receipt item. Redundant with
+  // `documentId IS NULL` but named explicitly so intent reads clearly at
+  // every call site without re-deriving it from a null check.
+  isSighting: integer('isSighting', { mode: 'boolean' }).notNull().default(false),
   // Denormalized copy of the receipt's store branch/address, so price
   // comparison can distinguish two locations of the same vendor without a
   // join back to processingLogs.

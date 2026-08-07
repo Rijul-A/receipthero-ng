@@ -5,6 +5,7 @@ import {
   searchItemNames,
   getItemPriceHistory,
   createReceiptItem,
+  createPriceSighting,
   updateReceiptItem,
   deleteReceiptItem,
   previewCanonicalRename,
@@ -128,7 +129,8 @@ items.get('/export', async (c) => {
   })
 
   const csvRows = rows.map((row) => ({
-    documentId: row.documentId,
+    documentId: row.documentId ?? '',
+    isSighting: row.isSighting ? 'yes' : 'no',
     vendor: row.vendor ?? '',
     itemName: row.itemName,
     canonicalName: row.canonicalName ?? row.itemName,
@@ -139,10 +141,12 @@ items.get('/export', async (c) => {
     totalPrice: row.totalPrice !== null ? (row.totalPrice / 100).toFixed(2) : '',
     currency: row.currency ?? '',
     purchaseDate: row.purchaseDate ?? '',
+    purchaseTime: row.purchaseTime ?? '',
   }))
 
   const csv = toCsv(csvRows, [
     'documentId',
+    'isSighting',
     'vendor',
     'itemName',
     'canonicalName',
@@ -153,6 +157,7 @@ items.get('/export', async (c) => {
     'totalPrice',
     'currency',
     'purchaseDate',
+    'purchaseTime',
   ])
 
   c.header('Content-Type', 'text/csv; charset=utf-8')
@@ -183,6 +188,33 @@ items.post('/', zValidator('json', NewItemSchema), async (c) => {
   return c.json({ item }, 201)
 })
 
+const NewSightingSchema = z.object({
+  itemName: z.string().min(1),
+  vendor: z.string().min(1),
+  storeLocation: z.string().optional(),
+  currency: z.string().min(1),
+  totalPrice: z.number().nullable().optional(),
+  quantity: z.number().positive().optional(),
+  totalSize: z.number().positive().nullable().optional(),
+  sizeUnit: z.enum(['ml', 'g', 'count']).nullable().optional(),
+  purchaseDate: z.string().min(1),
+  purchaseTime: z.string().nullable().optional(),
+})
+
+/**
+ * POST /api/items/sightings
+ *
+ * Records a price seen but not purchased - no receipt/Paperless document
+ * attached, every field user-supplied directly.
+ */
+items.post('/sightings', zValidator('json', NewSightingSchema), async (c) => {
+  const input = c.req.valid('json')
+  const item = await createPriceSighting(input)
+  if (!item) return c.json({ error: 'Invalid price sighting' }, 400)
+
+  return c.json({ item }, 201)
+})
+
 const ItemEditSchema = z.object({
   itemName: z.string().min(1).optional(),
   canonicalName: z.string().min(1).optional(),
@@ -193,6 +225,8 @@ const ItemEditSchema = z.object({
   sizeUnit: z.enum(['ml', 'g', 'count']).nullable().optional(),
   storeLocation: z.string().optional(),
   sortOrder: z.number().int().optional(),
+  purchaseDate: z.string().min(1).optional(),
+  purchaseTime: z.string().nullable().optional(),
 })
 
 /**

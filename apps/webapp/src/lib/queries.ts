@@ -4,6 +4,7 @@ import {
   checkSession as checkSessionFn,
   clearQueue as clearQueueFn,
   clearSkippedDocuments,
+  createPriceSighting as createPriceSightingFn,
   createReceiptItem as createReceiptItemFn,
   deleteReceipt as deleteReceiptFn,
   deleteReceiptItem as deleteReceiptItemFn,
@@ -56,6 +57,7 @@ import type {
   ItemFrequency,
   ItemReviewStatus,
   NewItem,
+  NewPriceSighting,
   QueueActionResponse,
   QueueStatus,
   ReceiptDetail,
@@ -668,6 +670,20 @@ export function useCreateReceiptItem() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: itemKeys.all })
       queryClient.invalidateQueries({ queryKey: receiptKeys.all })
+    },
+  })
+}
+
+/**
+ * Records a price seen but not purchased - no receipt/document attached.
+ */
+export function useCreatePriceSighting() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (params: NewPriceSighting) =>
+      createPriceSightingFn({ data: params }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: itemKeys.all })
     },
   })
 }

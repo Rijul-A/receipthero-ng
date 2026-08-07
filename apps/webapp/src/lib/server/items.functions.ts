@@ -10,7 +10,10 @@ import type { DateRange } from './stats.functions'
 
 export interface ReceiptItemEntry {
   id: number
-  documentId: number
+  // Null for a manually-recorded price sighting - a price seen but not
+  // purchased, with no underlying Paperless document.
+  documentId: number | null
+  isSighting: boolean
   vendor: string | null
   itemName: string
   canonicalName: string | null
@@ -24,6 +27,9 @@ export interface ReceiptItemEntry {
   sizeUnit: 'ml' | 'g' | 'count' | null
   currency: string | null
   purchaseDate: string | null
+  // Wall-clock time as printed/entered (HH:MM), display/edit only - never
+  // used for date-range filtering/bucketing.
+  purchaseTime: string | null
   // Branch/address distinguishing this store location from other locations
   // of the same vendor. Null if not extracted/set.
   storeLocation: string | null
@@ -119,6 +125,8 @@ export interface ItemEdit {
   sizeUnit?: 'ml' | 'g' | 'count' | null
   storeLocation?: string
   sortOrder?: number
+  purchaseDate?: string
+  purchaseTime?: string | null
 }
 
 export interface NewItem {
@@ -158,6 +166,37 @@ export const updateReceiptItem = createServerFn({ method: 'POST' })
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ctx.data.edits),
+      },
+    )
+    return item
+  })
+
+export interface NewPriceSighting {
+  itemName: string
+  vendor: string
+  storeLocation?: string
+  currency: string
+  totalPrice?: number | null
+  quantity?: number
+  totalSize?: number | null
+  sizeUnit?: 'ml' | 'g' | 'count' | null
+  purchaseDate: string
+  purchaseTime?: string | null
+}
+
+/**
+ * Records a price seen but not purchased - no receipt/document attached.
+ * Proxies to POST /api/items/sightings.
+ */
+export const createPriceSighting = createServerFn({ method: 'POST' })
+  .inputValidator((input: NewPriceSighting) => input)
+  .handler(async (ctx) => {
+    const { item } = await apiCall<{ item: ReceiptItemEntry }>(
+      '/api/items/sightings',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ctx.data),
       },
     )
     return item

@@ -96,6 +96,7 @@ const mockLog: ProcessingLogEntry = {
 const goodItem: ReceiptItemEntry = {
   id: 101,
   documentId: DOCUMENT_ID,
+  isSighting: false,
   vendor: 'Carrefour',
   itemName: 'almond milk 1l',
   canonicalName: 'Almond Milk',
@@ -106,6 +107,7 @@ const goodItem: ReceiptItemEntry = {
   sizeUnit: 'ml',
   currency: 'AED',
   purchaseDate: '2026-01-05',
+  purchaseTime: null,
   storeLocation: 'Mall of the Emirates',
   sortOrder: 0,
   createdAt: '2026-01-05T14:30:00.000Z',
@@ -114,6 +116,7 @@ const goodItem: ReceiptItemEntry = {
 const refundItem: ReceiptItemEntry = {
   id: 102,
   documentId: DOCUMENT_ID,
+  isSighting: false,
   vendor: 'Carrefour',
   itemName: 'discount',
   canonicalName: null,
@@ -124,6 +127,7 @@ const refundItem: ReceiptItemEntry = {
   sizeUnit: null,
   currency: 'AED',
   purchaseDate: '2026-01-05',
+  purchaseTime: null,
   storeLocation: 'Mall of the Emirates',
   sortOrder: 1,
   createdAt: '2026-01-05T14:30:00.000Z',

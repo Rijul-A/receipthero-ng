@@ -104,7 +104,7 @@ export async function validateZodSource(zodSource: string) {
 // without duplicating it.
 export const DEFAULT_RECEIPT_PROMPT_INSTRUCTIONS = `You are an expert at extracting receipt data. Extract all receipts from the image as a JSON object matching the schema.
 
-CRITICAL: Date MUST be in YYYY-MM-DD format.
+CRITICAL: Date MUST be in YYYY-MM-DD format. If a time is also printed on the receipt, extract it as "time" in 24-hour HH:MM format; omit "time" entirely if no time is shown.
 
 AMOUNT vs TAX: "amount" is the final total actually paid/charged - the grand total including tax (usually labeled "TOTAL", "AMOUNT DUE", or similar on the receipt), NOT the pre-tax subtotal. "taxAmount" is the tax portion only, extracted separately - it is not subtracted from "amount".
 
@@ -141,6 +141,7 @@ export async function seedDefaultWorkflows() {
   id: z.string(),
   fileName: z.string(),
   date: z.string(),
+  time: z.string().optional(),
   vendor: z.string(),
   category: z.string(),
   paymentMethod: z.string(),
@@ -162,6 +163,7 @@ export async function seedDefaultWorkflows() {
     id: z.string(),
     fileName: z.string(),
     date: z.string(),
+    time: z.string().optional(),
     vendor: z.string(),
     category: z.string(),
     paymentMethod: z.string(),
