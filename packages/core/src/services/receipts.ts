@@ -1,5 +1,13 @@
 import { desc, eq } from 'drizzle-orm'
 import { db, schema } from '../db'
+import { loadConfig } from './config'
+import { PaperlessClient } from './paperless'
+import { interpolateTemplate } from './template'
+import { normalizeDateForPaperless } from './date-format'
+import { createLogger } from './logger'
+import type { WorkflowOutputMapping } from '@sm-rn/shared/workflow-schemas'
+
+const logger = createLogger('core')
 
 export interface ReceiptDetail {
   log: schema.ProcessingLogEntry
@@ -24,6 +32,148 @@ export async function getReceiptDetail(documentId: number): Promise<ReceiptDetai
     .all()
 
   return { log, items }
+}
+
+/**
+ * Best-effort push of the CURRENT DB state (receipt fields + line items)
+ * back onto the underlying Paperless document, so nothing stays
+ * permanently stuck on whatever the original AI extraction produced once
+ * a user corrects it. Rebuilds `extractedData` fresh from the DB (not
+ * whatever the caller happens to have in hand) so this stays correct
+ * regardless of which edit triggered it - a receipt-field edit, a single
+ * item's price/name correction, an add, a delete, or a reorder.
+ *
+ * Applies the same titleTemplate/correspondentField/dateField/customFields
+ * the workflow itself would have applied during normal processing,
+ * recomputed from the now-corrected data - including re-writing the
+ * `'*'`-mapped custom field (json_payload by default) with the full
+ * corrected payload, so it doesn't silently drift from what's actually
+ * true once someone edits a line item.
+ *
+ * Failure here (Paperless unreachable, document deleted upstream, etc.)
+ * is logged and swallowed - the local correction has already been saved
+ * and should not be undone by a sync step that's inherently best-effort.
+ * Callers should fire this after their own DB write completes, without
+ * awaiting it block their response if that matters - it's safe to run
+ * concurrently with other in-flight syncs for the same document since it
+ * always reads fresh state at the moment it runs.
+ */
+export async function syncReceiptToPaperless(documentId: number): Promise<void> {
+  const docLogger = logger.withDocument(documentId)
+  try {
+    const existing = await db
+      .select()
+      .from(schema.processingLogs)
+      .where(eq(schema.processingLogs.documentId, documentId))
+      .orderBy(desc(schema.processingLogs.id))
+      .get()
+    if (!existing) return
+
+    const workflow = existing.workflowId
+      ? await db
+          .select()
+          .from(schema.workflows)
+          .where(eq(schema.workflows.id, existing.workflowId))
+          .get()
+      : await db.select().from(schema.workflows).where(eq(schema.workflows.slug, 'receipt')).get()
+    if (!workflow) return
+
+    const raw = existing.receiptData || existing.extractedData
+    let parsed: Record<string, unknown> = {}
+    if (raw) {
+      try {
+        parsed = JSON.parse(raw)
+      } catch {
+        parsed = {}
+      }
+    }
+
+    const items = await db
+      .select()
+      .from(schema.receiptItems)
+      .where(eq(schema.receiptItems.documentId, documentId))
+      .orderBy(schema.receiptItems.sortOrder, schema.receiptItems.id)
+      .all()
+
+    // Column values (vendor/amount/currency) are the source of truth - kept
+    // in sync with receiptData by updateReceipt - so they win over whatever
+    // the JSON blob says. Everything else (date/time/category/taxAmount/
+    // title/summary) only ever lives in the JSON, with no dedicated column.
+    const extractedData: Record<string, unknown> = {
+      ...parsed,
+      vendor: existing.vendor ?? parsed.vendor,
+      amount: existing.amount !== null ? existing.amount / 100 : parsed.amount,
+      currency: existing.currency ?? parsed.currency,
+      line_items: items.map((item) => ({
+        name: item.canonicalName ?? item.itemName,
+        quantity: item.quantity,
+        totalPrice: item.totalPrice !== null ? item.totalPrice / 100 : null,
+        ...(item.unitPrice !== null ? { unitPrice: item.unitPrice / 100 } : {}),
+      })),
+    }
+
+    const config = loadConfig()
+    const client = new PaperlessClient({
+      host: config.paperless.host,
+      apiKey: config.paperless.apiKey,
+      processedTagName: config.processing.processedTag,
+    })
+
+    const updates: {
+      title?: string
+      created?: string
+      correspondent?: number
+      custom_fields?: Array<{ field: number; value: string }>
+    } = {}
+
+    if (workflow.titleTemplate) {
+      const interpolatedTitle = interpolateTemplate(workflow.titleTemplate, extractedData)
+      if (!/{[a-zA-Z_]\w*}/.test(interpolatedTitle)) {
+        updates.title = interpolatedTitle
+      }
+    }
+
+    const mapping: WorkflowOutputMapping = JSON.parse(workflow.outputMapping)
+    if (mapping.correspondentField && extractedData[mapping.correspondentField]) {
+      updates.correspondent = await client.getOrCreateCorrespondent(
+        String(extractedData[mapping.correspondentField]),
+      )
+    }
+    if (mapping.dateField && extractedData[mapping.dateField]) {
+      const normalizedDate = normalizeDateForPaperless(String(extractedData[mapping.dateField]))
+      if (normalizedDate) updates.created = normalizedDate
+    }
+
+    if (mapping.customFields && Object.keys(mapping.customFields).length > 0) {
+      const customFields: Array<{ field: number; value: string }> = []
+      for (const [paperlessField, extractedField] of Object.entries(mapping.customFields)) {
+        try {
+          const fieldId = await client.ensureCustomField(paperlessField, 'longtext')
+          const val =
+            extractedField === '*'
+              ? JSON.stringify(extractedData)
+              : String(extractedData[extractedField as string] || '')
+          if (val) customFields.push({ field: fieldId, value: val })
+        } catch {
+          docLogger.warn(`Failed to sync custom field ${paperlessField} to Paperless`)
+        }
+      }
+      if (customFields.length > 0) updates.custom_fields = customFields
+    }
+
+    if (Object.keys(updates).length === 0) return
+    await client.updateDocument(documentId, updates)
+    docLogger.info('Synced receipt correction to Paperless document', {
+      fields: Object.keys(updates),
+    })
+  } catch (error) {
+    docLogger.warn(
+      'Failed to sync receipt correction to Paperless - local correction still saved',
+      {
+        error: error instanceof Error ? error.message : String(error),
+      },
+    )
+  }
 }
 
 export interface ReceiptEdit {
@@ -114,6 +264,13 @@ export async function updateReceipt(
       .set(itemUpdates)
       .where(eq(schema.receiptItems.documentId, documentId))
       .run()
+  }
+
+  // The json_payload custom field (if mapped) reflects the whole corrected
+  // extractedData, so any field edit is worth a resync, not just the ones
+  // that feed the title/correspondent/date.
+  if (Object.keys(edits).length > 0) {
+    await syncReceiptToPaperless(documentId)
   }
 
   return (

@@ -8,7 +8,10 @@ import { skippedDocuments } from './skipped-documents'
 import { recordReceiptItems } from './receipt-items'
 import { normalizeDateForPaperless } from './date-format'
 import { buildDocumentContent } from './document-content'
+import { interpolateTemplate } from './template'
 import { db, schema } from '../db'
+
+export { interpolateTemplate }
 import { eq, desc } from 'drizzle-orm'
 import type { Workflow } from '../db/schema'
 import type { WorkflowOutputMapping } from '@sm-rn/shared/workflow-schemas'
@@ -47,15 +50,6 @@ export function dataToMarkdown(data: Record<string, unknown>, workflowName: stri
   }
 
   return content
-}
-
-/**
- * Simple template interpolator.
- */
-export function interpolateTemplate(template: string, data: Record<string, unknown>): string {
-  return template.replace(/{(\w+)}/g, (match, key) => {
-    return String(data[key] ?? match)
-  })
 }
 
 /**

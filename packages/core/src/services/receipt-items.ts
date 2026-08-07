@@ -3,7 +3,7 @@ import type { Config } from '@sm-rn/shared/schemas'
 import { db, schema } from '../db'
 import { chatJson } from './ai-json'
 import { createLogger } from './logger'
-import { recalculateReceiptTotal } from './receipts'
+import { recalculateReceiptTotal, syncReceiptToPaperless } from './receipts'
 
 const logger = createLogger('core')
 
@@ -501,8 +501,13 @@ export async function updateReceiptItem(
 
   // The receipt's total is derived from its items, never directly editable,
   // so any change to a line's total price has to flow back up.
+  // recalculateReceiptTotal calls updateReceipt internally, which already
+  // triggers a Paperless resync - only sync explicitly here when that
+  // path wasn't taken, so a plain totalPrice edit doesn't double-sync.
   if (edits.totalPrice !== undefined) {
     await recalculateReceiptTotal(existing.documentId)
+  } else if (Object.keys(updates).length > 0) {
+    await syncReceiptToPaperless(existing.documentId)
   }
 
   return (
@@ -601,8 +606,13 @@ export async function createReceiptItem(
     })
     .returning()
 
+  // Same as updateReceiptItem: recalculateReceiptTotal already triggers a
+  // resync via updateReceipt when it runs - only sync explicitly here for
+  // the price-unknown case, where it doesn't.
   if (totalPrice !== null) {
     await recalculateReceiptTotal(input.documentId, { force: true })
+  } else {
+    await syncReceiptToPaperless(input.documentId)
   }
 
   return row
@@ -623,6 +633,8 @@ export async function deleteReceiptItem(id: number): Promise<boolean> {
   if (!existing) return false
 
   await db.delete(schema.receiptItems).where(eq(schema.receiptItems.id, id)).run()
+  // Always runs (force: true), so it already triggers a Paperless resync
+  // via updateReceipt - no separate sync call needed here.
   await recalculateReceiptTotal(existing.documentId, { force: true })
 
   return true
