@@ -9,6 +9,17 @@ export const ConfigSchema = z.object({
   paperless: z.object({
     host: z.string().optional().default(''),
     apiKey: z.string().optional().default(''),
+    // Optional override used only for links the browser opens directly
+    // (e.g. "View in Paperless") - `host` is what ReceiptHero's backend
+    // calls internally (often a Docker-network address like
+    // http://paperless:8000, unreachable from the user's browser), while
+    // this is the public/externally-reachable URL for the same instance.
+    // Falls back to `host` when unset.
+    publicUrl: z
+      .string()
+      .optional()
+      .transform((v) => (v === '' ? undefined : v))
+      .pipe(z.string().url().optional()),
   }),
   ai: z.object({
     provider: AIProviderSchema.default('openai-compat'),
@@ -94,6 +105,11 @@ export const PartialConfigSchema = z.object({
     .object({
       host: z.string().url('PAPERLESS_HOST must be a valid URL').optional(),
       apiKey: z.string().min(1, 'PAPERLESS_API_KEY is required').optional(),
+      publicUrl: z
+        .string()
+        .optional()
+        .transform((v) => (v === '' ? undefined : v))
+        .pipe(z.string().url().optional()),
     })
     .optional(),
   ai: z

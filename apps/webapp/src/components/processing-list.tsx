@@ -25,7 +25,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
-  useDocumentImage,
+  useConfig,
   useDocumentLogs,
   useDocumentThumbnail,
   useRetryProcessing,
@@ -121,7 +121,7 @@ function ProcessingDetailsDialog({
   )
   const { data: thumbnailData, isLoading: thumbnailLoading } =
     useDocumentThumbnail(log?.documentId ?? null)
-  const { data: imageData } = useDocumentImage(log?.documentId ?? null)
+  const { data: config } = useConfig()
 
   if (!log) return null
 
@@ -130,12 +130,17 @@ function ProcessingDetailsDialog({
   const dataString = log.extractedData || log.receiptData
   const extractedData = dataString ? JSON.parse(dataString) : null
 
-  // Build data URLs from base64 responses
+  // Build data URL from the base64 response
   const thumbnailSrc = thumbnailData
     ? `data:${thumbnailData.contentType};base64,${thumbnailData.base64}`
     : undefined
-  const originalSrc = imageData
-    ? `data:${imageData.contentType};base64,${imageData.base64}`
+  // publicUrl falls back to host, since most self-hosted setups reach
+  // Paperless at the same address the backend does - it only needs to
+  // differ when that address (e.g. an internal Docker hostname) isn't
+  // reachable from the browser this link opens in.
+  const paperlessBaseUrl = config?.paperless.publicUrl || config?.paperless.host
+  const paperlessDocumentUrl = paperlessBaseUrl
+    ? `${paperlessBaseUrl.replace(/\/+$/, '')}/documents/${log.documentId}/details`
     : undefined
 
   const handleRetry = (strategy: 'full' | 'partial') => {
@@ -250,15 +255,14 @@ function ProcessingDetailsDialog({
               <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <Eye className="h-4 w-4" /> Document Preview
               </h3>
-              {originalSrc && (
+              {paperlessDocumentUrl && (
                 <a
-                  href={originalSrc}
+                  href={paperlessDocumentUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="text-xs text-primary hover:underline flex items-center gap-1"
-                  download={`document-${log.documentId}`}
                 >
-                  View Original <ExternalLink className="h-3 w-3" />
+                  View in Paperless <ExternalLink className="h-3 w-3" />
                 </a>
               )}
             </div>

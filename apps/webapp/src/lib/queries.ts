@@ -14,7 +14,6 @@ import {
   getAvailableCurrencies as getAvailableCurrenciesFn,
   getConfig as getConfigFn,
   getCurrencyTotals as getCurrencyTotalsFn,
-  getDocumentImage,
   getDocumentLogs,
   getDocumentThumbnail,
   getHealthStatus,
@@ -215,19 +214,6 @@ export function useDocumentThumbnail(documentId: number | null) {
     queryFn: () => getDocumentThumbnail({ data: { documentId: documentId! } }),
     enabled: !!documentId,
     staleTime: 1000 * 60 * 60, // Cache thumbnail for 1 hour
-  })
-}
-
-/**
- * Fetches document image via server function proxy.
- * This allows fetching from internal Docker network when only webapp is exposed.
- */
-export function useDocumentImage(documentId: number | null) {
-  return useQuery({
-    queryKey: ['document-image', documentId],
-    queryFn: () => getDocumentImage({ data: { documentId: documentId! } }),
-    enabled: !!documentId,
-    staleTime: 1000 * 60 * 60, // Cache image for 1 hour
   })
 }
 

@@ -56,7 +56,6 @@ export {
 } from './stats.functions'
 export {
   getDocumentThumbnail,
-  getDocumentImage,
   type DocumentImageResponse,
 } from './documents.functions'
 export {

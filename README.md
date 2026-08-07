@@ -183,9 +183,11 @@ There are three ways to configure ReceiptHero, and it's worth knowing how they i
 
 1. **The Settings page** (`http://localhost:3000/settings`) — the recommended way for most options. Saving here writes straight to `config.json` on disk.
 2. **`config.json`** (at `CONFIG_PATH`, `/app/data/config.json` by default) — hand-edit this directly if you prefer config-as-code, or if you're bootstrapping a fresh deploy (see the Quick Start example above). A default template is created automatically on first run if the file doesn't exist yet.
-3. **Environment variables** (`PAPERLESS_HOST`, `AI_API_KEY`, `AI_MODEL`, `AI_TEMPERATURE`, `AI_MAX_TOKENS`, `SCAN_INTERVAL`, etc.) — useful for container-native deploys (e.g. injecting secrets via your orchestrator instead of a mounted file).
+3. **Environment variables** (`PAPERLESS_HOST`, `PAPERLESS_PUBLIC_URL`, `AI_API_KEY`, `AI_MODEL`, `AI_TEMPERATURE`, `AI_MAX_TOKENS`, `SCAN_INTERVAL`, etc.) — useful for container-native deploys (e.g. injecting secrets via your orchestrator instead of a mounted file).
 
 **Precedence**: for any given setting, `config.json` wins if it has that key set; otherwise the environment variable is used; otherwise a built-in default. In other words, editing something in the Settings page (which writes to `config.json`) will always override an env var for that same field — so if a setting isn't updating the way you expect, check whether `config.json` already has an explicit value for it.
+
+**Paperless Public URL** (optional, Settings → Paperless Connection): if the Host URL ReceiptHero itself connects to (e.g. an internal Docker address like `http://paperless:8000`) isn't reachable from your own browser, set this to the address you'd actually visit in a browser tab (e.g. `https://paperless.example.com`). It's only used for outbound links like "View in Paperless" - never for ReceiptHero's own connection - and falls back to Host URL when left unset.
 
 **Workflows are separate from all of this.** The AI provider/model/temperature/token-limit settings above are global — they apply to every workflow's extraction call. What varies _per workflow_ (see [Workflows](#-workflows) below) is the trigger tag, the extraction schema, and the prompt instructions — not which model or provider is used.
 

@@ -132,6 +132,11 @@ export function loadConfig(): Config {
     paperless: {
       host: getConfigValue(fileConfig, ['paperless', 'host'], process.env.PAPERLESS_HOST),
       apiKey: getConfigValue(fileConfig, ['paperless', 'apiKey'], process.env.PAPERLESS_API_KEY),
+      publicUrl: getConfigValue(
+        fileConfig,
+        ['paperless', 'publicUrl'],
+        process.env.PAPERLESS_PUBLIC_URL,
+      ),
     },
     ai: {
       provider: getConfigValue(fileConfig, ['ai', 'provider'], process.env.AI_PROVIDER),

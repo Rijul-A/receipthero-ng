@@ -534,6 +534,32 @@ function SettingsPage() {
                 />
                 <ErrorMessage path="paperless.apiKey" />
               </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="paperless-public-url">
+                  Public URL (optional)
+                </Label>
+                <Input
+                  id="paperless-public-url"
+                  placeholder="https://paperless.example.com"
+                  value={localConfig.paperless.publicUrl ?? ''}
+                  onChange={(e) =>
+                    handlePaperlessChange('publicUrl', e.target.value)
+                  }
+                  className={
+                    errors['paperless.publicUrl'] ? 'border-destructive' : ''
+                  }
+                />
+                <ErrorMessage path="paperless.publicUrl" />
+                <p className="text-xs text-muted-foreground">
+                  Only needed if Host URL above isn't reachable from your own
+                  browser (e.g. an internal Docker address like
+                  http://paperless:8000). Set this to the address you'd actually
+                  visit in a browser tab - it's used for links like "View in
+                  Paperless", never for ReceiptHero's own connection to
+                  Paperless.
+                </p>
+              </div>
             </div>
 
             <Separator />
