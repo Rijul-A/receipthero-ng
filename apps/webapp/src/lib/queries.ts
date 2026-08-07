@@ -242,9 +242,42 @@ export function useRetryProcessing() {
       id: number
       strategy: 'full' | 'partial'
     }) => retryDocument({ data: { id, strategy } }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['processing-logs'] })
+    // The actual reprocess job runs in the background server-side and
+    // takes a moment to start (queue, doc fetch, first progress report),
+    // so an immediate post-click invalidateQueries just refetches the
+    // still-unchanged prior state - e.g. "Processed successfully" staying
+    // on screen briefly even though a fresh reprocess was just triggered.
+    // Optimistically flip the local card the instant the click happens
+    // instead of waiting on the round trip.
+    onMutate: async ({ id }) => {
+      await queryClient.cancelQueries({ queryKey: ['processing-logs'] })
+      const previous = queryClient.getQueryData<Array<ProcessingLog>>([
+        'processing-logs',
+      ])
+      queryClient.setQueryData<Array<ProcessingLog>>(
+        ['processing-logs'],
+        (logs) =>
+          logs?.map((log) =>
+            log.documentId === id
+              ? {
+                  ...log,
+                  status: 'processing',
+                  progress: 5,
+                  message: 'Reprocessing...',
+                }
+              : log,
+          ),
+      )
+      return { previous }
     },
+    onError: (_err, _vars, context) => {
+      if (context?.previous)
+        queryClient.setQueryData(['processing-logs'], context.previous)
+    },
+    // Deliberately no onSuccess invalidateQueries - it would fire before the
+    // background job has actually started and refetch the same stale data,
+    // reverting the optimistic update. The WS live-update path and this
+    // query's own polling interval keep it consistent from here.
   })
 }
 
@@ -257,9 +290,34 @@ export function useBatchReprocess() {
   return useMutation({
     mutationFn: (documentIds: Array<number>) =>
       batchReprocessDocuments({ data: { documentIds } }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['processing-logs'] })
+    // See useRetryProcessing's onMutate for why this is optimistic rather
+    // than waiting for the background job to actually report progress.
+    onMutate: async (documentIds) => {
+      await queryClient.cancelQueries({ queryKey: ['processing-logs'] })
+      const previous = queryClient.getQueryData<Array<ProcessingLog>>([
+        'processing-logs',
+      ])
+      queryClient.setQueryData<Array<ProcessingLog>>(
+        ['processing-logs'],
+        (logs) =>
+          logs?.map((log) =>
+            documentIds.includes(log.documentId)
+              ? {
+                  ...log,
+                  status: 'processing',
+                  progress: 5,
+                  message: 'Reprocessing...',
+                }
+              : log,
+          ),
+      )
+      return { previous }
     },
+    onError: (_err, _vars, context) => {
+      if (context?.previous)
+        queryClient.setQueryData(['processing-logs'], context.previous)
+    },
+    // Deliberately no onSuccess invalidateQueries - see useRetryProcessing.
   })
 }
 
