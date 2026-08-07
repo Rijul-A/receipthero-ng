@@ -203,8 +203,21 @@ export async function executeWorkflow(
     const updates: any = {}
 
     // 1. Title
+    // interpolateTemplate leaves `{key}` untouched verbatim if extractedData
+    // has no matching field (e.g. a titleTemplate referencing a field name
+    // the workflow's schema doesn't actually produce) - applying that as
+    // the real Paperless title would silently save the literal broken
+    // placeholder text permanently instead of just leaving the old title.
     if (workflow.titleTemplate) {
-      updates.title = interpolateTemplate(workflow.titleTemplate, extractedData)
+      const interpolatedTitle = interpolateTemplate(workflow.titleTemplate, extractedData)
+      if (/{[a-zA-Z_]\w*}/.test(interpolatedTitle)) {
+        docLogger.warn(
+          `Title template "${workflow.titleTemplate}" left unresolved placeholder(s) - leaving existing title unchanged`,
+          { interpolatedTitle },
+        )
+      } else {
+        updates.title = interpolatedTitle
+      }
     } else if (extractedData.title) {
       updates.title = extractedData.title
     }
