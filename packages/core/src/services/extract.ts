@@ -141,6 +141,11 @@ export async function extractWithSchema(
     },
     body: JSON.stringify({
       model,
+      // Structured extraction wants the same answer every time for the same
+      // image, not creative variation - the default sampling temperature
+      // (usually ~0.7-0.8) is why identical input can non-deterministically
+      // extract 0 items on one run and several on the next.
+      temperature: 0,
       response_format: {
         type: 'json_schema',
         json_schema: {
