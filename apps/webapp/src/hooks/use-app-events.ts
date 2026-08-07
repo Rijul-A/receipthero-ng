@@ -68,11 +68,23 @@ export function useAppEvents() {
             return
           }
 
-          // Refresh currency totals when a document is successfully processed
-          if (type === 'receipt:success') {
+          // Every document goes through the workflow engine now (workflow:*
+          // events) - receipt:* is the older, still-supported legacy
+          // pipeline. Both need to refresh the dashboard's summary numbers
+          // (health/queue counts, currency totals) on completion, or those
+          // cards only catch up on their own 30s poll instead of instantly.
+          const isCompletionEvent =
+            type === 'receipt:success' ||
+            type === 'receipt:failed' ||
+            type === 'workflow:success' ||
+            type === 'workflow:failed' ||
+            type === 'workflow:skipped'
+          if (isCompletionEvent) {
             queryClient.invalidateQueries({
               queryKey: ['stats', 'currency-totals'],
             })
+            queryClient.invalidateQueries({ queryKey: ['health'] })
+            queryClient.invalidateQueries({ queryKey: ['queue'] })
           }
 
           // Handle processing events
@@ -82,10 +94,15 @@ export function useAppEvents() {
             )
 
             let status = payload.status
-            if (type === 'receipt:detected') status = 'detected'
-            if (type === 'receipt:success') status = 'completed'
-            if (type === 'receipt:failed') status = 'failed'
-            if (type === 'receipt:retry') status = 'retrying'
+            if (type === 'receipt:detected' || type === 'workflow:detected')
+              status = 'detected'
+            if (type === 'receipt:success' || type === 'workflow:success')
+              status = 'completed'
+            if (type === 'receipt:failed' || type === 'workflow:failed')
+              status = 'failed'
+            if (type === 'receipt:retry' || type === 'workflow:retry')
+              status = 'retrying'
+            if (type === 'workflow:skipped') status = 'skipped'
 
             if (existingIndex > -1) {
               const updated = [...prev]
