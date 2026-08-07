@@ -20,9 +20,12 @@ export interface ExtractionContext {
 
 /**
  * Ensures a base URL ends with /v1, as required by the OpenAI-compatible
- * chat completions endpoint this module calls directly via fetch(). Users
- * commonly supply a "plain" host (e.g. Ollama's own docs show just
- * `http://host:11434`), so this normalizes either form.
+ * chat completions endpoint this module calls directly via fetch(). Only
+ * applied for Ollama, whose own docs commonly show just a bare host (e.g.
+ * `http://host:11434`) with no path - other providers' base URLs are
+ * trusted exactly as given, since not everything OpenAI-compatible
+ * actually versions its API as /v1 (e.g. Z.ai uses /v4), and force-adding
+ * /v1 there produces a double-versioned path like /v4/v1/chat/completions.
  */
 function withV1(url: string): string {
   const trimmed = url.replace(/\/+$/, '')
@@ -40,21 +43,21 @@ export function resolveEndpoint(config: Config): {
     case 'openai-compat':
       if (!ai.apiKey) throw new Error('AI API key is required for openai-compat provider.')
       return {
-        baseURL: withV1(ai.baseURL || 'https://api.openai.com/v1'),
+        baseURL: ai.baseURL || 'https://api.openai.com/v1',
         apiKey: ai.apiKey,
         model: ai.model,
       }
     case 'together-ai':
       if (!ai.apiKey) throw new Error('AI API key is required for Together AI provider.')
       return {
-        baseURL: withV1(ai.baseURL || 'https://api.together.xyz/v1'),
+        baseURL: ai.baseURL || 'https://api.together.xyz/v1',
         apiKey: ai.apiKey,
         model: ai.model,
       }
     case 'openrouter':
       if (!ai.apiKey) throw new Error('AI API key is required for openrouter provider.')
       return {
-        baseURL: withV1(ai.baseURL || 'https://openrouter.ai/api/v1'),
+        baseURL: ai.baseURL || 'https://openrouter.ai/api/v1',
         apiKey: ai.apiKey,
         model: ai.model,
       }
