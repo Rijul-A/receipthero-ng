@@ -108,7 +108,9 @@ CRITICAL: Date MUST be in YYYY-MM-DD format.
 
 AMOUNT vs TAX: "amount" is the final total actually paid/charged - the grand total including tax (usually labeled "TOTAL", "AMOUNT DUE", or similar on the receipt), NOT the pre-tax subtotal. "taxAmount" is the tax portion only, extracted separately - it is not subtracted from "amount".
 
-LINE ITEMS: Extract every individual line item visible on the receipt into line_items, even on long receipts with many items - do not summarize, group, or omit items to save space. For each item include: name (required), quantity (if shown), unitPrice (if shown), totalPrice (required). If the receipt only shows a total with no itemized lines, omit line_items entirely rather than guessing.`
+LINE ITEMS: Extract every individual line item visible on the receipt into line_items, even on long receipts with many items - do not summarize, group, or omit items to save space. For each item include: name (required), quantity (if shown), unitPrice (if shown), totalPrice (required). If the receipt only shows a total with no itemized lines, omit line_items entirely rather than guessing.
+
+DUPLICATE LINES: If the same product name appears on more than one separate printed line (e.g. the same SKU scanned twice as two distinct lines, each with its own price), output a SEPARATE line_items entry for each occurrence - do not merge them into one entry. Only combine into a single entry with quantity > 1 when the receipt itself prints a single line showing a quantity multiplier (e.g. "2 x Item ... $X.XX").`
 
 /**
  * Ensures the default built-in receipt workflow always exists.
