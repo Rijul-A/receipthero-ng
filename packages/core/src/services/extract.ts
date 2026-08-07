@@ -63,8 +63,15 @@ export function resolveEndpoint(config: Config): {
 }
 
 /**
- * Wraps the user's item schema in a top-level `items` array wrapper, which is required
+ * Wraps the user's schema in a top-level `documents` array wrapper, which is required
  * because response_format/json_schema must describe a single root object (not an array).
+ *
+ * Deliberately NOT called `items` - the receipt schema has its own `line_items` field for
+ * products, and a wrapper literally named "items" (described as "one entry per item") reads
+ * as a synonym for that to a smaller model. Observed in practice: a 7B model would flatten
+ * the receipt's fields onto a separate wrapper entry per PRODUCT ("PET TOY", "FLOPPY PUPPY", ...)
+ * instead of one receipt entry with a nested line_items array - ballooning output size ~20x
+ * and blowing past the model's own output token limit mid-response.
  */
 function buildResponseSchema(itemSchema: any): any {
   // Strip $schema (Zod v4 emits 2020-12) — providers may reject unknown meta-schema keys
@@ -72,13 +79,14 @@ function buildResponseSchema(itemSchema: any): any {
   return {
     type: 'object',
     properties: {
-      items: {
+      documents: {
         type: 'array',
         items: cleanItemSchema,
-        description: 'One entry per logical item found in the document.',
+        description:
+          "One entry per separate document/receipt visible in the image - almost always exactly one. Do NOT create a separate entry per product or line item here; those belong nested inside this schema's own line_items field, if it has one.",
       },
     },
-    required: ['items'],
+    required: ['documents'],
     additionalProperties: false,
   }
 }
@@ -117,7 +125,7 @@ export async function extractWithSchema(
   const systemPrompt = [
     'You are a structured data extraction engine.',
     'Extract data from the provided image according to the JSON schema defined in the response format.',
-    'Populate the `items` array — one entry per logical item found in the document.',
+    "Populate the `documents` array — one entry per separate document/receipt visible in the image (almost always exactly one). Do not create a separate entry per product or line item - those belong nested inside the schema's own line_items field, if present.",
     'Dates MUST be in YYYY-MM-DD format.',
     'If information is not visible, use reasonable defaults or omit optional fields.',
     promptInstructions ? `\nADDITIONAL INSTRUCTIONS:\n${promptInstructions}` : '',
@@ -189,14 +197,14 @@ export async function extractWithSchema(
   // limit mid-object) - surface the raw text on failure instead of just the
   // generic SyntaxError, since that's the only way to tell "cut off" apart
   // from "genuinely empty".
-  let parsed: { items: Record<string, unknown>[] }
+  let parsed: { documents: Record<string, unknown>[] }
   try {
-    parsed = JSON.parse(rawContent) as { items: Record<string, unknown>[] }
+    parsed = JSON.parse(rawContent) as { documents: Record<string, unknown>[] }
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err)
     throw new Error(
       `AI provider returned invalid JSON (${reason}). Raw response (${rawContent.length} chars): ${rawContent.slice(0, 2000)}`,
     )
   }
-  return Array.isArray(parsed.items) ? parsed.items : []
+  return Array.isArray(parsed.documents) ? parsed.documents : []
 }

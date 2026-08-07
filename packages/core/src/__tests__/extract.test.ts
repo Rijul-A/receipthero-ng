@@ -6,7 +6,7 @@ import { extractWithSchema } from '../services/extract'
 // /v1/chat/completions endpoint (see extract.ts for why it bypasses the
 // @tanstack/ai adapters), so the mock needs to be at the fetch level.
 const mockResult = {
-  items: [
+  documents: [
     {
       vendor: 'Test Store',
       amount: 12.34,
