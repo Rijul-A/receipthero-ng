@@ -84,6 +84,21 @@ function ReceiptDetail({
   const { data: detail, isLoading } = useReceiptDetail(documentId)
   const updateReceipt = useUpdateReceipt()
   const deleteReceipt = useDeleteReceipt()
+  // Must be called unconditionally, before the loading early-return below -
+  // hooks can't be called after a conditional return without changing the
+  // number of hooks run between renders (React error #310).
+  const deleteReceiptConfirm = useClickToConfirm(() => {
+    deleteReceipt.mutate(
+      { documentId },
+      {
+        onSuccess: () => {
+          toast.success('Receipt deleted')
+          onDeleted()
+        },
+        onError: (error) => toast.error(error.message),
+      },
+    )
+  })
 
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [vendor, setVendor] = useState('')
@@ -142,19 +157,6 @@ function ReceiptDetail({
       },
     )
   }
-
-  const deleteReceiptConfirm = useClickToConfirm(() => {
-    deleteReceipt.mutate(
-      { documentId },
-      {
-        onSuccess: () => {
-          toast.success('Receipt deleted')
-          onDeleted()
-        },
-        onError: (error) => toast.error(error.message),
-      },
-    )
-  })
 
   const fields: Array<[label: string, value: string]> = [
     ['Store name', vendor || '—'],
