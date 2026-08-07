@@ -292,6 +292,16 @@ export async function executeWorkflow(
     const note = `## Workflow: ${workflow.name}\n\n${extractedData.summary || 'Data extracted successfully.'}\n\n---\n\n\`\`\`json\n${JSON.stringify(extractedData, null, 2)}\n\`\`\``
     await client.addNote(documentId, note)
 
+    // The events route (apps/api/src/routes/events.ts) only persists
+    // vendor/amount/currency/storeLocation/receiptData from these explicit
+    // fields on the payload - it doesn't know how to derive them from
+    // extractedData itself. Without this, every workflow-engine-processed
+    // document's Store name/Date/Currency/etc. stay blank in the receipt
+    // detail view even though extraction succeeded, since only the
+    // Paperless document title (set independently above) reflects it.
+    const vendorForLog = mapping.correspondentField
+      ? extractedData[mapping.correspondentField]
+      : undefined
     await reporter.report('workflow:success', {
       documentId,
       workflowId: workflow.id,
@@ -299,6 +309,15 @@ export async function executeWorkflow(
       progress: 100,
       message: 'Processed successfully',
       extractedData: JSON.stringify(extractedData),
+      vendor: typeof vendorForLog === 'string' ? vendorForLog : undefined,
+      amount:
+        typeof extractedData.amount === 'number'
+          ? Math.round(extractedData.amount * 100)
+          : undefined,
+      currency: typeof extractedData.currency === 'string' ? extractedData.currency : undefined,
+      storeLocation:
+        typeof extractedData.storeLocation === 'string' ? extractedData.storeLocation : undefined,
+      receiptData: JSON.stringify(extractedData),
     })
 
     if (retryQueue) await retryQueue.remove(documentId)

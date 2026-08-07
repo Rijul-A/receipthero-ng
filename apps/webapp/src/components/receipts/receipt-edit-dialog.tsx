@@ -318,7 +318,13 @@ function ReceiptDetail({
             Total (from items below):{' '}
           </span>
           <span className="font-medium">
-            {formatMajorUnits(detail.log.amount)} {detail.log.currency ?? ''}
+            {formatMajorUnits(
+              detail.items.reduce(
+                (sum, item) => sum + (item.totalPrice ?? 0),
+                0,
+              ),
+            )}{' '}
+            {detail.log.currency ?? ''}
           </span>
         </div>
       </div>
