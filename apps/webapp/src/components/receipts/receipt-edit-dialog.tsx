@@ -157,6 +157,17 @@ function ReceiptDetail({
   const [editableItems, setEditableItems] = useState<Array<EditableItem>>([])
   const [isSaving, setIsSaving] = useState(false)
 
+  // Must also be called unconditionally, before the loading early-return
+  // below - same Rules-of-Hooks reasoning as deleteReceiptConfirm above.
+  const dragSensors = useSensors(
+    useSensor(PointerSensor, {
+      // Requires a small drag before activating, so a plain click/tap on
+      // the handle (or an accidental touch-scroll) doesn't get mistaken
+      // for the start of a drag.
+      activationConstraint: { distance: 4 },
+    }),
+  )
+
   useEffect(() => {
     // Re-syncs whenever this dialog is opened for a (possibly different)
     // document, but not on every background refetch, so in-progress edits
@@ -192,15 +203,6 @@ function ReceiptDetail({
     setEditableItems(detail.items.map(toEditableItem))
     setMode('edit')
   }
-
-  const dragSensors = useSensors(
-    useSensor(PointerSensor, {
-      // Requires a small drag before activating, so a plain click/tap on
-      // the handle (or an accidental touch-scroll) doesn't get mistaken
-      // for the start of a drag.
-      activationConstraint: { distance: 4 },
-    }),
-  )
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
@@ -694,10 +696,10 @@ function ItemEditRow({
       style={style}
       className={`space-y-1 border-b pb-2 last:border-0 bg-background ${isDragging ? 'opacity-50 z-10 relative' : ''}`}
     >
-      <div className="grid grid-cols-[auto_1fr_4rem_5rem_auto] gap-2 items-end">
+      <div className="grid grid-cols-[auto_minmax(0,2fr)_3rem_3.5rem_3.5rem_4rem_auto] gap-1.5 items-end">
         <button
           type="button"
-          className="flex items-center justify-center h-8 w-6 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none"
+          className="flex items-center justify-center h-8 w-5 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none"
           aria-label={`Drag to reorder ${item.name}`}
           {...attributes}
           {...listeners}
@@ -712,25 +714,54 @@ function ItemEditRow({
             className="text-xs"
           />
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <Label className="text-[10px] text-muted-foreground">Qty</Label>
           <Input
             type="number"
             min="1"
             value={item.quantity}
             onChange={(e) => onChange({ quantity: e.target.value })}
-            className="text-xs"
+            className="text-xs px-1.5"
           />
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <Label className="text-[10px] text-muted-foreground">Price</Label>
           <Input
             type="number"
             step="0.01"
             value={item.totalPrice}
             onChange={(e) => onChange({ totalPrice: e.target.value })}
-            className="text-xs"
+            className="text-xs px-1.5"
           />
+        </div>
+        <div className="space-y-1 min-w-0">
+          <Label className="text-[10px] text-muted-foreground">Size</Label>
+          <Input
+            type="number"
+            step="any"
+            min="0"
+            placeholder="1980"
+            value={item.totalSize}
+            onChange={(e) => onChange({ totalSize: e.target.value })}
+            className="text-xs px-1.5"
+          />
+        </div>
+        <div className="space-y-1 min-w-0">
+          <Label className="text-[10px] text-muted-foreground">Unit</Label>
+          <select
+            value={item.sizeUnit}
+            onChange={(e) =>
+              onChange({
+                sizeUnit: e.target.value as 'ml' | 'g' | 'count' | '',
+              })
+            }
+            className="h-8 w-full rounded-none border border-input bg-transparent px-1 text-xs"
+          >
+            <option value="">—</option>
+            <option value="ml">ml</option>
+            <option value="g">g</option>
+            <option value="count">count</option>
+          </select>
         </div>
         <Button
           size={deleteConfirm.confirming ? 'sm' : 'icon-sm'}
@@ -752,41 +783,6 @@ function ItemEditRow({
           />
           {deleteConfirm.confirming && 'Confirm?'}
         </Button>
-      </div>
-
-      <div className="grid grid-cols-[1.5rem_6rem_6rem] gap-2 items-end">
-        <div />
-        <div className="space-y-1">
-          <Label className="text-[10px] text-muted-foreground">
-            Total size
-          </Label>
-          <Input
-            type="number"
-            step="any"
-            min="0"
-            placeholder="e.g. 1980"
-            value={item.totalSize}
-            onChange={(e) => onChange({ totalSize: e.target.value })}
-            className="text-xs"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-[10px] text-muted-foreground">Unit</Label>
-          <select
-            value={item.sizeUnit}
-            onChange={(e) =>
-              onChange({
-                sizeUnit: e.target.value as 'ml' | 'g' | 'count' | '',
-              })
-            }
-            className="h-8 w-full rounded-none border border-input bg-transparent px-2.5 text-xs"
-          >
-            <option value="">—</option>
-            <option value="ml">ml</option>
-            <option value="g">g</option>
-            <option value="count">count</option>
-          </select>
-        </div>
       </div>
 
       {showReviewWarning && (
