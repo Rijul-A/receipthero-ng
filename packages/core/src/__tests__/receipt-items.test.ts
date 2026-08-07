@@ -10,8 +10,13 @@ mock.module('../services/ai-json', () => ({
   chatJson: async (args: unknown) => chatJsonImpl(args),
 }))
 
-const { recordReceiptItems, getItemPriceHistory, searchItemNames, getItemCountsByDocument } =
-  await import('../services/receipt-items')
+const {
+  recordReceiptItems,
+  getItemPriceHistory,
+  searchItemNames,
+  getItemCountsByDocument,
+  createReceiptItem,
+} = await import('../services/receipt-items')
 
 const mockConfig = ConfigSchema.parse({
   paperless: {},
@@ -161,5 +166,100 @@ describe('getItemCountsByDocument', () => {
 
   it('returns an empty object for an empty input array', async () => {
     expect(await getItemCountsByDocument([])).toEqual({})
+  })
+})
+
+describe('createReceiptItem', () => {
+  const NEW_DOC_ID = 9_000_101
+  const NEW_DOC_ID_EMPTY = 9_000_102
+
+  beforeEach(async () => {
+    await cleanup(NEW_DOC_ID, NEW_DOC_ID_EMPTY)
+    await db
+      .delete(schema.processingLogs)
+      .where(eq(schema.processingLogs.documentId, NEW_DOC_ID_EMPTY))
+      .run()
+  })
+  afterEach(async () => {
+    await cleanup(NEW_DOC_ID, NEW_DOC_ID_EMPTY)
+    await db
+      .delete(schema.processingLogs)
+      .where(eq(schema.processingLogs.documentId, NEW_DOC_ID_EMPTY))
+      .run()
+  })
+
+  it('inherits vendor/currency/purchaseDate from a sibling item on the same receipt', async () => {
+    await recordReceiptItems({
+      documentId: NEW_DOC_ID,
+      vendor: 'Carrefour',
+      currency: 'AED',
+      purchaseDate: '2026-01-01',
+      lineItems: [{ name: 'Milk 1L', quantity: 1, unitPrice: 5, totalPrice: 5 }],
+      config: mockConfig,
+    })
+
+    const created = await createReceiptItem({
+      documentId: NEW_DOC_ID,
+      itemName: 'Bread',
+      totalPrice: 3,
+    })
+
+    expect(created?.vendor).toBe('Carrefour')
+    expect(created?.currency).toBe('AED')
+    expect(created?.purchaseDate).toBe('2026-01-01')
+    expect(created?.totalPrice).toBe(300)
+  })
+
+  it('falls back to the receipt log when there are no existing items yet - the exact "0 items" case', async () => {
+    const now = new Date().toISOString()
+    await db
+      .insert(schema.processingLogs)
+      .values({
+        documentId: NEW_DOC_ID_EMPTY,
+        status: 'completed',
+        progress: 100,
+        attempts: 1,
+        vendor: 'Walmart',
+        currency: 'USD',
+        receiptData: JSON.stringify({ date: '2017-07-28' }),
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run()
+
+    const created = await createReceiptItem({
+      documentId: NEW_DOC_ID_EMPTY,
+      itemName: 'Pet Toy',
+      totalPrice: 1.97,
+    })
+
+    expect(created?.vendor).toBe('Walmart')
+    expect(created?.currency).toBe('USD')
+    expect(created?.purchaseDate).toBe('2017-07-28')
+    expect(created?.totalPrice).toBe(197)
+
+    const counts = await getItemCountsByDocument([NEW_DOC_ID_EMPTY])
+    expect(counts[NEW_DOC_ID_EMPTY]).toBe(1)
+  })
+
+  it('returns null for a blank name or a document with no items and no log entry', async () => {
+    expect(await createReceiptItem({ documentId: NEW_DOC_ID_EMPTY, itemName: '  ' })).toBeNull()
+    expect(await createReceiptItem({ documentId: 999_999_999, itemName: 'Ghost item' })).toBeNull()
+  })
+
+  it('leaves totalPrice/unitPrice null when left blank, matching "price unknown"', async () => {
+    await recordReceiptItems({
+      documentId: NEW_DOC_ID,
+      lineItems: [{ name: 'Milk 1L', quantity: 1, unitPrice: 5, totalPrice: 5 }],
+      config: mockConfig,
+    })
+
+    const created = await createReceiptItem({
+      documentId: NEW_DOC_ID,
+      itemName: 'Mystery item',
+    })
+
+    expect(created?.totalPrice).toBeNull()
+    expect(created?.unitPrice).toBeNull()
   })
 })

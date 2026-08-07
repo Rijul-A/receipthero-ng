@@ -4,6 +4,7 @@ import { z } from 'zod'
 import {
   searchItemNames,
   getItemPriceHistory,
+  createReceiptItem,
   updateReceiptItem,
   deleteReceiptItem,
   previewCanonicalRename,
@@ -134,6 +135,29 @@ items.get('/export', async (c) => {
   c.header('Content-Type', 'text/csv; charset=utf-8')
   c.header('Content-Disposition', 'attachment; filename="receipt-items.csv"')
   return c.body(csv)
+})
+
+const NewItemSchema = z.object({
+  documentId: z.number().int().positive(),
+  itemName: z.string().min(1),
+  quantity: z.number().positive().optional(),
+  totalPrice: z.number().nullable().optional(),
+  totalSize: z.number().positive().nullable().optional(),
+  sizeUnit: z.enum(['ml', 'g', 'count']).nullable().optional(),
+})
+
+/**
+ * POST /api/items
+ *
+ * Adds a manually-entered line item to a receipt - for a breakdown line
+ * the AI missed entirely.
+ */
+items.post('/', zValidator('json', NewItemSchema), async (c) => {
+  const input = c.req.valid('json')
+  const item = await createReceiptItem(input)
+  if (!item) return c.json({ error: 'Receipt not found' }, 404)
+
+  return c.json({ item }, 201)
 })
 
 const ItemEditSchema = z.object({

@@ -68,6 +68,7 @@ export {
   searchItemNames,
   getItemPriceHistory,
   exportItemsCsv,
+  createReceiptItem,
   updateReceiptItem,
   deleteReceiptItem,
   previewRename,
@@ -75,6 +76,7 @@ export {
   getItemFrequencyReport,
   getItemCounts,
   type ReceiptItemEntry,
+  type NewItem,
   type ItemEdit,
   type ItemFrequency,
 } from './items.functions'

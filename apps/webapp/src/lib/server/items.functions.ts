@@ -96,6 +96,30 @@ export interface ItemEdit {
   storeLocation?: string
 }
 
+export interface NewItem {
+  documentId: number
+  itemName: string
+  quantity?: number
+  totalPrice?: number | null
+  totalSize?: number | null
+  sizeUnit?: 'ml' | 'g' | 'count' | null
+}
+
+/**
+ * Adds a manually-entered line item to a receipt.
+ * Proxies to POST /api/items.
+ */
+export const createReceiptItem = createServerFn({ method: 'POST' })
+  .inputValidator((input: NewItem) => input)
+  .handler(async (ctx) => {
+    const { item } = await apiCall<{ item: ReceiptItemEntry }>('/api/items', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ctx.data),
+    })
+    return item
+  })
+
 /**
  * Corrects a single receipt-item row.
  * Proxies to PATCH /api/items/:id.

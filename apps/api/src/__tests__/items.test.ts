@@ -117,6 +117,44 @@ describe('items routes', () => {
     })
   })
 
+  describe('POST /api/items', () => {
+    test('adds a manually-entered item, inheriting vendor/currency from a sibling', async () => {
+      await seedLog(DOC_ID)
+      await seedItem()
+
+      const res = await app.request('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ documentId: DOC_ID, itemName: 'Bread', totalPrice: 3 }),
+      })
+      expect(res.status).toBe(201)
+      const body = (await res.json()) as {
+        item: { itemName: string; vendor: string | null; totalPrice: number | null }
+      }
+      expect(body.item.itemName).toBe('Bread')
+      expect(body.item.vendor).toBe('Carrefour')
+      expect(body.item.totalPrice).toBe(300)
+    })
+
+    test('404s when the document has no items and no log entry', async () => {
+      const res = await app.request('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ documentId: 999999999, itemName: 'Ghost item' }),
+      })
+      expect(res.status).toBe(404)
+    })
+
+    test('400s for a missing itemName', async () => {
+      const res = await app.request('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ documentId: DOC_ID }),
+      })
+      expect(res.status).toBe(400)
+    })
+  })
+
   describe('PATCH /api/items/:id', () => {
     test('corrects a row and returns the updated item', async () => {
       await seedLog(DOC_ID)

@@ -100,6 +100,17 @@ export async function validateZodSource(zodSource: string) {
   }
 }
 
+// Exported so an existing "receipt" workflow's promptInstructions can be
+// compared against/reset to this exact text (e.g. from the Workflows UI)
+// without duplicating it.
+export const DEFAULT_RECEIPT_PROMPT_INSTRUCTIONS = `You are an expert at extracting receipt data. Extract all receipts from the image as a JSON object matching the schema.
+
+CRITICAL: Date MUST be in YYYY-MM-DD format.
+
+AMOUNT vs TAX: "amount" is the final total actually paid/charged - the grand total including tax (usually labeled "TOTAL", "AMOUNT DUE", or similar on the receipt), NOT the pre-tax subtotal. "taxAmount" is the tax portion only, extracted separately - it is not subtracted from "amount".
+
+LINE ITEMS: Extract every individual line item visible on the receipt into line_items, even on long receipts with many items - do not summarize, group, or omit items to save space. For each item include: name (required), quantity (if shown), unitPrice (if shown), totalPrice (required). If the receipt only shows a total with no itemized lines, omit line_items entirely rather than guessing.`
+
 /**
  * Ensures the default built-in receipt workflow always exists.
  * Uses a slug-based check so user-created workflows don't prevent seeding.
@@ -158,8 +169,7 @@ export async function seedDefaultWorkflows() {
       triggerTag: config.processing.receiptTag,
       zodSource: receiptZodSource,
       jsonSchema: JSON.stringify(z.toJSONSchema(ProcessedReceiptSchema)),
-      promptInstructions:
-        'You are an expert at extracting receipt data. Extract all receipts from the image as a JSON object matching the schema. CRITICAL: Date MUST be in YYYY-MM-DD format.',
+      promptInstructions: DEFAULT_RECEIPT_PROMPT_INSTRUCTIONS,
       titleTemplate: '{vendor} - {amount} {currency}',
       outputMapping: JSON.stringify(outputMapping),
       processedTag: config.processing.processedTag,

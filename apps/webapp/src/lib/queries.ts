@@ -4,6 +4,7 @@ import {
   checkSession as checkSessionFn,
   clearQueue as clearQueueFn,
   clearSkippedDocuments,
+  createReceiptItem as createReceiptItemFn,
   deleteReceipt as deleteReceiptFn,
   deleteReceiptItem as deleteReceiptItemFn,
   exportItemsCsv as exportItemsCsvFn,
@@ -53,6 +54,7 @@ import type {
   HealthStatus,
   ItemEdit,
   ItemFrequency,
+  NewItem,
   QueueActionResponse,
   QueueStatus,
   ReceiptDetail,
@@ -587,6 +589,21 @@ export function useExportItemsCsv() {
     mutationFn: async () => {
       const csv = await exportItemsCsvFn()
       downloadTextFile('receipt-items.csv', csv)
+    },
+  })
+}
+
+/**
+ * Adds a manually-entered line item to a receipt - for a breakdown line
+ * the AI missed entirely.
+ */
+export function useCreateReceiptItem() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (params: NewItem) => createReceiptItemFn({ data: params }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: itemKeys.all })
+      queryClient.invalidateQueries({ queryKey: receiptKeys.all })
     },
   })
 }

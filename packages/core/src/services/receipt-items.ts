@@ -464,6 +464,94 @@ export async function updateReceiptItem(
   )
 }
 
+export interface NewReceiptItemInput {
+  documentId: number
+  itemName: string
+  quantity?: number
+  totalPrice?: number | null // major units; null means "price unknown"
+  totalSize?: number | null
+  sizeUnit?: 'ml' | 'g' | 'count' | null
+}
+
+/**
+ * Adds a manually-entered line item to a receipt - for a breakdown line
+ * the AI missed entirely (as opposed to updateReceiptItem, which corrects
+ * a line the AI *did* extract but got wrong). Inherits vendor/currency/
+ * purchaseDate/storeLocation from an existing item on the same receipt if
+ * there is one, otherwise from the receipt's own log entry, so a manually
+ * added item still participates in price comparison like any other.
+ */
+export async function createReceiptItem(
+  input: NewReceiptItemInput,
+): Promise<schema.ReceiptItemEntry | null> {
+  const itemName = input.itemName.trim()
+  if (!itemName) return null
+
+  const sibling = await db
+    .select()
+    .from(schema.receiptItems)
+    .where(eq(schema.receiptItems.documentId, input.documentId))
+    .get()
+
+  let vendor: string | null = sibling?.vendor ?? null
+  let currency: string | null = sibling?.currency ?? null
+  let purchaseDate: string | null = sibling?.purchaseDate ?? null
+  let storeLocation: string | null = sibling?.storeLocation ?? null
+
+  if (!sibling) {
+    const log = await db
+      .select()
+      .from(schema.processingLogs)
+      .where(eq(schema.processingLogs.documentId, input.documentId))
+      .orderBy(desc(schema.processingLogs.id))
+      .get()
+    if (!log) return null
+
+    vendor = log.vendor
+    currency = log.currency
+    storeLocation = log.storeLocation
+    try {
+      const parsed = log.receiptData ? JSON.parse(log.receiptData) : {}
+      purchaseDate = typeof parsed.date === 'string' ? parsed.date : null
+    } catch {
+      purchaseDate = null
+    }
+  }
+
+  const quantity = input.quantity && input.quantity > 0 ? Math.round(input.quantity) : 1
+  const totalPrice =
+    input.totalPrice === undefined || input.totalPrice === null
+      ? null
+      : Math.round(input.totalPrice * 100)
+  const unitPrice = totalPrice !== null ? Math.round(totalPrice / quantity) : null
+
+  const now = new Date().toISOString()
+  const [row] = await db
+    .insert(schema.receiptItems)
+    .values({
+      documentId: input.documentId,
+      vendor,
+      itemName,
+      canonicalName: itemName,
+      quantity,
+      unitPrice,
+      totalPrice,
+      totalSize: input.totalSize ?? null,
+      sizeUnit: input.sizeUnit ?? null,
+      currency,
+      purchaseDate,
+      storeLocation,
+      createdAt: now,
+    })
+    .returning()
+
+  if (totalPrice !== null) {
+    await recalculateReceiptTotal(input.documentId, { force: true })
+  }
+
+  return row
+}
+
 /**
  * Removes a single line item - for refund/discount/free lines the user
  * wants off the receipt entirely rather than corrected (e.g. netting a

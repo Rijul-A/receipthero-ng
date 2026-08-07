@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import type { ReceiptItemEntry } from '@/lib/server'
 import {
   Dialog,
@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { useClickToConfirm } from '@/hooks/use-click-to-confirm'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import {
+  useCreateReceiptItem,
   useDeleteReceipt,
   useDeleteReceiptItem,
   useReceiptDetail,
@@ -108,6 +109,7 @@ function ReceiptDetail({
   const [currency, setCurrency] = useState('')
   const [category, setCategory] = useState('')
   const [initializedFor, setInitializedFor] = useState<number | null>(null)
+  const [showAddItem, setShowAddItem] = useState(false)
 
   useEffect(() => {
     // Re-syncs whenever this dialog is opened for a (possibly different)
@@ -123,6 +125,7 @@ function ReceiptDetail({
     setCategory(typeof parsed.category === 'string' ? parsed.category : '')
     setInitializedFor(documentId)
     setMode('view')
+    setShowAddItem(false)
   }, [detail, documentId, initializedFor])
 
   if (isLoading || !detail) {
@@ -299,70 +302,91 @@ function ReceiptDetail({
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Items ({detail.items.length})
         </Label>
-        {detail.items.length === 0 ? (
-          <div className="space-y-2">
+        {mode === 'view' ? (
+          detail.items.length === 0 ? (
             <p className="text-xs text-muted-foreground">
-              No line items recorded for this receipt. If it's no longer
-              relevant (e.g. you removed everything on it), you can delete the
-              receipt entirely.
+              No line items recorded for this receipt.
             </p>
-            <Button
-              size="sm"
-              variant={
-                deleteReceiptConfirm.confirming ? 'destructive' : 'outline'
-              }
-              className={
-                deleteReceiptConfirm.confirming ? '' : 'text-destructive'
-              }
-              onClick={deleteReceiptConfirm.handleClick}
-              disabled={deleteReceipt.isPending}
-            >
-              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              {deleteReceiptConfirm.confirming
-                ? 'Click again to delete'
-                : 'Delete receipt'}
-            </Button>
-          </div>
-        ) : mode === 'view' ? (
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b text-left text-muted-foreground">
-                <th className="py-2 pr-4">Name</th>
-                <th className="py-2 pr-4">Qty</th>
-                <th className="py-2 pr-4">Total size</th>
-                <th className="py-2 pr-4">Price</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detail.items.map((item) => (
-                <tr key={item.id} className="border-b last:border-0">
-                  <td className="py-2 pr-4">
-                    {item.canonicalName ?? item.itemName}
-                  </td>
-                  <td className="py-2 pr-4">{item.quantity}</td>
-                  <td className="py-2 pr-4">
-                    {formatTotalSize(item.totalSize, item.sizeUnit)}
-                  </td>
-                  <td className="py-2 pr-4">
-                    {formatMajorUnits(item.totalPrice)} {item.currency ?? ''}
-                    {needsReview(item.totalPrice) && (
-                      <Badge
-                        variant="outline"
-                        className="ml-2 text-amber-600 border-amber-600"
-                      >
-                        Needs review
-                      </Badge>
-                    )}
-                  </td>
+          ) : (
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="py-2 pr-4">Name</th>
+                  <th className="py-2 pr-4">Qty</th>
+                  <th className="py-2 pr-4">Total size</th>
+                  <th className="py-2 pr-4">Price</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {detail.items.map((item) => (
+                  <tr key={item.id} className="border-b last:border-0">
+                    <td className="py-2 pr-4">
+                      {item.canonicalName ?? item.itemName}
+                    </td>
+                    <td className="py-2 pr-4">{item.quantity}</td>
+                    <td className="py-2 pr-4">
+                      {formatTotalSize(item.totalSize, item.sizeUnit)}
+                    </td>
+                    <td className="py-2 pr-4">
+                      {formatMajorUnits(item.totalPrice)} {item.currency ?? ''}
+                      {needsReview(item.totalPrice) && (
+                        <Badge
+                          variant="outline"
+                          className="ml-2 text-amber-600 border-amber-600"
+                        >
+                          Needs review
+                        </Badge>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
         ) : (
           <div className="space-y-2">
+            {detail.items.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No line items recorded for this receipt yet. Add one below, or
+                delete the receipt if it's no longer relevant.
+              </p>
+            )}
             {detail.items.map((item) => (
               <ItemEditRow key={item.id} item={item} />
             ))}
+            {showAddItem ? (
+              <NewItemRow
+                documentId={documentId}
+                onDone={() => setShowAddItem(false)}
+              />
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowAddItem(true)}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                Add item
+              </Button>
+            )}
+            {detail.items.length === 0 && (
+              <Button
+                size="sm"
+                variant={
+                  deleteReceiptConfirm.confirming ? 'destructive' : 'outline'
+                }
+                className={
+                  deleteReceiptConfirm.confirming ? '' : 'text-destructive'
+                }
+                onClick={deleteReceiptConfirm.handleClick}
+                disabled={deleteReceipt.isPending}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                {deleteReceiptConfirm.confirming
+                  ? 'Click again to delete'
+                  : 'Delete receipt'}
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -587,6 +611,153 @@ function ItemEditRow({ item }: { item: ReceiptItemEntry }) {
           or a discount to net into the main item and delete this line.
         </p>
       )}
+    </div>
+  )
+}
+
+function NewItemRow({
+  documentId,
+  onDone,
+}: {
+  documentId: number
+  onDone: () => void
+}) {
+  const createItem = useCreateReceiptItem()
+
+  const [name, setName] = useState('')
+  const [quantity, setQuantity] = useState('1')
+  const [totalPrice, setTotalPrice] = useState('')
+  const [totalSize, setTotalSize] = useState('')
+  const [sizeUnit, setSizeUnit] = useState<'ml' | 'g' | 'count' | ''>('')
+
+  const handleAdd = () => {
+    if (!name.trim()) {
+      toast.error('Name cannot be empty')
+      return
+    }
+
+    const parsedQuantity = Number(quantity)
+    if (
+      quantity.trim() === '' ||
+      !Number.isFinite(parsedQuantity) ||
+      parsedQuantity <= 0
+    ) {
+      toast.error('Quantity must be a positive number')
+      return
+    }
+
+    const parsedTotalPrice =
+      totalPrice.trim() === '' ? null : Number(totalPrice)
+    if (parsedTotalPrice !== null && !Number.isFinite(parsedTotalPrice)) {
+      toast.error('Price must be a number, or left blank if unknown')
+      return
+    }
+
+    let sizeFields: {
+      totalSize: number | null
+      sizeUnit: 'ml' | 'g' | 'count' | null
+    }
+    if (totalSize.trim() === '') {
+      sizeFields = { totalSize: null, sizeUnit: null }
+    } else {
+      const parsedTotalSize = Number(totalSize)
+      if (!Number.isFinite(parsedTotalSize) || parsedTotalSize <= 0) {
+        toast.error('Total size must be a positive number, or left blank')
+        return
+      }
+      sizeFields = { totalSize: parsedTotalSize, sizeUnit: sizeUnit || null }
+    }
+
+    createItem.mutate(
+      {
+        documentId,
+        itemName: name.trim(),
+        quantity: parsedQuantity,
+        totalPrice: parsedTotalPrice,
+        ...sizeFields,
+      },
+      {
+        onSuccess: () => {
+          toast.success('Item added')
+          onDone()
+        },
+        onError: (error) => toast.error(error.message),
+      },
+    )
+  }
+
+  return (
+    <div className="space-y-1 border border-dashed p-2">
+      <div className="grid grid-cols-[1fr_5rem_6rem_auto_auto] gap-2 items-end">
+        <div className="space-y-1">
+          <Label className="text-[10px] text-muted-foreground">Name</Label>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Almond Milk 1L"
+            className="text-xs"
+            autoFocus
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[10px] text-muted-foreground">Qty</Label>
+          <Input
+            type="number"
+            min="1"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            className="text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[10px] text-muted-foreground">Price</Label>
+          <Input
+            type="number"
+            step="0.01"
+            value={totalPrice}
+            onChange={(e) => setTotalPrice(e.target.value)}
+            className="text-xs"
+          />
+        </div>
+        <Button size="sm" onClick={handleAdd} disabled={createItem.isPending}>
+          Add
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onDone}>
+          Cancel
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-[6rem_6rem_1fr] gap-2 items-end">
+        <div className="space-y-1">
+          <Label className="text-[10px] text-muted-foreground">
+            Total size
+          </Label>
+          <Input
+            type="number"
+            step="any"
+            min="0"
+            placeholder="e.g. 1980"
+            value={totalSize}
+            onChange={(e) => setTotalSize(e.target.value)}
+            className="text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[10px] text-muted-foreground">Unit</Label>
+          <select
+            value={sizeUnit}
+            onChange={(e) =>
+              setSizeUnit(e.target.value as 'ml' | 'g' | 'count' | '')
+            }
+            className="h-8 w-full rounded-none border border-input bg-transparent px-2.5 text-xs"
+          >
+            <option value="">—</option>
+            <option value="ml">ml</option>
+            <option value="g">g</option>
+            <option value="count">count</option>
+          </select>
+        </div>
+      </div>
     </div>
   )
 }
